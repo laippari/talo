@@ -68,12 +68,14 @@ try {
   THREE.Mesh = class extends THREE_NS.Mesh { constructor(g, m){ super(g, m); shadowDefaults(this, m); } };
   THREE.InstancedMesh = class extends THREE_NS.InstancedMesh { constructor(g, m, n){ super(g, m, n); shadowDefaults(this, m); } };
   THREE.SkinnedMesh = class extends THREE_NS.SkinnedMesh { constructor(g, m){ super(g, m); shadowDefaults(this, m); } };
-  const res = await fetch('../data/site.json');
-  if (!res.ok) throw new Error('data');
-  window.SITE_DATA = await res.json();
+  // the data and the application: separate files on the site, inside the page in the single-file build (tools/)
+  const dataEl = document.getElementById('data'), appEl = document.getElementById('app-src');
+  if (dataEl) window.SITE_DATA = JSON.parse(dataEl.textContent);
+  else { const res = await fetch('data/site.json'); if (!res.ok) throw new Error('data'); window.SITE_DATA = await res.json(); }
   window.THREE = THREE; window.TSL = TSL; window.FX = FX; window.TALO_RENDERER = renderer; window.TALO_Q = Q;
   window.TALO_BACKEND = renderer.backend && renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL2';
-  await new Promise((ok, no) => { const s = document.createElement('script'); s.src = './main.js'; s.onload = ok; s.onerror = no; document.body.appendChild(s); });
+  if (appEl) { const s = document.createElement('script'); s.textContent = appEl.textContent; document.body.appendChild(s); }
+  else await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'src/main.js'; s.onload = ok; s.onerror = no; document.body.appendChild(s); });
 } catch (e) {
   console.error(e);
   fail('3D-näkymä ei käynnistynyt: ' + (e && e.message ? e.message : e));

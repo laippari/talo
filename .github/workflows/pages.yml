@@ -1,5 +1,5 @@
 # Julkaisee sivun GitHub Pagesiin jokaisella main-haaran pushilla.
-# Sivu on staattinen (ei käännösvaihetta): julkaistaan index.html, src/, data/, assets/ ja next/.
+# Sivu on staattinen (ei käännösvaihetta): julkaistaan index.html, src/, data/, assets/, vanha/ ja next/.
 name: Deploy to GitHub Pages
 
 on:
@@ -31,15 +31,15 @@ jobs:
           python3 -c "import json; json.load(open('data/site.json', encoding='utf-8'))" || { echo "data/site.json ei ole kelvollista JSONia"; exit 1; }
       - name: Check script syntax
         run: |
+          # sovellus on tavallinen skripti, käynnistys ja tehosteet ES-moduuleja
           node --check src/main.js || { echo "syntaksivirhe: src/main.js"; exit 1; }
-          # uusi moottori (next/) on ES-moduuleja
-          if [ -d next ]; then for f in $(find next -name '*.js'); do node --input-type=module --check < "$f" || { echo "syntaksivirhe: $f"; exit 1; }; done; fi
+          for f in src/boot.js src/fx.js; do node --input-type=module --check < "$f" || { echo "syntaksivirhe: $f"; exit 1; }; done
+          node --check vanha/main.js || { echo "syntaksivirhe: vanha/main.js"; exit 1; }
       - name: Assemble site
         run: |
           mkdir _site
           cp index.html _site/
-          cp -r src data assets _site/
-          if [ -d next ]; then cp -r next _site/; fi
+          cp -r src data assets vanha next _site/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

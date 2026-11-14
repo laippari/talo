@@ -7,13 +7,18 @@ https://laippari.github.io/talo/
 
 | Polku | Sisältö |
 | --- | --- |
-| `index.html` | Sivun rakenne ja tyylit. Lataa datan ja käynnistää sovelluksen. |
-| `src/main.js` | Koko sovellus (three.js r128, WebGL). |
+| `index.html` | Sivun rakenne ja tyylit. Käynnistää `src/boot.js`:n. |
+| `src/boot.js` | Käynnistys: three.js 0.186.1, WebGPU-piirtäjä (WebGL2 varalla), laatutaso, varjot ja sävykäyrä. |
+| `src/fx.js` | Mallin omat tehosteet piirtäjän solmuina (maaston leikkaukset, lasi, sisävalot, tuli, esteiden piilotus). |
+| `src/main.js` | Koko sovellus: malli ja käyttöliittymä. |
 | `data/site.json` | Maasto, tontti, rakennukset, puut ja ilmakuvat. |
 | `assets/` | Media (olohuoneen television video). |
-| `next/` | Uusi piirtomoottori (three.js 0.186.1, WebGPU ja WebGL2-varatie). Kehitysversio, joka korvaa `src/`-version, kun se on valmis. |
+| `vanha/` | Edellinen moottori (three.js r128, WebGL) sellaisenaan varalla: https://laippari.github.io/talo/vanha/ |
+| `next/` | Ohjaus pääsivulle (uuden moottorin kehitysosoite). |
 | `tools/build_single.py` | Kokoaa sivusta yhden HTML-tiedoston (`dist/talo.html`). |
 | `docs/SUUNNITELMA.md` | Renderöinnin ja mallinnuksen parannussuunnitelma ja sen tilanne. |
+
+Osoitteen perään voi lisätä `?webgl` (pakottaa WebGL2:n) tai `?varjot=0` (varjot pois).
 
 ## Avaaminen
 
@@ -37,7 +42,7 @@ Käännösvaihetta ei ole. Workflow tarkistaa datan ja skriptien syntaksin ja ju
 
 Sama malli kuin Oura- ja kartat-projekteissa:
 
-1. Muutokset tehdään `src/main.js`-tiedostoon (tai uuden moottorin osalta `next/`-kansioon).
+1. Muutokset tehdään `src/`-kansion tiedostoihin ja `index.html`:ään. `vanha/`-kansioon ei kosketa.
 2. Muutos tarkistetaan paikallisesti: siirrot, kierrot, peilaus, mallinvaihto, näkymät, simulaatio ja mobiili
    kaikilla talomalleilla.
 3. Commit ja push `main`-haaraan → GitHub Actions julkaisee sivun noin minuutissa.

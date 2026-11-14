@@ -1,4 +1,4 @@
-// Talo: tontin, talon ja pihan 3D-malli. Uusi moottori: three.js 0.186.1, WebGPU ja WebGL2-varatie (boot.js käynnistää).
+// Talo: tontin, talon ja pihan 3D-malli (three.js r128, WebGL).
 // Sivun osat: index.html (rakenne ja tyylit), tämä tiedosto (koko sovellus), data/site.json (maasto, tontti, rakennukset,
 // puut, ilmakuvat) ja assets/ (video). index.html lataa datan ja käynnistää tämän tiedoston sen jälkeen.
 (function(){
@@ -33,7 +33,7 @@
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var renderer;
-  try { renderer = window.TALO_RENDERER; if (!renderer) throw new Error('renderer'); }
+  try { renderer = new THREE.WebGLRenderer({antialias:true, alpha:true}); }
   catch (e) { document.getElementById('fail').hidden = false; if (loadingEl) loadingEl.hidden = true; return; }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   view.insertBefore(renderer.domElement, view.firstChild);
@@ -50,24 +50,27 @@
 
   // daylight follows the time of day (Näkymä): the sun of a mid-July day in Vihti, a sky dome and a light haze far away
   var sunDir = new THREE.Vector3(0.88, 0.26, -0.4).normalize();
-  // light intensities are the old ones times LK: the new renderer counts light in physical units (a factor of pi)
-  var LK = Math.PI;
-  var hemi = new THREE.HemisphereLight(0xdfe6f3, 0x6c6555, 0.66 * LK); scene.add(hemi);
-  // the colours of the lights are multipliers as they were written, not screen colours: taken as they are
-  var LIN = THREE.LinearSRGBColorSpace; hemi.color.setHex(0xdfe6f3, LIN); hemi.groundColor.setHex(0x6c6555, LIN);
-  var sun = new THREE.DirectionalLight(0xffd8ab, 0.72 * LK); sun.position.copy(sunDir).multiplyScalar(100); scene.add(sun); sun.color.setHex(0xffd8ab, LIN);
-  // The sun casts shadows over the plot and a little round it: one shadow map fitted to the plot (sunFit, once the plot is
-  // known). With shadows the sun is stronger and the sky light weaker than without, so the shaded side is clearly darker
-  // and cooler while what is in the sun stays as bright as it was
-  var SHADOW = window.TALO_Q && window.TALO_Q.shadow > 0, SH = SHADOW ? {sun:1.5, hemi:0.7} : {sun:1, hemi:1};
-  scene.add(sun.target);
-  if (SHADOW) { sun.castShadow = true; sun.shadow.mapSize.set(window.TALO_Q.shadow, window.TALO_Q.shadow); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.035; sun.shadow.radius = 1.5; }
-  function sunFit(cx, cy, cz, r){
-    sun.target.position.set(cx, cy, cz); sun.target.updateMatrixWorld();
-    var c = sun.shadow.camera; c.left = -r; c.right = r; c.top = r; c.bottom = -r; c.near = 40; c.far = 260; c.updateProjectionMatrix();
-  }
-  function sunPlace(dir){ sun.position.copy(sun.target.position).addScaledVector(dir, 150); }
-  var skyMat = FX.skyMaterial(sunDir);
+  var hemi = new THREE.HemisphereLight(0xdfe6f3, 0x6c6555, 0.66); scene.add(hemi);
+  var sun = new THREE.DirectionalLight(0xffd8ab, 0.72); sun.position.copy(sunDir).multiplyScalar(100); scene.add(sun);
+  var skyMat = new THREE.ShaderMaterial({
+    uniforms:{sunDir:{value:sunDir}, dusk:{value:0}, noon:{value:0}}, side:THREE.BackSide, depthWrite:false, fog:false,
+    vertexShader:'varying vec3 vDir;\nvoid main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader:[
+      'uniform vec3 sunDir; uniform float dusk; uniform float noon; varying vec3 vDir;',
+      'void main(){',
+      '  vec3 d = normalize(vDir); float h = d.y;',
+      '  vec3 zen = mix(mix(vec3(0.27, 0.40, 0.62), vec3(0.24, 0.44, 0.76), noon), vec3(0.035, 0.05, 0.12), dusk);',
+      '  vec3 mid = mix(mix(vec3(0.58, 0.68, 0.81), vec3(0.52, 0.68, 0.88), noon), vec3(0.11, 0.14, 0.26), dusk);',
+      '  vec3 hor = mix(mix(vec3(0.97, 0.82, 0.64), vec3(0.85, 0.90, 0.95), noon), vec3(0.62, 0.36, 0.25), dusk);',
+      '  vec3 gnd = mix(vec3(0.46, 0.44, 0.40), vec3(0.08, 0.08, 0.09), dusk);',
+      '  vec3 col = h >= 0.0 ? mix(hor, mid, smoothstep(0.0, 0.2, h)) : mix(hor, gnd, smoothstep(0.0, 0.12, -h));',
+      '  if (h > 0.2) col = mix(mid, zen, smoothstep(0.2, 0.8, h));',
+      '  float sd = max(dot(d, sunDir), 0.0);',
+      '  col += mix(vec3(1.0, 0.70, 0.40), vec3(1.0, 0.93, 0.80), noon) * (pow(sd, 5.0) * 0.30 + pow(sd, 60.0) * 0.45) * (1.0 - smoothstep(0.05, 0.6, h)) * (1.0 - dusk * 0.6) * (1.0 - noon * 0.5);',
+      '  col = mix(col, vec3(1.0, 0.96, 0.86), smoothstep(0.9988, 0.9996, sd) * (1.0 - dusk));',
+      '  gl_FragColor = vec4(col, 1.0);',
+      '}'].join('\n')
+  });
   var sky = new THREE.Mesh(new THREE.SphereGeometry(18000, 48, 24), skyMat); sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
   var FOG_NEAR = 2600, FOG_FAR = 26000;
   scene.fog = new THREE.Fog(0xd8cfc2, FOG_NEAR, FOG_FAR);
@@ -143,8 +146,8 @@
     return wsrc[j * wc + i];
   }
 
-  var RAMP = window.__RAMP.map(function(r){ return [r[0], THREE.screenColor(r[1])]; });
-  var lakeCol = THREE.screenColor('#8fbadb');
+  var RAMP = window.__RAMP.map(function(r){ return [r[0], new THREE.Color(r[1])]; });
+  var lakeCol = new THREE.Color('#8fbadb');
   function rampAt(z){
     if (z <= RAMP[0][0]) return RAMP[0][1].clone();
     for (var i = 1; i < RAMP.length; i++) if (z <= RAMP[i][0]) { var t = (z - RAMP[i-1][0]) / (RAMP[i][0] - RAMP[i-1][0]); return RAMP[i-1][1].clone().lerp(RAMP[i][1], t); }
@@ -190,7 +193,7 @@
   var outerMat = new THREE.MeshLambertMaterial({vertexColors:true});
   var outerNeedsShader = true;
   var og0 = makeGeo(op, on, oc, oi); og0.setAttribute('uv', new THREE.BufferAttribute(ouv, 2));
-  var outer = new THREE.Mesh(og0, outerMat); outer.castShadow = false; world.add(outer);
+  var outer = new THREE.Mesh(og0, outerMat); world.add(outer);
 
   // detail mesh (1 m, survey blended in)
   var n2 = wc * wr, wp = new Float32Array(n2 * 3), wn = new Float32Array(n2 * 3), wcl = new Float32Array(n2 * 3);
@@ -260,15 +263,72 @@
   var roadTexN = new THREE.CanvasTexture(rncv); roadTexN.flipY = false; roadTexN.anisotropy = 4;
   // the tub's hole in the ground: its middle and the house's axis along the wall, its half width and corner radius (a
   // circle is a rounded square with the radius its half width); the ground is not drawn a little inside its sides
-  var TUBU = FX.uniforms({uTubOn:0, uTub:new THREE.Vector4(0, 0, 1, 0), uTubS:new THREE.Vector4(1, 0.3, 0, 0), uPitOn:0, uPit:new THREE.Vector4(0, 0, 1, 0), uPitS:new THREE.Vector4(1, 1, 0, 0)});
+  var TUBU = {uTubOn:{value:0}, uTub:{value:new THREE.Vector4(0, 0, 1, 0)}, uTubS:{value:new THREE.Vector4(1, 0.3, 0, 0)},
+              uPitOn:{value:0}, uPit:{value:new THREE.Vector4(0, 0, 1, 0)}, uPitS:{value:new THREE.Vector4(1, 1, 0, 0)}};
+  var TUB_GLSL = 'uniform float uTubOn;\nuniform vec4 uTub;\nuniform vec4 uTubS;\nuniform float uPitOn;\nuniform vec4 uPit;\nuniform vec4 uPitS;\n';
+  var PIT_CUT = function(v){ return '  if (uPitOn > 0.5) { vec2 pq = ' + v + ' - uPit.xy; vec2 pl = abs(vec2(dot(pq, uPit.zw), dot(pq, vec2(-uPit.w, uPit.z)))); if (pl.x < uPitS.x && pl.y < uPitS.y) discard; }\n'; };
+  var TUB_CUT = PIT_CUT('vCutXZ') + '  if (uTubOn > 0.5) { vec2 tdq = vCutXZ - uTub.xy; vec2 tlq = abs(vec2(dot(tdq, uTub.zw), dot(tdq, vec2(-uTub.w, uTub.z)))) - vec2(uTubS.x - uTubS.y); if (length(max(tlq, 0.0)) + min(max(tlq.x, tlq.y), 0.0) - uTubS.y < -0.015) discard; }\n';
   // the grey look of the ground (Harmaasävy, and Pelkkä talo / Pelkkä autotalli): the slope lit from one side and the
   // height from dark to light, whatever the time of day
-  var GRAYU = FX.uniforms({uGray:0, uGrayZ:new THREE.Vector2(Y(33), Y(49))});
-  function grayAware(mat, tag){ return FX.grayAware(mat, GRAYU); }
-  function pitAware(mat){ return FX.pitAware(mat, TUBU); }
-  var cutU = FX.uniforms({uCut:0, uMask:maskTex, uBox:new THREE.Vector4(bx0, bz0, bx1 - bx0, bz1 - bz0), uRoadOn:1, uRoadK:1, uRoad:roadTex, uRoadBox:new THREE.Vector4(rx0, rz0, rx1 - rx0, rz1 - rz0),
-              uRoadN:roadTexN, uRoadBoxN:new THREE.Vector4(-RN, -RN, 2 * RN, 2 * RN), uPlanOn:0, uPlanMask:maskTex, uPlanBox:new THREE.Vector4(0, 0, 1, 1)});
-  function cutAware(mat){ return FX.cutAware(mat, cutU, TUBU); }
+  var GRAYU = {uGray:{value:0}, uGrayZ:{value:new THREE.Vector2(Y(33), Y(49))}};
+  function grayAware(mat, tag){
+    var prev = mat.onBeforeCompile, pk = mat.customProgramCacheKey ? mat.customProgramCacheKey() : '';
+    mat.onBeforeCompile = function(sh, r){
+      if (prev) prev.call(this, sh, r);
+      sh.uniforms.uGray = GRAYU.uGray; sh.uniforms.uGrayZ = GRAYU.uGrayZ;
+      sh.vertexShader = 'varying vec3 vGN;\nvarying float vGY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vGN = normal; vGY = position.y;');
+      sh.fragmentShader = 'uniform float uGray;\nuniform vec2 uGrayZ;\nvarying vec3 vGN;\nvarying float vGY;\n' + sh.fragmentShader.replace('#include <fog_fragment>',
+        '  if (uGray > 0.5) { float ghs = clamp(dot(normalize(vGN), normalize(vec3(-0.5, 0.62, -0.6))), 0.0, 1.0); float ghv = clamp((vGY - uGrayZ.x) / (uGrayZ.y - uGrayZ.x), 0.0, 1.0); gl_FragColor.rgb = vec3(0.13 + 0.58 * ghs * ghs + 0.27 * ghv); }\n#include <fog_fragment>');
+    };
+    mat.customProgramCacheKey = function(){ return 'gray-' + tag + '-' + pk; };
+    return mat;
+  }
+  function pitAware(mat){
+    var prev = mat.onBeforeCompile;
+    mat.onBeforeCompile = function(sh, r){
+      if (prev) prev.call(this, sh, r);
+      ['uPitOn', 'uPit', 'uPitS'].forEach(function(k){ sh.uniforms[k] = TUBU[k]; });
+      sh.vertexShader = 'varying vec2 vPitXZ;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPitXZ = position.xz;');
+      sh.fragmentShader = 'uniform float uPitOn;\nuniform vec4 uPit;\nuniform vec4 uPitS;\nvarying vec2 vPitXZ;\n' + sh.fragmentShader.replace('void main() {', 'void main() {\n' + PIT_CUT('vPitXZ'));
+    };
+    return mat;
+  }
+  var cutU = {uCut:{value:0}, uMask:{value:maskTex}, uBox:{value:new THREE.Vector4(bx0, bz0, bx1 - bx0, bz1 - bz0)},
+              uRoadOn:{value:1}, uRoadK:{value:1}, uRoad:{value:roadTex}, uRoadBox:{value:new THREE.Vector4(rx0, rz0, rx1 - rx0, rz1 - rz0)},
+              uRoadN:{value:roadTexN}, uRoadBoxN:{value:new THREE.Vector4(-RN, -RN, 2 * RN, 2 * RN)},
+              uPlanOn:{value:0}, uPlanMask:{value:maskTex}, uPlanBox:{value:new THREE.Vector4(0, 0, 1, 1)}};
+  var ROAD_U = ['uRoadOn', 'uRoadK', 'uRoad', 'uRoadBox', 'uRoadN', 'uRoadBoxN'];
+  var ROAD_GLSL = [
+    'uniform float uRoadOn;', 'uniform float uRoadK;', 'uniform sampler2D uRoad;', 'uniform vec4 uRoadBox;', 'uniform sampler2D uRoadN;', 'uniform vec4 uRoadBoxN;',
+    'float rdH(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }',
+    'float rdN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(rdH(i), rdH(i + vec2(1.0, 0.0)), f.x), mix(rdH(i + vec2(0.0, 1.0)), rdH(i + vec2(1.0, 1.0)), f.x), f.y); }',
+    'vec3 roadTint(vec3 c, vec2 xz){',
+    '  vec2 ruv = (xz - uRoadBox.xy) / uRoadBox.zw, nuv = (xz - uRoadBoxN.xy) / uRoadBoxN.zw;',
+    '  if (ruv.x < 0.0 || ruv.y < 0.0 || ruv.x > 1.0 || ruv.y > 1.0) return c;',
+    '  vec4 ra = texture2D(uRoad, ruv), rb = texture2D(uRoadN, clamp(nuv, 0.0, 1.0));',
+    '  vec2 en = step(vec2(0.002), nuv) * step(nuv, vec2(0.998));',
+    '  vec4 rm = mix(ra, rb, en.x * en.y);',
+    '  float gr = rdN(xz * 9.0) - 0.5, gg = (rdN(xz * 17.0) - 0.5) * 0.8 + (rdN(xz * 41.0) - 0.5) * 0.7, pa = rdN(xz * 0.35) - 0.5, pb = rdN(xz * 1.6) - 0.5;',
+    // darker asphalt (as the yard's), a crisp edge with a little wear, and shoulders of light gravel along it
+    '  vec3 asp = vec3(0.205, 0.212, 0.224) * (1.0 + 0.07 * gr + 0.12 * pa + 0.06 * pb);',
+    '  vec3 lgt = vec3(0.33, 0.335, 0.335) * (1.0 + 0.07 * gr + 0.12 * pa);',
+    '  vec3 grv = vec3(0.53, 0.5, 0.44) * (1.0 + 0.16 * gg + 0.08 * pb);',
+    '  c = mix(c, grv, smoothstep(0.16, 0.36, rm.b) * uRoadK);',
+    '  c = mix(c, lgt, smoothstep(0.4, 0.6, rm.g) * uRoadK);',
+    '  float red = smoothstep(0.3, 0.48, rm.r) * (1.0 - smoothstep(0.52, 0.7, rm.r));',
+    '  c = mix(c, asp, smoothstep(0.42, 0.58, rm.r) * uRoadK);',
+    '  return c * (1.0 - 0.16 * red * uRoadK);',
+    '}', ''].join('\n');
+  function cutAware(mat){
+    mat.onBeforeCompile = function(sh){
+      ['uCut','uMask','uBox','uPlanOn','uPlanMask','uPlanBox'].concat(ROAD_U).forEach(function(k){ sh.uniforms[k] = cutU[k]; }); Object.keys(TUBU).forEach(function(k){ sh.uniforms[k] = TUBU[k]; });
+      sh.vertexShader = 'varying vec2 vCutXZ;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vCutXZ = position.xz;');
+      sh.fragmentShader = 'uniform float uCut;\nuniform sampler2D uMask;\nuniform vec4 uBox;\nuniform float uPlanOn;\nuniform sampler2D uPlanMask;\nuniform vec4 uPlanBox;\nvarying vec2 vCutXZ;\n' + TUB_GLSL + ROAD_GLSL + sh.fragmentShader
+        .replace('void main() {', 'void main() {\n' + TUB_CUT + '  if (uCut > 0.5) { vec2 uvm = (vCutXZ - uBox.xy) / uBox.zw; if (uvm.x < 0.0 || uvm.y < 0.0 || uvm.x > 1.0 || uvm.y > 1.0 || texture2D(uMask, uvm).r < 0.5) discard; }\n  if (uPlanOn > 0.5) { vec2 pmv = (vCutXZ - uPlanBox.xy) / uPlanBox.zw; if (pmv.x >= 0.0 && pmv.y >= 0.0 && pmv.x <= 1.0 && pmv.y <= 1.0 && texture2D(uPlanMask, pmv).r > 0.5) discard; }')
+        .replace('#include <color_fragment>', '#include <color_fragment>\n  if (uRoadOn > 0.5) diffuseColor.rgb = roadTint(diffuseColor.rgb, vCutXZ);');
+    };
+    return mat;
+  }
   // fine grain laid over the yard texture in the shader, at a scale the yard texture cannot hold: the aggregate of the
   // asphalt (R, about 5 mm, a tile of 0.5 m) and the stones of the gravel (G, 1 to 3 cm, a tile of 1 m); the mipmaps
   // fade it out far away. Both channels average to the middle, so the colour stays where it was
@@ -292,8 +352,26 @@
     g.putImageData(id, 0, 0);
   })();
   var detTex = new THREE.CanvasTexture(detCv); detTex.wrapS = detTex.wrapT = THREE.RepeatWrapping; detTex.anisotropy = 8;
+  var DET_GLSL = [
+    'uniform sampler2D uDet;',
+    'vec3 yardGrain(vec3 c, vec2 xz){',
+    '  float mx = max(max(c.r, c.g), c.b), mn = min(min(c.r, c.g), c.b), grey = 1.0 - smoothstep(0.12, 0.3, (mx - mn) / max(mx, 0.001));',
+    '  float lum = dot(c, vec3(0.3, 0.59, 0.11));',
+    '  float da = texture2D(uDet, xz * 2.0).r - 0.5, dg = texture2D(uDet, xz + 0.37).g - 0.5;',
+    '  float fa = grey * (1.0 - smoothstep(0.32, 0.5, lum)), fg = grey * smoothstep(0.42, 0.6, lum);',
+    '  float gn = smoothstep(0.03, 0.12, c.g - max(c.r, c.b)), b1 = texture2D(uDet, xz * 4.3).r - 0.5, b2 = texture2D(uDet, xz * 1.6 + 0.21).g - 0.5, b3 = texture2D(uDet, xz * 0.27 + 0.6).r - 0.5;',
+    '  vec3 lawn = c * (1.0 + 0.42 * b1 + 0.26 * b2) * (1.0 + 0.22 * b3) + vec3(0.03, 0.025, 0.0) * smoothstep(0.1, 0.4, b3);',
+    '  return mix(c * (1.0 + fa * 0.55 * da + fg * 0.7 * dg), lawn, gn);',
+    '}', ''].join('\n');
   // the yard texture shows the orthophoto outside the plot, so the street through it gets the same road paint
-  function roadAware(mat){ return FX.roadAware(mat, cutU, TUBU, detTex, ykTex); }
+  function roadAware(mat){
+    mat.onBeforeCompile = function(sh){
+      ROAD_U.forEach(function(k){ sh.uniforms[k] = cutU[k]; }); Object.keys(TUBU).forEach(function(k){ sh.uniforms[k] = TUBU[k]; }); sh.uniforms.uDet = {value:detTex}; sh.uniforms.uYardK = {value:ykTex};
+      sh.vertexShader = 'varying vec2 vCutXZ;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vCutXZ = position.xz;');
+      sh.fragmentShader = 'varying vec2 vCutXZ;\nuniform sampler2D uYardK;\n' + TUB_GLSL + ROAD_GLSL + DET_GLSL + sh.fragmentShader.replace('void main() {', 'void main() {\n' + TUB_CUT).replace('#include <map_fragment>', '#include <map_fragment>\n  diffuseColor.rgb = mix(diffuseColor.rgb, yardGrain(diffuseColor.rgb, vCutXZ), texture2D(uYardK, vUv).r);\n  if (uRoadOn > 0.5) diffuseColor.rgb = roadTint(diffuseColor.rgb, vCutXZ);');
+    };
+    return mat;
+  }
   var detailMat = grayAware(cutAware(new THREE.MeshLambertMaterial({vertexColors:true})), 'detail');
   if (outerNeedsShader) cutAware(outerMat);
   grayAware(outerMat, 'outer');
@@ -330,7 +408,7 @@
       a.onload = done; b.onload = done; a.src = FAR.a; b.src = FAR.b;
     })();
     farMat = new THREE.MeshLambertMaterial({vertexColors:true, polygonOffset:true, polygonOffsetFactor:4, polygonOffsetUnits:4});
-    grayAware(farMat, 'far'); farMesh = new THREE.Mesh(fg, farMat); farMesh.castShadow = farMesh.receiveShadow = false; world.add(farMesh);
+    grayAware(farMat, 'far'); farMesh = new THREE.Mesh(fg, farMat); world.add(farMesh);
   }
 
   // the 24 m surroundings come as a surface model with the forest canopy in it; the ground under it is estimated: the
@@ -378,8 +456,13 @@
     var holeU = {uHole:{value:new THREE.Vector4(HO[0] + xsp, HO[1] + xsp, HO[2] - xsp, HO[3] - xsp)},
                  uTE:{value:new THREE.Vector3(a0[0], ax[0] - a0[0], az[0] - a0[0])}, uTN:{value:new THREE.Vector3(a0[1], ax[1] - a0[1], az[1] - a0[1])}};
     xfMat = new THREE.MeshLambertMaterial({vertexColors:true, polygonOffset:true, polygonOffsetFactor:8, polygonOffsetUnits:8});
-    FX.holeCut(xfMat, holeU.uHole.value, holeU.uTE.value, holeU.uTN.value);
-    grayAware(xfMat, 'xfar'); xfMesh = new THREE.Mesh(xg, xfMat); xfMesh.castShadow = xfMesh.receiveShadow = false; world.add(xfMesh);
+    xfMat.onBeforeCompile = function(sh){
+      Object.keys(holeU).forEach(function(k){ sh.uniforms[k] = holeU[k]; });
+      sh.vertexShader = 'varying vec2 vHxz;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vHxz = position.xz;');
+      sh.fragmentShader = 'uniform vec4 uHole;\nuniform vec3 uTE;\nuniform vec3 uTN;\nvarying vec2 vHxz;\n' + sh.fragmentShader.replace('void main() {',
+        'void main() {\n  float hE = uTE.x + uTE.y * vHxz.x + uTE.z * vHxz.y, hN = uTN.x + uTN.y * vHxz.x + uTN.z * vHxz.y;\n  if (hE > uHole.x && hE < uHole.z && hN > uHole.y && hN < uHole.w) discard;');
+    };
+    grayAware(xfMat, 'xfar'); xfMesh = new THREE.Mesh(xg, xfMat); world.add(xfMesh);
   }
 
   // cut wall, rim and bottom
@@ -581,7 +664,7 @@
   // neighbouring buildings (MML Maastotietokanta footprints, heights estimated)
   var BLD = [];
   (function(){
-    var WALL_L = THREE.screenColor('#d9d3c9'), ROOF_L = THREE.screenColor('#7b7670'), WALL_D = THREE.screenColor('#3a3d40'), ROOF_D = THREE.screenColor('#25282a'), WALL_C, ROOF_C;
+    var WALL_L = new THREE.Color('#d9d3c9'), ROOF_L = new THREE.Color('#7b7670'), WALL_D = new THREE.Color('#3a3d40'), ROOF_D = new THREE.Color('#25282a'), WALL_C, ROOF_C;
     var sets = {bldg:{p:[], c:[]}, bldgOut:{p:[], c:[]}};
     function tri(set, a, b, c, col){ [a, b, c].forEach(function(v){ set.p.push(v[0], v[1], v[2]); set.c.push(col.r, col.g, col.b); }); }
     function spec(b, area){
@@ -739,7 +822,7 @@
     var MAT = {}, BMAT = {};
     Object.keys(LEAF).forEach(function(k){ MAT[k] = new THREE.MeshLambertMaterial({map:LEAF[k], alphaTest:k === 'pine' || k === 'spruce' ? 0.5 : 0.45, side:THREE.DoubleSide, vertexColors:true}); });
     // cards carry outward crown normals, so both faces take the front-face light (no dark backs on the sunny side)
-    Object.keys(MAT).forEach(function(k){ FX.leafLit(MAT[k]); });
+    Object.keys(MAT).forEach(function(k){ MAT[k].onBeforeCompile = function(sh){ sh.fragmentShader = sh.fragmentShader.replace(/\(\s*gl_FrontFacing\s*\)\s*\?\s*vLightFront\s*:\s*vLightBack/g, 'vLightFront').replace(/\(\s*gl_FrontFacing\s*\)\s*\?\s*vIndirectFront\s*:\s*vIndirectBack/g, 'vIndirectFront'); }; });
     Object.keys(BARK).forEach(function(k){ BMAT[k] = new THREE.MeshLambertMaterial({map:BARK[k]}); });
     // geometry accumulator
     function Acc(){ this.p = []; this.n = []; this.u = []; this.c = []; this.i = []; }
@@ -896,20 +979,53 @@
   })();
   // trees in front of the camera can be hidden (Näkymä: Esteet pois kameran edestä): a tree whose trunk comes within the
   // set distance of the camera, short of the point looked at, is dropped in the vertex shader, so it costs nothing
-  var TREE_U = FX.uniforms({uTreeHide:0, uTreeFwd:new THREE.Vector3(0, 0, -1), uTreeLt:1e6, uTreeH:16, uTreeCam:new THREE.Vector3()});
-  function treeHide(mat){ FX.treeHide(mat, TREE_U, DATA.plot.corners); }
-  // the other obstacles off the plot (the neighbours' buildings, poles) are cut away where they come within the same
-  // distance in front of the camera, short of the point looked at; not in Katsele ympärille, where one may stand
-  // inside a building
-  var OB_U = FX.uniforms({uObD:0, uObLt:1e6}), obTick = 0;
-  function obHide(mat){ FX.obHide(mat, TREE_U, OB_U, DATA.plot.corners); }
-  // an instanced tree's geometry: the model's own attributes (shared) and each tree's foot and height for treeHide
-  function treeGeo(g, tb){
-    var o = new THREE.BufferGeometry();
-    Object.keys(g.attributes).forEach(function(k){ o.setAttribute(k, g.attributes[k]); });
-    if (g.index) o.setIndex(g.index);
-    o.setAttribute('tb', tb);
-    return o;
+  var TREE_U = {uTreeHide:{value:0}, uTreeFwd:{value:new THREE.Vector3(0, 0, -1)}, uTreeLt:{value:1e6}, uTreeH:{value:16}, uTreeCam:{value:new THREE.Vector3()}};
+  // inside the plot (world x, z)? Things on the plot itself are never taken away from in front of the camera
+  function plotGLSL(){
+    var P = DATA.plot.corners, s = 'bool plotIn(vec2 p){ bool c = false;\n';
+    for (var i = 0; i < P.length; i++) {
+      var a = P[i], b = P[(i + 1) % P.length], f = function(v){ return v.toFixed(3); };
+      if (Math.abs(b[1] - a[1]) < 1e-6) continue;
+      s += '  if (((' + f(a[1]) + ' > p.y) != (' + f(b[1]) + ' > p.y)) && p.x < ' + f((b[0] - a[0]) / (b[1] - a[1])) + ' * (p.y - (' + f(a[1]) + ')) + (' + f(a[0]) + ')) c = !c;\n';
+    }
+    return s + '  return c; }\n';
+  }
+  function treeHide(mat){
+    var prev = mat.onBeforeCompile;
+    mat.onBeforeCompile = function(sh, r){
+      if (prev) prev(sh, r);
+      ['uTreeHide', 'uTreeFwd', 'uTreeLt', 'uTreeH', 'uTreeCam'].forEach(function(k){ sh.uniforms[k] = TREE_U[k]; });
+      sh.vertexShader = 'uniform float uTreeHide;\nuniform vec3 uTreeFwd;\nuniform float uTreeLt;\nuniform float uTreeH;\nuniform vec3 uTreeCam;\n' + plotGLSL() + sh.vertexShader.replace('#include <project_vertex>', [
+        '#include <project_vertex>',
+        'if (uTreeHide > 0.0) {',
+        '#ifdef USE_INSTANCING',
+        '  vec3 tB = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz; float tH = uTreeH * length(instanceMatrix[1].xyz);',
+        '#else',
+        '  vec3 tB = (modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz; float tH = uTreeH * 1.3;',
+        '#endif',
+        '  vec3 tq = vec3(tB.x, clamp(uTreeCam.y, tB.y, tB.y + tH), tB.z) - uTreeCam;',
+        '  if (length(tq) < uTreeHide && dot(tq, uTreeFwd) < uTreeLt && !plotIn(tB.xz)) gl_Position = vec4(0.0, 0.0, 2.0, 1.0);',
+        '}'].join('\n'));
+    };
+  }
+  // the other obstacles off the plot (the neighbours' buildings, poles) are cut
+  // away in the fragment shader where they come within the same distance in front of the camera, short of the point looked
+  // at; not in Katsele ympärille, where one may stand inside a building
+  var OB_U = {uObD:{value:0}, uObLt:{value:1e6}}, obTick = 0;
+  function obHide(mat){
+    if (!mat || mat.userData.ob || mat.isShaderMaterial || mat.isRawShaderMaterial || mat.isLineBasicMaterial || mat.isPointsMaterial || mat.isSpriteMaterial) return;
+    mat.userData.ob = true;
+    var prev = mat.onBeforeCompile, pk = mat.customProgramCacheKey();
+    mat.onBeforeCompile = function(sh, r){
+      if (prev) prev(sh, r);
+      sh.uniforms.uObD = OB_U.uObD; sh.uniforms.uObLt = OB_U.uObLt; sh.uniforms.uObCam = TREE_U.uTreeCam; sh.uniforms.uObFwd = TREE_U.uTreeFwd;
+      sh.vertexShader = 'varying vec3 vObW;\n' + sh.vertexShader.replace('#include <project_vertex>', ['#include <project_vertex>',
+        '#ifdef USE_INSTANCING', 'vObW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;', '#else', 'vObW = (modelMatrix * vec4(transformed, 1.0)).xyz;', '#endif'].join('\n'));
+      sh.fragmentShader = 'uniform float uObD;\nuniform float uObLt;\nuniform vec3 uObCam;\nuniform vec3 uObFwd;\nvarying vec3 vObW;\n' + plotGLSL() + sh.fragmentShader.replace('void main() {',
+        'void main() {\n  if (uObD > 0.0) { vec3 oq = vObW - uObCam; if (length(oq) < uObD && dot(oq, uObFwd) < uObLt && !plotIn(vObW.xz)) discard; }');
+    };
+    mat.customProgramCacheKey = function(){ return pk + '|ob'; };
+    mat.needsUpdate = true;
   }
   function obPatchAll(){
     var roots = [];
@@ -923,13 +1039,6 @@
   // Further out simple shapes are enough
   var TREEG = [];
   // trees on and next to the plot, so the yard plan can hide the ones that would go under asphalt, buildings or deep fill
-  // the sun's shadow map covers the plot and about ten metres round it
-  (function(){
-    var P = DATA.plot.corners, cx = 0, cz = 0, r = 0;
-    P.forEach(function(p){ cx += p[0] / P.length; cz += p[1] / P.length; });
-    P.forEach(function(p){ r = Math.max(r, Math.hypot(p[0] - cx, p[1] - cz)); });
-    sunFit(cx, Y(43), cz, r + 10); sunPlace(sunDir);
-  })();
   var TREECLR = [], PBB = (function(){ var P = DATA.plot.corners, xs = P.map(function(p){ return p[0]; }), zs = P.map(function(p){ return p[1]; }); return [Math.min.apply(null, xs) - 6, Math.min.apply(null, zs) - 6, Math.max.apply(null, xs) + 6, Math.max.apply(null, zs) + 6]; })();
   function nearPlot(x, z){ return x > PBB[0] && z > PBB[1] && x < PBB[2] && z < PBB[3]; }
   var TREE_SP = {spruce:0, pine:0, birch:0, aspen:0, maple:0, oak:0};
@@ -979,15 +1088,13 @@
     var m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3(), col = new THREE.Color(), YAX = new THREE.Vector3(0, 1, 0);
     Object.keys(sets).forEach(function(key){
       var kp = key.split('|'), lay = kp[0], T = TPL[kp[1]][Number(kp[2])], list = sets[key];
-      var tb = new THREE.InstancedBufferAttribute(new Float32Array(list.length * 4), 4);
-      list.forEach(function(t, i){ tb.setXYZW(i, t[0], Y(t[3]), t[1], t[2]); });
-      var barkI = new THREE.InstancedMesh(treeGeo(T.bark, tb), T.bm, list.length), leafI = new THREE.InstancedMesh(treeGeo(T.leaf, tb), T.lm, list.length);
-      barkI.frustumCulled = leafI.frustumCulled = false; barkI.castShadow = leafI.castShadow = barkI.receiveShadow = leafI.receiveShadow = false;
+      var barkI = new THREE.InstancedMesh(T.bark, T.bm, list.length), leafI = new THREE.InstancedMesh(T.leaf, T.lm, list.length);
+      barkI.frustumCulled = leafI.frustumCulled = false;
       list.forEach(function(t, i){
         var s = t[2] / H_REF, w = 0.85 + hash(t[0], t[1], 3) * 0.3;
         q.setFromAxisAngle(YAX, hash(t[0], t[1], 4) * Math.PI * 2); sc.set(s * w, s, s * w); ps.set(t[0], Y(t[3]), t[1]); m4.compose(ps, q, sc);
         barkI.setMatrixAt(i, m4); leafI.setMatrixAt(i, m4);
-        var k = 0.84 + hash(t[0], t[1], 5) * 0.26; col.setRGB(k, k * (0.97 + hash(t[0], t[1], 6) * 0.06), k * 0.95, THREE.SRGBColorSpace); leafI.setColorAt(i, col);
+        var k = 0.84 + hash(t[0], t[1], 5) * 0.26; col.setRGB(k, k * (0.97 + hash(t[0], t[1], 6) * 0.06), k * 0.95); leafI.setColorAt(i, col);
         if (nearPlot(t[0], t[1])) TREECLR.push({x:t[0], z:t[1], crowns:leafI, trunks:barkI, i:i, tg:t[4], mc:m4.clone(), mt:m4.clone(), hid:false, cl:false});
       });
       barkI.instanceMatrix.needsUpdate = true; leafI.instanceMatrix.needsUpdate = true; if (leafI.instanceColor) leafI.instanceColor.needsUpdate = true;
@@ -998,7 +1105,7 @@
     var leafM = new THREE.MeshLambertMaterial({color:0xffffff}), cDark = new THREE.Color('#244a2b'), cMid = new THREE.Color('#34603a'), dLight = new THREE.Color('#82a852'), dDark = new THREE.Color('#5b8a3c');
     Object.keys(far).forEach(function(key){
       var list = far[key], broad = key.slice(-1) === 'D', lay = key.slice(0, -1), crowns = new THREE.InstancedMesh(broad ? geoD : geoC, leafM, list.length);
-      crowns.frustumCulled = false; crowns.castShadow = crowns.receiveShadow = false;
+      crowns.frustumCulled = false;
       list.forEach(function(t, i){
         var h = t[2], g = t[3], jit = ((t[0] * 12.9898 + t[1] * 78.233) % 1 + 1) % 1;
         if (broad) { var r = Math.min(3.4, Math.max(0.9, 0.4 + 0.1 * h)), cb = 0.42 * h, ch = h - cb; ps.set(t[0], Y(g) + cb + ch / 2, t[1]); sc.set(r, ch / 2, r); col.copy(dLight).lerp(dDark, 0.3 + 0.5 * jit); }
@@ -1028,27 +1135,8 @@
       }
       reg('ptrees', grp);
       var tg = t.s === 'haapa' ? {x:t.x, z:t.z, g:g, broad:true, r:0.15 * h * q.wide * 0.85, c:g + 0.74 * h, hv:0.26 * h} : {x:t.x, z:t.z, g:g, broad:true, r:2.6, c:g + 0.82 * h, hv:0.16 * h};
-      tg.own = true; TREEG.push(tg);
+      TREEG.push(tg);
       if (nearPlot(t.x, t.z)) TREECLR.push({x:t.x, z:t.z, grp:grp, tg:tg, cl:false, special:t.s, id:t.id});
-    });
-  })();
-  // Shadows of the laser trees round the plot. The trees themselves are thousands of instances all over the map and cast
-  // nothing; those within 85 m of the plot get a plain crown (an ellipsoid or a cone of the tree's size) that is drawn
-  // only into the shadow map, with gaps in it so the shade is dappled like that of leaves
-  if (SHADOW) (function(){
-    var C = sun.target.position, B = [], N = [];
-    TREEG.forEach(function(t){ if (!t.own && Math.hypot(t.x - C.x, t.z - C.z) < 85) (t.broad ? B : N).push(t); });
-    var mat = FX.shadowOnly(), cone = new THREE.ConeGeometry(1, 1, 7); cone.translate(0, 0.5, 0);
-    [[B, new THREE.SphereGeometry(1, 8, 6)], [N, cone]].forEach(function(e){
-      if (!e[0].length) return;
-      var im = new THREE.InstancedMesh(e[1], mat, e[0].length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), ps = new THREE.Vector3(), sc = new THREE.Vector3();
-      im.frustumCulled = false; im.castShadow = true; im.receiveShadow = false; im.raycast = function(){};
-      e[0].forEach(function(t, i){
-        if (t.broad) { ps.set(t.x, Y(t.c), t.z); sc.set(t.r, t.hv, t.r); }
-        else { var b = t.g + 0.22 * (t.top - t.g); ps.set(t.x, Y(b), t.z); sc.set(t.r, t.top - b, t.r); }
-        m4.compose(ps, q, sc); im.setMatrixAt(i, m4); t.sh = [im, i, m4.clone()];
-      });
-      im.instanceMatrix.needsUpdate = true; reg('trees', im);
     });
   })();
 
@@ -1545,12 +1633,19 @@
         g.fillStyle = 'rgba(12,13,15,0.5)'; g.fillRect(x + bw - 1.5, 0, 1.5, S); g.fillStyle = 'rgba(255,255,255,0.035)'; g.fillRect(x, 0, 1, S);
       }
     }
-    var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = Math.min(8, renderer.getMaxAnisotropy()); return t;
+    var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); return t;
   }
   function boardMat(kind, side){
     // per-pixel light, so a big wall and the gable above it shade alike (Lambert lights per vertex)
     var m = new THREE.MeshPhongMaterial({map:boardTex(kind), side:side || THREE.FrontSide, specular:0x000000, shininess:0});
-    FX.boardMap(m);
+    m.onBeforeCompile = function(sh){
+      sh.vertexShader = 'varying vec3 vBW;\nvarying vec3 vBN;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vBW = (modelMatrix * vec4(transformed, 1.0)).xyz; vBN = normalize(mat3(modelMatrix) * objectNormal);');
+      sh.fragmentShader = 'varying vec3 vBW;\nvarying vec3 vBN;\n' + sh.fragmentShader.replace('#include <map_fragment>', [
+        'vec3 bn = normalize(vBN) * (gl_FrontFacing ? 1.0 : -1.0); vec2 bt = vec2(-bn.z, bn.x); float bl = length(bt); bt = bl > 1e-4 ? bt / bl : vec2(1.0, 0.0);',
+        'vec2 buv = abs(bn.y) > 0.8 ? vec2(0.03, 0.5) : vec2(dot(vBW.xz, bt), vBW.y) * 0.25;',
+        'vec4 texelColor = texture2D(map, buv); texelColor = mapTexelToLinear(texelColor); diffuseColor *= texelColor;'].join('\n'));
+    };
+    m.customProgramCacheKey = function(){ return 'board-' + kind; };
     return m;
   }
   // standing seams 500 mm apart (at a quarter and three quarters of the metre, so that a face without coordinates shows
@@ -1665,7 +1760,7 @@
         g.fillStyle = 'rgba(255,236,200,0.18)'; g.fillRect(bx, 0, 1.2, S);
       }
     }
-    var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = Math.min(8, renderer.getMaxAnisotropy());
+    var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     return (WOODT[kind] = t);
   }
   // the pergola's sliding glazing: GLZ.t from 0 (closed) to 1 (open), eased over 2.4 s when changed
@@ -1683,7 +1778,7 @@
     var wood = place.facade === 'wood';
     [[M132.wall, 'v'], [BOARD_DS, 'v'], [MT && MT.lap, 'h']].forEach(function(e){
       var m = e[0]; if (!m) return;
-      if (!m.userData.darkMap) m.userData.darkMap = FX.mapOf(m);
+      if (!m.userData.darkMap) m.userData.darkMap = m.map;
       m.map = wood ? woodTex(e[1]) : m.userData.darkMap; m.needsUpdate = true;
     });
     M132.door.color.set(wood ? 0x2a2d30 : 0x5d646b);
@@ -1714,8 +1809,35 @@
   // glass: a pale green-blue sheet, almost clear head-on; towards grazing angles it reflects the sky of the hour
   // (Schlick's Fresnel, 4 % head-on) and turns less see-through; the sun shows in it as its own small disc, only where
   // the reflected view meets it
-  var GLASSU = FX.uniforms({uGlassSky:hemi.color, uGlassK:1, uGlassSun:1});
-  function glassMat(o){ return FX.glassMaterial(GLASSU, sun, o); }
+  var GLASSU = {uGlassSky:{value:hemi.color}, uGlassK:{value:1}, uGlassSun:{value:1}};
+  function glassMat(o){
+    o = o || {};
+    // clear glass is drawn as what it reflects (the sky, the sun's glint) with that much opacity: 6 % head-on, more
+    // towards the edge; its opacity scales it (the sliding panels fade as they stack). Tinted glass keeps its colour
+    var tint = o.tint != null;
+    var m = new THREE.MeshPhongMaterial({color:tint ? o.tint : 0xdcebe8, specular:0xffffff, shininess:180, transparent:true, opacity:tint ? (o.opacity || 0.4) : 1, depthWrite:false, side:THREE.DoubleSide});
+    m.onBeforeCompile = function(sh){
+      sh.uniforms.uGlassSky = GLASSU.uGlassSky; sh.uniforms.uGlassK = GLASSU.uGlassK; sh.uniforms.uGlassSun = GLASSU.uGlassSun;
+      sh.fragmentShader = (tint ? '#define GLASS_TINT\n' : '') + 'uniform vec3 uGlassSky; uniform float uGlassK; uniform float uGlassSun;\n' + sh.fragmentShader.replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );', [
+        'float gC = abs(dot(normalize(normal), normalize(vViewPosition))); float gR = min(0.05 + 0.95 * pow(1.0 - gC, 5.0), 0.42);',
+        // the reflected ray in the world: up it meets the sky of the hour, level and down the darker ground and trees
+        'vec3 gW = reflect(-normalize(vViewPosition), normalize(normal)) * mat3(viewMatrix);',
+        'vec3 gSky = mix(uGlassSky * 0.32 + vec3(0.05, 0.07, 0.06), uGlassSky, smoothstep(-0.1, 0.45, gW.y)) * (0.45 + 0.6 * uGlassK);',
+        '#ifdef GLASS_TINT',
+        'outgoingLight -= reflectedLight.directSpecular * (1.0 - uGlassSun); outgoingLight = mix(outgoingLight, gSky, clamp(gR, 0.0, 0.85)); diffuseColor.a = clamp(diffuseColor.a + gR * 0.85, 0.0, 0.95);',
+        '#else',
+        'vec3 gS = vec3(0.0);',
+        '#if NUM_DIR_LIGHTS > 0',
+        '{ vec3 gRv = reflect(-normalize(vViewPosition), normalize(normal)); float gd = max(dot(gRv, directionalLights[0].direction), 0.0);',
+        '  gS = directionalLights[0].color * (pow(gd, 24000.0) * 1.1 + pow(gd, 1500.0) * 0.04) * uGlassSun; }',
+        '#endif',
+        'vec3 gE = totalEmissiveRadiance; outgoingLight = gSky + gS + gE; diffuseColor.a = clamp((gR + dot(gS, vec3(0.3)) + dot(gE, vec3(0.6))) * diffuseColor.a, 0.0, 0.95);',
+        '#endif',
+        'gl_FragColor = vec4( outgoingLight, diffuseColor.a );'].join('\n'));
+    };
+    m.customProgramCacheKey = function(){ return tint ? 'glassT' : 'glass'; };
+    return m;
+  }
   // the night's light is the moon's: once the sun is down no glint of it in the glass, and only a hint on the spa and the car
   var SHINY = [], shinyK = 1;
   function shinyAdd(ms){ ms.forEach(function(m){ if (m && m.specular) { SHINY.push({m:m, c:m.specular.clone()}); m.specular.multiplyScalar(0.12 + 0.88 * shinyK); } }); }
@@ -1754,9 +1876,8 @@
   // light inside the house without real lamps: ceiling spots, pendants and the fire add a warm glow to the interior
   // surfaces near them (computed per pixel, only on these materials, softly saturating so that overlapping lights do not
   // burn out); stronger late in the evening, and all of them follow the dimmer
-  var ILN = 48, ILU = {uLP:{value:[]}, uLC:{value:[]}, uLR:{value:[]}, uPT0:{value:new THREE.Vector4(1, 0, 0, 0)}, uPT1:{value:new THREE.Vector4(0, 1, 0, 0)}, uLN:{value:0}, uLK:{value:0.3}, uDay:{value:new THREE.Vector2(1, 1)}, uBounce:{value:0}, uSh:{value:1}};
+  var ILN = 48, ILU = {uLP:{value:[]}, uLC:{value:[]}, uLR:{value:[]}, uPT0:{value:new THREE.Vector4(1, 0, 0, 0)}, uPT1:{value:new THREE.Vector4(0, 1, 0, 0)}, uLN:{value:0}, uLK:{value:0.3}, uDay:{value:new THREE.Vector2(1, 1)}};
   for (var il0 = 0; il0 < ILN; il0++) { ILU.uLP.value.push(new THREE.Vector4(0, -1e4, 0, 0.01)); ILU.uLC.value.push(new THREE.Color(0, 0, 0)); ILU.uLR.value.push(new THREE.Vector4(-1e6, -1e6, 1e6, 1e6)); }
-  FX.interiorUniforms(ILU);
   var CEIL_K = 1, IL_LIST = [], fireLight = -1, IN_DAY = [0.42, 0.95];
   // closed rooms on the plan (pixels): a ceiling spot, the sauna's or the washroom's light in one of them lights only it.
   // ILPT turns a world point into plan pixels
@@ -1773,7 +1894,22 @@
       IL_ROOMS.some(function(Q){ if (px >= Q[0] && px <= Q[2] && py >= Q[1] && py <= Q[3]) { L.room = Q; return true; } return false; });
     });
   }
-  function interiorLit(mat){ FX.interiorLit(mat, ILU, ILN); }
+  function interiorLit(mat){
+    var prev = mat.onBeforeCompile;
+    mat.onBeforeCompile = function(sh, r){
+      if (prev) prev(sh, r);
+      ['uLP', 'uLC', 'uLR', 'uPT0', 'uPT1', 'uLN', 'uLK', 'uDay'].forEach(function(k){ sh.uniforms[k] = ILU[k]; });
+      sh.vertexShader = 'varying vec3 vIWP;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vIWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = 'uniform vec4 uLP[' + ILN + '];\nuniform vec3 uLC[' + ILN + '];\nuniform vec4 uLR[' + ILN + '];\nuniform vec4 uPT0;\nuniform vec4 uPT1;\nuniform int uLN;\nuniform float uLK;\nuniform vec2 uDay;\nvarying vec3 vIWP;\n' + sh.fragmentShader.replace('#include <aomap_fragment>', 'reflectedLight.directDiffuse *= uDay.x; reflectedLight.indirectDiffuse *= uDay.y;\n#include <aomap_fragment>').replace('#include <emissivemap_fragment>', [
+        '#include <emissivemap_fragment>',
+        '{ vec3 il = vec3(0.0); vec2 pp = vec2(dot(uPT0.xy, vIWP.xz) + uPT0.z, dot(uPT1.xy, vIWP.xz) + uPT1.z);',
+        '  for (int i = 0; i < ' + ILN + '; i++) { if (i >= uLN) break; vec4 lr = uLR[i]; if (pp.x < lr.x || pp.x > lr.z || pp.y < lr.y || pp.y > lr.w) continue; vec4 lp = uLP[i]; vec3 d = lp.xyz - vIWP; float cone = 1.0, rad = lp.w;',
+        '    if (lp.w < 0.0) { float c = floor(-lp.w / 10.0), lo = c * 0.01, ct = d.y / max(length(d), 0.001); rad = -lp.w - c * 10.0;',
+        '      cone = lo < 0.5 ? smoothstep(lo, lo + 0.12, ct) : 0.85 * smoothstep(lo, lo + (1.0 - lo) * 0.8, ct) + 0.15 * smoothstep(-0.2, 0.3, ct); } else d.y *= 0.6;',
+        '    float a = max(0.0, 1.0 - length(d) / rad); il += uLC[i] * a * a * cone; }',
+        '  totalEmissiveRadiance += (vec3(1.0) - exp(-il)) * uLK * diffuseColor.rgb; }'].join('\n'));
+    };
+  }
   ['inner', 'floor', 'ceil', 'ceilP', 'ctr', 'sofa', 'wood', 'white', 'bed', 'dark', 'steel', 'rug', 'chair', 'stone', 'door', 'oak', 'tha', 'tha2', 'panel', 'tileF', 'tileW', 'tileD', 'tileFlat', 'ceramic', 'ceramicS', 'mirror', 'stove', 'stoneT', 'parquet', 'splash', 'spk', 'spkG', 'alu', 'records'].forEach(function(k){ interiorLit(M132[k]); });
   function planMap(HH, P){
     var C = HH.corners, N = C[0], E = C[1], Wc = C[3];
@@ -1812,7 +1948,22 @@
   // animated fire burns behind the glass and a warm light point glows in front of it
   var spotGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.016, 16), pendGeo = new THREE.CylinderGeometry(0.075, 0.075, 0.22, 24);
   var FIREPLACE = {w:0.73, d:0.73, h:1.64, b0:0.53, b1:0.99, gs:0.30};
-  var fireMat = FX.fireMaterial();
+  var fireMat = new THREE.ShaderMaterial({
+    uniforms:{uT:{value:0}, uK:{value:1}}, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, fog:false,
+    vertexShader:'varying vec2 vUv;\nvoid main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader:[
+      'uniform float uT; uniform float uK; varying vec2 vUv;',
+      'float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',
+      'float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y); }',
+      'void main(){',
+      '  vec2 uv = vUv; float t = uT;',
+      '  float q = n(vec2(uv.x * 4.0, uv.y * 2.6 - t * 1.9)) * 0.62 + n(vec2(uv.x * 9.0 + 3.0, uv.y * 5.0 - t * 3.3)) * 0.38;',
+      '  float side = 1.0 - pow(abs(uv.x - 0.5) * 2.0, 1.6);',
+      '  float f = clamp((q * 1.25 + side * 0.75 - uv.y * 1.35 - 0.32) * 2.4, 0.0, 1.0) * smoothstep(0.0, 0.06, uv.y);',
+      '  vec3 c = mix(vec3(0.75, 0.16, 0.03), vec3(1.0, 0.78, 0.32), f * f);',
+      '  gl_FragColor = vec4(c * f * uK, f * uK);',
+      '}'].join('\n')
+  });
   var fireGlass = new THREE.MeshLambertMaterial({color:0x1a1a1a, transparent:true, opacity:0.22, depthWrite:false, side:THREE.DoubleSide});
   var emberMat = new THREE.MeshBasicMaterial({color:0xff5a14}), logMat = new THREE.MeshLambertMaterial({color:0x2a1d14});
   // a stove's firebox lining: dark, glowing warm with the fire
@@ -2081,7 +2232,7 @@
   function lampGlow(){
     if (!WALLL) return;
     var k = (LT.spots || 0) * (LV.wall == null ? 1 : LV.wall) * LV.all;
-    WALLL.glow.emissive.setRGB(0.95 * k, 0.68 * k, 0.4 * k, THREE.SRGBColorSpace);
+    WALLL.glow.emissive.setRGB(0.95 * k, 0.68 * k, 0.4 * k);
   }
   // The dining table and its six chairs. The table in oiled oak: a 1.82 x 0.90 m top with corners rounded on 0.14 m and
   // softened edges, on four round tapering legs. The chairs are small sheepskin tub armchairs cupped like the armchairs
@@ -2289,7 +2440,7 @@
     return PJM;
   }
   // the fire lights the bricks of the firebox from inside as its dimmer is turned up
-  function pjGlow(){ if (!PJM) return; var k = typeof LV === 'object' && LV ? LV.fire : 1; PJM.brick.emissive.setRGB(0.72 * k, 0.36 * k, 0.15 * k, THREE.SRGBColorSpace); }
+  function pjGlow(){ if (!PJM) return; var k = typeof LV === 'object' && LV ? LV.fire : 1; PJM.brick.emissive.setRGB(0.72 * k, 0.36 * k, 0.15 * k); }
   // C(a, b) gives the plan point a m along the back wall and b m along the side wall from the room's inner corner
   function buildPikkuJussi(g, pm, F, C){
     var M = pjMats(), L = PJ.L, s = PJ.s, H = PJ.h, cA = (L + s) / 2, r2 = Math.SQRT1_2, i;
@@ -2394,7 +2545,7 @@
       var m = o.material, multi = Array.isArray(m);
       if (!o.isMesh || !m) return;
       var mats = multi ? m : [m];
-      if (!mats.every(function(x){ return (x.isMeshLambertMaterial || x.isMeshBasicMaterial) && !x.userData.own; })) return;
+      if (!mats.every(function(x){ return x.isMeshLambertMaterial || x.isMeshBasicMaterial; })) return;
       o.updateMatrix();
       var gg = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
       if (!gg.attributes.normal) gg.computeVertexNormals();
@@ -2521,12 +2672,28 @@
   // Outdoor lights are warm white: up/down wall lights on the house and the garage, black 0.8 m bollards at the entrance
   // and in front of the deck. They light downwards only: a small wash on the wall and a pool of light on the ground, faded
   // in as it gets dark (Valot: Ulkovalot)
-  var EXT_U = FX.uniforms({uL:0}), EXT_B = FX.uniforms({uL:0}), FIRE_U = FX.uniforms({uL:0});
-  var washMat = FX.washMaterial(EXT_U);
+  var EXT_U = {uL:{value:0}}, EXT_B = {uL:{value:0}}, FIRE_U = {uL:{value:0}};
+  var EXT_VS = 'attribute vec2 lp; varying vec2 vP;\nvoid main(){ vP = lp; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+  var washMat = new THREE.ShaderMaterial({
+    uniforms:EXT_U, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, fog:false, vertexShader:EXT_VS,
+    fragmentShader:[
+      'uniform float uL; varying vec2 vP;',
+      'void main(){',
+      '  if (vP.y > 0.0) discard;',
+      // a wide cone: the bright part opens to about 0.9 m each side two metres down, a softer glow beyond it
+      '  float t = -vP.y, w = 0.06 + t * 0.42, x = abs(vP.x) / w;',
+      '  float a = (1.0 - smoothstep(0.3, 1.0, x)) * 0.8 + (1.0 - smoothstep(0.0, 1.0, x * 0.55)) * 0.22;',
+      '  float f = exp(-t * 0.75) * smoothstep(0.02, 0.12, t);',
+      '  gl_FragColor = vec4(vec3(1.0, 0.7, 0.42) * a * f * uL * 0.7, 1.0);',
+      '}'].join('\n')
+  });
   // a pool of light: bright under the light and spreading out softly a couple of metres over the ground
-  var poolOf = function(U, k, c){ return FX.poolMaterial(U, k, c); };
+  var poolOf = function(U, k, c){ c = c || [1.0, 0.7, 0.42]; return new THREE.ShaderMaterial({
+    uniforms:U, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, fog:false, polygonOffset:true, polygonOffsetFactor:-4, polygonOffsetUnits:-4, vertexShader:EXT_VS,
+    fragmentShader:'uniform float uL; varying vec2 vP;\nvoid main(){ float d = length(vP); if (d >= 1.0) discard; float a = exp(-d * d * 7.0) * 0.55 + pow(1.0 - d, 1.4) * 0.5; gl_FragColor = vec4(vec3(' + c.map(function(v){ return v.toFixed(2); }).join(', ') + ') * a * uL * ' + k.toFixed(2) + ', 1.0); }'
+  }); };
   var poolMat = poolOf(EXT_U, 0.5), poolMatB = poolOf(EXT_B, 0.55), poolMatF = poolOf(FIRE_U, 0.5, [1.0, 0.5, 0.2]), poolMatFL = poolOf(EXT_B, 0.34);
-  var washMatB = FX.washMaterial(EXT_B);
+  var washMatB = washMat.clone(); washMatB.uniforms = EXT_B;
   // the glow round a light seen from the side: a soft halo (the bollards' under their caps, the pergola fire's in front of
   // its glass), only in the dark
   var haloTex = (function(){
@@ -2548,8 +2715,17 @@
   }, 8, 1);
   // deck boards in the facade's wood: grain along the boards whatever way the house turns (world mapping, axis per build)
   function woodDeckMat(k){
-    var m = new THREE.MeshPhongMaterial({map:woodTex('g'), color:new THREE.Color().setRGB(k, k * 0.98, k * 0.95, THREE.SRGBColorSpace), specular:0x000000, shininess:0});
-    FX.deckMap(m);
+    var m = new THREE.MeshPhongMaterial({map:woodTex('g'), color:new THREE.Color(k, k * 0.98, k * 0.95), specular:0x000000, shininess:0});
+    m.userData.ax = {value:new THREE.Vector2(1, 0)};
+    m.onBeforeCompile = function(sh){
+      sh.uniforms.uAx = m.userData.ax;
+      sh.vertexShader = 'varying vec3 vDW;\nvarying vec3 vDN;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vDW = (modelMatrix * vec4(transformed, 1.0)).xyz; vDN = normalize(mat3(modelMatrix) * objectNormal);');
+      // on top the grain along the boards (uAx), on a side along the face, so a plank on edge shows its own length
+      sh.fragmentShader = 'uniform vec2 uAx; varying vec3 vDW; varying vec3 vDN;\n' + sh.fragmentShader.replace('#include <map_fragment>', [
+        'vec2 duv = abs(vDN.y) > 0.5 ? vec2(dot(vDW.xz, uAx), dot(vDW.xz, vec2(-uAx.y, uAx.x)) + vDW.y * 0.3) * 0.25 : vec2(dot(vDW.xz, normalize(vec2(-vDN.z, vDN.x) + vec2(1e-5, 0.0))), vDW.y) * 0.25;',
+        'vec4 texelColor = texture2D(map, duv); texelColor = mapTexelToLinear(texelColor); diffuseColor *= texelColor;'].join('\n'));
+    };
+    m.customProgramCacheKey = function(){ return 'deck2'; };
     return m;
   }
   // ---------- one plank for every board: 150 x 28 mm, its edges rounded (r 4 mm), 7 mm apart; boards lie flat with their
@@ -2593,7 +2769,7 @@
   var OD = {
     // the pergola's and the greenhouse's frames: the deck's pine, a little darker than its boards, the grain along each
     // piece (grainUVs)
-    wood:(function(){ var m = new THREE.MeshLambertMaterial({map:woodTex('g'), color:new THREE.Color().setRGB(0.8, 0.77, 0.74, THREE.SRGBColorSpace)}); m.userData.grain = true; return m; })(), top:new THREE.MeshLambertMaterial({color:0xa07a52}),
+    wood:(function(){ var m = new THREE.MeshLambertMaterial({map:woodTex('g'), color:new THREE.Color(0.8, 0.77, 0.74)}); m.userData.grain = true; return m; })(), top:new THREE.MeshLambertMaterial({color:0xa07a52}),
     deck:[0.9, 0.93, 0.87].map(function(k){ return woodDeckMat(k); }), fascia:woodDeckMat(0.84), ghDeck:[0.9, 0.93, 0.87].map(function(k){ return woodDeckMat(k); }),
     skirt:new THREE.MeshLambertMaterial({color:0x5a4130}), stave:new THREE.MeshLambertMaterial({map:texStave}),
     liner:new THREE.MeshLambertMaterial({color:0x2e3236, side:THREE.DoubleSide}),
@@ -3196,7 +3372,7 @@
   function tvPlay(){ if (!tvVid.paused) return; var p = tvVid.play(); if (p && p.catch) p.catch(function(){}); }
   tvPlay(); ['pointerdown', 'keydown', 'touchstart'].forEach(function(ev){ window.addEventListener(ev, tvPlay, {passive:true}); });
   document.addEventListener('visibilitychange', function(){ if (!document.hidden) tvPlay(); });
-  var tvTex = new THREE.VideoTexture(tvVid); tvTex.colorSpace = THREE.SRGBColorSpace; tvTex.minFilter = THREE.LinearFilter; tvTex.magFilter = THREE.LinearFilter; tvTex.generateMipmaps = false;
+  var tvTex = new THREE.VideoTexture(tvVid); tvTex.minFilter = THREE.LinearFilter; tvTex.magFilter = THREE.LinearFilter; tvTex.generateMipmaps = false;
   M132.tvPic = new THREE.MeshBasicMaterial({map:tvTex, color:0xd2d2d2});
   // how bright the picture is, sampled every few frames, for the light it throws on the room
   function tvSample(){
@@ -3382,7 +3558,7 @@
     var pixel = stuCanvas(128, 128, function(x, w, h){ x.fillStyle = '#18191b'; x.fillRect(0, 0, w, h); x.fillStyle = '#3a3c40'; for (var j = 0; j < 16; j++) for (var i = 0; i < 16; i++) { rrect(x, i * 8 + 1, j * 8 + 1, 6, 6, 2); x.fill(); } });
     pixel.wrapS = pixel.wrapT = THREE.RepeatWrapping;
     var mesh = stuCanvas(64, 64, function(x, w, h){ x.fillStyle = '#c9ccce'; x.fillRect(0, 0, w, h); x.fillStyle = '#6b7073'; for (var j = 0; j < 16; j++) for (var i = 0; i < 16; i++) x.fillRect(i * 4 + (j % 2) * 2, j * 4, 2, 2); });
-    var art = STUDIO_ART.map(function(src){ var t = new THREE.TextureLoader().load(src); t.colorSpace = THREE.SRGBColorSpace; t.repeat.set(0.95, 0.96); t.offset.set(0.025, 0.02); return t; });
+    var art = STUDIO_ART.map(function(src){ var t = new THREE.TextureLoader().load(src); t.repeat.set(0.95, 0.96); t.offset.set(0.025, 0.02); return t; });
     stuM = {
       shell:L({map:shell}), chrome:L({map:chrome, side:THREE.DoubleSide}), cym:L({map:cym, emissive:0x3a3a3a, emissiveMap:cym, side:THREE.DoubleSide}), head:L({map:head}), kick:L({map:kick}),
       clear:L({color:0x9c9a94}), black:L({color:0x141415}), seat:L({color:0x1d1d1f}), graphite:L({color:0x34363a}), fabric:L({color:0x26272a}), pixel:L({map:pixel, side:THREE.DoubleSide}),
@@ -5330,10 +5506,10 @@
   }
   // materials and rendering of the planned ground
   var ycv = document.createElement('canvas'), yardTex = new THREE.CanvasTexture(ycv); yardTex.flipY = false; yardTex.anisotropy = 8;
-  var ykcv = document.createElement('canvas'); ykcv.width = ykcv.height = 512; var ykTex = FX.data(new THREE.CanvasTexture(ykcv)); ykTex.flipY = false;
+  var ykcv = document.createElement('canvas'); ykcv.width = ykcv.height = 512; var ykTex = new THREE.CanvasTexture(ykcv); ykTex.flipY = false;
   // the lawn's reach in front of the plot, out from its two front edges
   var VERGE_W = 4.4;
-  var pmcv = document.createElement('canvas'); pmcv.width = pmcv.height = 1024; var planMaskTex = FX.data(new THREE.CanvasTexture(pmcv)); planMaskTex.flipY = false; planMaskTex.generateMipmaps = false; planMaskTex.minFilter = THREE.LinearFilter;
+  var pmcv = document.createElement('canvas'); pmcv.width = pmcv.height = 1024; var planMaskTex = new THREE.CanvasTexture(pmcv); planMaskTex.flipY = false; planMaskTex.generateMipmaps = false; planMaskTex.minFilter = THREE.LinearFilter;
   var yardMat = grayAware(roadAware(new THREE.MeshLambertMaterial({map:yardTex, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1})), 'yard');
   var thickMat = grayAware(pitAware(new THREE.MeshLambertMaterial({vertexColors:true, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1})), 'thick');
   var blockMat = new THREE.MeshLambertMaterial({color:0xffffff});
@@ -5475,7 +5651,7 @@
     unlabel(fillLabel);
     drawYard(); drawPlanMask();
     var n = GP.nx * GP.nz, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), uv = new Float32Array(n * 2), idx = [];
-    var bb = YD.bbox, cF0 = THREE.screenColor('#e2ddcf'), cF1 = THREE.screenColor('#a17f4f'), cC1 = THREE.screenColor('#6f8796'), cc = new THREE.Color();
+    var bb = YD.bbox, cF0 = new THREE.Color('#e2ddcf'), cF1 = new THREE.Color('#a17f4f'), cC1 = new THREE.Color('#6f8796'), cc = new THREE.Color();
     for (var j = 0; j < GP.nz; j++) for (var i = 0; i < GP.nx; i++) {
       var k = j * GP.nx + i, x = GP.x0 + i * GP.sp, z = GP.z0 + j * GP.sp, t = GP.T[k];
       pos[k*3] = x; pos[k*3+1] = Y(GP.E[k] + t); pos[k*3+2] = z;
@@ -5494,7 +5670,7 @@
     var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     var iAll = new THREE.BufferAttribute(new Uint32Array(idx), 1), iFill = new THREE.BufferAttribute(new Uint32Array(idxF), 1);
     geo.setIndex(iAll); geo.computeVertexNormals(); if (!state.yard) geo.setIndex(iFill);
-    planMesh = new THREE.Mesh(geo, state.yard ? yardMat : thickMat); planMesh.castShadow = false; planMesh.userData.layer = 'groundplan'; planMesh.userData.iAll = iAll; planMesh.userData.iFill = iFill; reg('groundplan', planMesh); groundObjs.push(planMesh);
+    planMesh = new THREE.Mesh(geo, state.yard ? yardMat : thickMat); planMesh.userData.layer = 'groundplan'; planMesh.userData.iAll = iAll; planMesh.userData.iFill = iFill; reg('groundplan', planMesh); groundObjs.push(planMesh);
     // round stone bed of dark wall blocks (500 x 200 x 200 mm) in running bond, cut straight along the boundary
     (YD.rings || []).forEach(function(r){
       var rc = RING_IN + RING_W / 2, N = Math.max(8, Math.round(2 * Math.PI * rc / BLK_L)), step = 2 * Math.PI / N, len = 2 * Math.PI * rc / N - 0.01;
@@ -5507,7 +5683,7 @@
       var im = new THREE.InstancedMesh(unitBox, blockMat, list.length), m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), sc = new THREE.Vector3(len, BLK_H - 0.008, RING_W), ps = new THREE.Vector3(), yax = new THREE.Vector3(0, 1, 0), col = new THREE.Color();
       list.forEach(function(b, i){
         qq.setFromAxisAngle(yax, -b[2] - Math.PI / 2); ps.set(b[0], Y(b[3] - BLK_H / 2), b[1]); m4.compose(ps, qq, sc); im.setMatrixAt(i, m4);
-        var v = 0.17 + ((Math.sin(i * 12.9898) * 43758.5453) % 1 + 1) % 1 * 0.035; col.setRGB(v, v * 1.03, v * 1.08, THREE.SRGBColorSpace); im.setColorAt(i, col);
+        var v = 0.17 + ((Math.sin(i * 12.9898) * 43758.5453) % 1 + 1) % 1 * 0.035; col.setRGB(v, v * 1.03, v * 1.08); im.setColorAt(i, col);
       });
       im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
       im.userData.layer = 'walls'; reg('walls', im); groundObjs.push(im);
@@ -5539,7 +5715,14 @@
   })();
   var hedgeTex = new THREE.CanvasTexture(hcv); hedgeTex.wrapS = hedgeTex.wrapT = THREE.RepeatWrapping; hedgeTex.anisotropy = 4;
   var hedgeMat = new THREE.MeshPhongMaterial({map:hedgeTex, side:THREE.DoubleSide, specular:0x000000, shininess:0});
-  FX.hedgeMap(hedgeMat);
+  hedgeMat.onBeforeCompile = function(sh){
+    sh.vertexShader = 'varying vec3 vHW;\nvarying vec3 vHN;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vHW = (modelMatrix * vec4(transformed, 1.0)).xyz; vHN = normalize(mat3(modelMatrix) * objectNormal);');
+    sh.fragmentShader = 'varying vec3 vHW;\nvarying vec3 vHN;\n' + sh.fragmentShader.replace('#include <map_pars_fragment>', '#include <map_pars_fragment>\nvec4 hedgeTri(vec3 p, vec3 w){ return texture2D(map, p.zy) * w.x + texture2D(map, p.xz) * w.y + texture2D(map, p.xy) * w.z; }').replace('#include <map_fragment>', [
+      'vec3 hw = pow(abs(normalize(vHN)), vec3(4.0)); hw /= (hw.x + hw.y + hw.z);',
+      'vec4 texelColor = mix(hedgeTri(vHW * 1.1, hw), hedgeTri(vHW * 0.37 + vec3(0.31, 0.17, 0.53), hw), 0.45);',
+      'texelColor = mapTexelToLinear(texelColor); diffuseColor *= texelColor;'].join('\n'));
+  };
+  hedgeMat.customProgramCacheKey = function(){ return 'hedge-tri'; };
   var hedgeMesh = null, HEDGE_C = null, HEDGE_RUNS = [];
   // the board fence: its line 5 cm in from the boundary, 90 mm thick, the corners of the entrance side turned on a 1 m
   // radius, and 2.5 m round each corner along the sides
@@ -5854,7 +6037,7 @@
         if (r() > 1.15 - d * 1.6) continue;
         g.fillStyle = r() < 0.6 ? 'rgb(252,246,248)' : 'rgb(246,218,228)'; g.beginPath(); g.ellipse(x, y, 2.2 + r() * 1.4, 1.5 + r(), r() * TW, 0, TW); g.fill(); }
     });
-    var lm = function(map){ var m = new THREE.MeshLambertMaterial({map:map, alphaTest:0.45, side:THREE.DoubleSide, vertexColors:true}); FX.leafLit(m); return m; };
+    var lm = function(map){ var m = new THREE.MeshLambertMaterial({map:map, alphaTest:0.45, side:THREE.DoubleSide, vertexColors:true}); m.onBeforeCompile = TL.MAT.aspen.onBeforeCompile; return m; };
     chips.repeat.set(1, 1);
     FTM = {
       bark:{cherry:new THREE.MeshLambertMaterial({map:cherryBark}), apple:new THREE.MeshLambertMaterial({map:appleBark}), pear:new THREE.MeshLambertMaterial({map:pearBark})},
@@ -5993,7 +6176,7 @@
       var bm = new THREE.Mesh(tpl.bark, tpl.bm), lfm = new THREE.Mesh(tpl.leaf, tpl.lm); bm.userData.shared = lfm.userData.shared = true; tree.add(bm); tree.add(lfm);
       if (tpl.fg && tpl.fruit.length) {
         var im = new THREE.InstancedMesh(tpl.fg, tpl.fm, tpl.fruit.length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), col = new THREE.Color();
-        tpl.fruit.forEach(function(F, i){ e.set(F.tilt, F.a, F.tilt * 0.5); q.setFromEuler(e); m4.compose(F.p, q, new THREE.Vector3(F.s, F.s, F.s)); im.setMatrixAt(i, m4); col.setRGB(F.c, F.c, F.c, THREE.SRGBColorSpace); im.setColorAt(i, col); });
+        tpl.fruit.forEach(function(F, i){ e.set(F.tilt, F.a, F.tilt * 0.5); q.setFromEuler(e); m4.compose(F.p, q, new THREE.Vector3(F.s, F.s, F.s)); im.setMatrixAt(i, m4); col.setRGB(F.c, F.c, F.c); im.setColorAt(i, col); });
         im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.userData.shared = true; tree.add(im);
       }
       // a young tree is tied to a stake on its windward side
@@ -6081,7 +6264,7 @@
       var r = TL.seeded(71); g.fillStyle = 'rgb(232,232,232)'; g.fillRect(0, 0, w, h);
       for (var i = 0; i < 2600; i++) { var x = r() * w, y = r() * h, l = 3 + r() * 7, c = Math.round(205 + r() * 50); g.strokeStyle = 'rgba(' + c + ',' + c + ',' + c + ',0.7)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 2, y + l); g.stroke(); }
     }, true);
-    AN.mat = new THREE.MeshPhongMaterial({map:AN.fur, vertexColors:true, specular:0x0d0d0d, shininess:6});
+    AN.mat = new THREE.MeshPhongMaterial({map:AN.fur, vertexColors:true, skinning:true, specular:0x0d0d0d, shininess:6});
     return AN.fur;
   }
   // lofted parts: points S[i] = {p, w, h, hb (half width across, above and below the line), b:[bone, bone2, share of
@@ -6517,15 +6700,13 @@
     sunDir.set(Math.sin(s.az) * Math.cos(s.el), Math.sin(s.el), -Math.cos(s.az) * Math.cos(s.el)).normalize();
     // the light itself never comes from below the horizon
     var ld = sunDir.clone(); if (ld.y < 0.07) { ld.y = 0.07; ld.normalize(); }
-    sunPlace(ld);
-    // the shadows fade away as the sun sets
-    if (SHADOW) sun.shadow.intensity = sstep(-3, 5, el);
+    sun.position.copy(ld).multiplyScalar(100);
     var sunC = el < 14 ? mixHex(0xff9a55, 0xffd8ab, sstep(0, 14, el)) : mixHex(0xffd8ab, 0xfff4e4, sstep(14, 35, el));
-    sun.intensity = LK * ((0.35 + 0.55 * sstep(-1, 25, el)) * (1 - nt) * (1 + (SH.sun - 1) * sstep(-3, 5, el)) + 0.1 * nt); sun.color.setHex(mixHex(sunC, 0xff8a4a, nt), LIN);
-    var hemiN = num('hemi'); hemi.intensity = LK * hemiN * (1 + (SH.hemi - 1) * sstep(-3, 5, el)); hemi.color.setHex(col('sky'), LIN); hemi.groundColor.setHex(col('gnd'), LIN);
+    sun.intensity = (0.35 + 0.55 * sstep(-1, 25, el)) * (1 - nt) + 0.1 * nt; sun.color.setHex(mixHex(sunC, 0xff8a4a, nt));
+    hemi.intensity = num('hemi'); hemi.color.setHex(col('sky')); hemi.groundColor.setHex(col('gnd'));
     // the ceiling faces down and would get only the brownish ground light: the light reflected from the floor and the
     // walls lifts it to the walls' tone, following the daylight
-    M132.ceilP.emissive.setRGB(0.19, 0.19, 0.205, THREE.SRGBColorSpace).multiplyScalar(hemiN / 0.66 * CEIL_K); GLASSU.uGlassK.value = clamp(hemiN / 0.66, 0, 1.2);
+    M132.ceilP.emissive.setRGB(0.19, 0.19, 0.205).multiplyScalar(hemi.intensity / 0.66 * CEIL_K); GLASSU.uGlassK.value = clamp(hemi.intensity / 0.66, 0, 1.2);
     skyMat.uniforms.dusk.value = nt; skyMat.uniforms.noon.value = dn; scene.fog.color.setHex(col('fog'));
     LT.spots = num('spots'); LT.fire = num('fire'); LT.ext = sstep(10, -2, el);
     shinySet(sstep(-1.5, 5, el));
@@ -6546,9 +6727,9 @@
     var on = LT.ext || 0, kw = EXT.w * on, kb = EXT.b * on;
     EXT_U.uL.value = kw; EXT_B.uL.value = kb;
     OD.lamp.color.copy(EXT_OFF).lerp(EXT_ON, Math.min(1, kw * 1.6)); OD.lampB.color.copy(EXT_OFF).lerp(EXT_ON, Math.min(1, kb * 1.6));
-    HALO_B.color.setRGB(1.0, 0.72, 0.45, THREE.SRGBColorSpace).multiplyScalar(0.6 * kb);
+    HALO_B.color.setRGB(1.0, 0.72, 0.45).multiplyScalar(0.6 * kb);
     // the other models: their porch downlights with the wall lights, and in the evening a warm glow behind their windows
-    if (MT) { MT.spot.color.copy(EXT_OFF).lerp(EXT_ON, Math.min(1, kw * 1.6)); var gw = on * Math.min(1, LV.all * 1.2); MT.glass.emissive.setRGB(0.62 * gw, 0.42 * gw, 0.2 * gw, THREE.SRGBColorSpace); }
+    if (MT) { MT.spot.color.copy(EXT_OFF).lerp(EXT_ON, Math.min(1, kw * 1.6)); var gw = on * Math.min(1, LV.all * 1.2); MT.glass.emissive.setRGB(0.62 * gw, 0.42 * gw, 0.2 * gw); }
     document.querySelectorAll('[data-ext]').forEach(function(inp){ var k = inp.dataset.ext, o = document.getElementById('f-ext-' + k); if (document.activeElement !== inp) inp.value = EXT[k]; if (o) o.textContent = lvText(EXT[k]); });
   }
   function applyLights(){
@@ -6564,19 +6745,17 @@
     for (var i = 0; i < n; i++) {
       var L = IL_LIST[i], lv = LV[L.grp] == null ? 1 : LV[L.grp], k = L.k * (L.fire ? LT.fire * fl * lv : LT.spots * lv * LV.all);
       if (L.tvs) k *= 0.3 + tvLum * 1.4;
-      ILU.uLP.array[i].set(L.p[0], Y(L.p[1]), L.p[2], L.cone ? -(L.r + 10 * Math.round(L.cone * 100)) : L.r); ILU.uLC.array[i].setRGB(L.c[0] * k, L.c[1] * k, L.c[2] * k, THREE.SRGBColorSpace);
-      if (L.room) ILU.uLR.array[i].set(L.room[0] - 4, L.room[1] - 4, L.room[2] + 4, L.room[3] + 4); else ILU.uLR.array[i].set(-1e6, -1e6, 1e6, 1e6);
+      ILU.uLP.value[i].set(L.p[0], Y(L.p[1]), L.p[2], L.cone ? -(L.r + 10 * Math.round(L.cone * 100)) : L.r); ILU.uLC.value[i].setRGB(L.c[0] * k, L.c[1] * k, L.c[2] * k);
+      if (L.room) ILU.uLR.value[i].set(L.room[0] - 4, L.room[1] - 4, L.room[2] + 4, L.room[3] + 4); else ILU.uLR.value[i].set(-1e6, -1e6, 1e6, 1e6);
     }
     ILU.uLN.value = state.house ? n : 0; ILU.uLK.value = 0.85;
     // no roof in the view: the daylight on the interior as under the ceiling (a little sun, less sky); eased so the change
     // does not jump
     var dOff = !state.roof || preNoRoof, dd = ILU.uDay.value, dx = dOff ? IN_DAY[0] : 1, dy = dOff ? IN_DAY[1] : 1;
     dd.set(dd.x + (dx - dd.x) * 0.25, dd.y + (dy - dd.y) * 0.25); if (Math.abs(dd.x - dx) < 0.002) dd.set(dx, dy);
-    // with shadows: under the roof an even share of the day's light, with the roof off softer shadows (see FX.interiorLit)
-    if (SHADOW) { var rk = (dd.x - IN_DAY[0]) / (1 - IN_DAY[0]); ILU.uBounce.value = 0.36 * rk * clamp(hemi.intensity / LK / SH.hemi / 0.66, 0, 1.2); ILU.uSh.value = 0.35 + 0.65 * rk; }
-    var fo = LV.fire * (LT.ext || 0) * fl; FIRE_U.uL.value = fo; HALO_F.color.setRGB(1.0, 0.55, 0.22, THREE.SRGBColorSpace).multiplyScalar(0.5 * fo);
+    var fo = LV.fire * (LT.ext || 0) * fl; FIRE_U.uL.value = fo; HALO_F.color.setRGB(1.0, 0.55, 0.22).multiplyScalar(0.5 * fo);
     lampGlow();
-    FBOX.emissive.setRGB(0.44, 0.19, 0.06, THREE.SRGBColorSpace).multiplyScalar(LV.fire * fl * (0.5 + 0.5 * Math.min(1, LT.ext || 0)));
+    FBOX.emissive.setRGB(0.44, 0.19, 0.06).multiplyScalar(LV.fire * fl * (0.5 + 0.5 * Math.min(1, LT.ext || 0)));
     ILU.uPT0.value.set(ILPT[0], ILPT[1], ILPT[2], 0); ILU.uPT1.value.set(ILPT[3], ILPT[4], ILPT[5], 0);
     fireMat.uniforms.uT.value = t;
   }
@@ -6619,7 +6798,6 @@
       if (rc.hid === hide) return;
       rc.hid = hide;
       rc.crowns.setMatrixAt(rc.i, hide ? ZERO_M4 : rc.mc); rc.crowns.instanceMatrix.needsUpdate = true;
-      if (rc.tg && rc.tg.sh) { rc.tg.sh[0].setMatrixAt(rc.tg.sh[1], hide ? ZERO_M4 : rc.tg.sh[2]); rc.tg.sh[0].instanceMatrix.needsUpdate = true; }
       if (rc.trunks) { rc.trunks.setMatrixAt(rc.i, hide ? ZERO_M4 : rc.mt); rc.trunks.instanceMatrix.needsUpdate = true; }
     });
     Object.keys(houseGroups).forEach(function(k){ houseGroups[k].visible = state.house && k === houseSel && !fx; houseGroups[k].traverse(function(o){ if (o.userData.roof || o.userData.terr) o.visible = (!o.userData.roof || (state.roof && !preNoRoof)) && (!o.userData.terr || !preSolo); }); });
@@ -9355,7 +9533,7 @@
     var cam = flat ? ortho : camera;
     sky.position.copy(cam.position); scene.fog.near = flat ? 1e7 : FOG_NEAR; scene.fog.far = flat ? 2e7 : FOG_FAR;
     ilUpdate(now); anFrame(now);
-    if (renderer.domElement.width > 0 && renderer.domElement.height > 0) { if (plan.on && !plan.bg) renderer.clear(); else renderer.render(scene, cam); }
+    if (plan.on && !plan.bg) renderer.clear(); else renderer.render(scene, cam);
     if (loadingEl) { loadingEl.remove(); loadingEl = null; }
     updateLabels(cam);
     if (aed.on) aedPos();

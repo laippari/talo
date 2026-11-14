@@ -1,0 +1,967 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+
+
+<title>Ali-Haakkointie 1 maastomalli</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#EDF1EE; --surface:#F8FAF8; --surface-2:#FFFFFF; --ink:#16201B; --muted:#56645D; --faint:#8A968F;
+  --line:#D3DBD5; --viewer:#DDE4DF; --accent:#2B54C4; --on-accent:#FFFFFF; --accent-soft:#E2E8F8;
+  --boundary:#C2256C; --on-boundary:#FFFFFF; --hud:rgba(248,250,248,.94);
+  --font-sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* type scale: 11.5 / 12.5 / 14 / 20 */
+  --fs-xs:11.5px; --fs-s:12.5px; --fs-m:14px; --fs-l:20px;
+  --ctl:34px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0D1210; --surface:#141A17; --surface-2:#19211D; --ink:#E2E9E5; --muted:#98A69F; --faint:#66746D;
+    --line:#26302B; --viewer:#0A0E0C; --accent:#8CA6FF; --on-accent:#0C1433; --accent-soft:#1B2442;
+    --boundary:#F0649F; --on-boundary:#2A0716; --hud:rgba(20,26,23,.94);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0D1210; --surface:#141A17; --surface-2:#19211D; --ink:#E2E9E5; --muted:#98A69F; --faint:#66746D;
+  --line:#26302B; --viewer:#0A0E0C; --accent:#8CA6FF; --on-accent:#0C1433; --accent-soft:#1B2442;
+  --boundary:#F0649F; --on-boundary:#2A0716; --hud:rgba(20,26,23,.94);
+}
+@media (pointer:coarse){ :root{ --ctl:44px; } }
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:var(--fs-m)/1.5 var(--font-sans);padding-inline:16px;overflow:hidden}
+button,input{font:inherit;color:inherit}
+.num,.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.wrap{height:100%;margin:0 auto;padding-block:12px;display:flex;flex-direction:column;gap:10px}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 20px;flex:none}
+h1{margin:0;font-size:var(--fs-l);line-height:1.2;font-weight:600;letter-spacing:-.01em}
+.meta{font-size:var(--fs-s);color:var(--muted)}
+.hdr-r{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:4px 14px}
+.btn.hdr-btn{min-height:26px;padding:0 10px;line-height:1.2}
+@media (min-width:861px){ .app.no-panel{grid-template-columns:minmax(0,1fr)} .app.no-panel .panel{display:none} }
+.app{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px}
+
+/* 3D view */
+.viewer{position:relative;min-height:0;height:100%;border-radius:12px;background:var(--viewer);overflow:hidden;touch-action:none;border:1px solid var(--line)}
+.viewer canvas{display:block;width:100%;height:100%;cursor:grab;outline:none}
+.viewer canvas:active{cursor:grabbing}
+.ov{position:absolute;z-index:3}
+.modesw{left:12px;top:12px;display:flex;align-items:center;height:var(--ctl);background:var(--hud);border:1px solid var(--line);border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.fp-tg{display:flex;align-items:center;gap:6px;height:100%;border:0;background:transparent;color:var(--ink);padding:0 12px 0 10px;border-radius:999px;font-size:var(--fs-s);font-weight:500;cursor:pointer;white-space:nowrap}
+.fp-tg svg{width:18px;height:18px;flex:none}
+.fp-tg[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.fp-hrow{display:flex;align-items:center;gap:8px;padding:0 12px 0 10px;font-size:var(--fs-s)}
+.fp-hrow input{width:120px;height:var(--ctl)}
+.fp-hrow .num{min-width:44px}
+.camctl{right:12px;bottom:12px;display:flex;flex-direction:column;background:var(--hud);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.camctl button{width:var(--ctl);height:var(--ctl);border:0;background:transparent;color:var(--ink);display:grid;place-items:center;padding:0;cursor:pointer;font-weight:600;font-size:var(--fs-m);touch-action:none;-webkit-user-select:none;user-select:none}
+.camctl button+button{border-top:1px solid var(--line)}
+.camctl button:hover{background:var(--accent-soft);color:var(--accent)}
+.camctl button svg{width:18px;height:18px}
+.camctl .cam-menu{display:none}
+#cam-labels .lb-off{display:none}
+#cam-labels[aria-pressed="false"] .lb-off{display:inline}
+#cam-labels[aria-pressed="false"]{color:var(--muted)}
+.compass{right:12px;top:12px;width:48px;height:48px;border-radius:50%;background:var(--hud);border:1px solid var(--line)}
+.badge{left:12px;bottom:12px;font-size:var(--fs-xs);font-weight:500;padding:5px 9px;border-radius:6px;background:var(--hud);border:1px solid var(--boundary);color:var(--boundary)}
+.hud{left:0;top:0;background:var(--hud);border:1px solid var(--line);border-radius:8px;padding:7px 10px 8px;width:max-content;max-width:260px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.16)}
+.hud-k{font-size:var(--fs-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.hud-z{font:500 20px/1.2 var(--font-mono);font-variant-numeric:tabular-nums;margin-top:1px}
+.hud-s{font-size:var(--fs-xs);color:var(--muted);line-height:1.4}
+.hud-s:empty{display:none}
+.hud-s.em{color:var(--accent)}
+/* the views sheet over the 3D view: the ready views from outside and from inside, and saving the view as it is */
+.vsheet{left:50%;bottom:12px;transform:translateX(-50%);z-index:7;width:min(560px,calc(100% - 2 * var(--ctl) - 48px));max-height:calc(100% - 24px);overflow-y:auto;overscroll-behavior:contain;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.24);padding:2px 14px 14px;display:grid;gap:12px;animation:vsIn .18s ease-out}
+@keyframes vsIn{from{transform:translate(-50%,14px);opacity:0}to{transform:translateX(-50%);opacity:1}}
+@keyframes vsInM{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.vsheet{animation:none}}
+.vs-h{display:flex;align-items:center;gap:8px;min-height:calc(var(--ctl) + 4px);touch-action:none}
+.vs-h h2{margin:0;flex:1;font-size:var(--fs-m);font-weight:600}
+.vs-h .btn{min-height:30px;padding:3px 12px;border-radius:999px}
+.vs-x{width:var(--ctl);height:var(--ctl);border:0;background:transparent;border-radius:50%;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;margin-right:-8px}
+.vs-x:hover{background:var(--accent-soft);color:var(--accent)}
+.vs-grp{display:grid;gap:6px}
+.vs-list{display:flex;flex-wrap:wrap;gap:6px}
+.vs-list button{min-height:var(--ctl);padding:4px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:var(--fs-s);font-weight:500;cursor:pointer;white-space:nowrap}
+.vs-list button:hover{border-color:var(--faint)}
+.vs-list button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.vs-save{border-top:1px solid var(--line);padding-top:12px}
+.vlab{margin:2px 0 0;font-size:var(--fs-xs);font-weight:500;color:var(--muted)}
+.pre-groups{display:grid;gap:6px}
+#sub-help .note{color:var(--ink)}
+html.touch .m-only,html:not(.touch) .t-only{display:none}
+#loading{position:absolute;inset:0;z-index:5;display:grid;place-items:center;background:var(--viewer);color:var(--muted);font-size:var(--fs-s)}
+#loading div{display:grid;justify-items:center;gap:10px}
+#loading i{width:28px;height:28px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#loading i{animation:none}}
+#fail{position:absolute;inset:0;z-index:6;display:grid;place-items:center;padding:24px;text-align:center;color:var(--muted);background:var(--viewer)}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lbl{position:absolute;left:0;top:0;white-space:nowrap;font:500 11px/1 var(--font-mono);padding:3px 5px;border-radius:4px;font-variant-numeric:tabular-nums}
+.lbl.c{color:#4a321d;background:rgba(250,246,236,.78);font-size:11px;padding:2px 4px}
+.lbl.b{color:var(--on-boundary);background:var(--boundary)}
+.lbl.h{color:var(--on-accent);background:var(--accent);font-family:var(--font-sans);font-size:12px;padding:4px 7px}
+.lbl.g{color:#1f2622;background:rgba(255,255,255,.82)}
+.lbl.k{color:var(--ink);background:var(--surface-2);border:1px solid var(--line)}
+.lbl.u{color:var(--muted)}
+.lbl.r{color:#2d3531;background:rgba(255,255,255,.7);font-family:var(--font-sans);font-style:italic;font-size:12px}
+.lbl.w{color:#0f3b66;background:rgba(214,233,250,.85)}
+.lbl.o{color:#5a3306;background:rgba(255,236,206,.88)}
+.seg2{grid-template-columns:repeat(2,1fr)}
+.seg2 button{font-family:var(--font-sans)}
+.lbl.lv{color:#f4efe6;background:rgba(58,46,33,.85);font-size:10.5px;padding:2px 4px}
+.ticks span:first-child{transform:none}
+.ticks span:last-child{transform:translateX(-100%)}
+.lbl.f{color:#1f2a36;background:rgba(226,236,248,.88);font-family:var(--font-sans);font-size:11px}
+.lbl.cx{color:#fff;font-family:var(--font-sans);font-size:12px;padding:4px 7px}
+.lbl.cx.jv{background:#c21f35}
+.lbl.cx.vj{background:#1f4fd1}
+.lbl.cx.hv{background:#1a7f3c}
+.lbl.mh{color:#1f2622;background:rgba(255,255,255,.85);font-size:10.5px}
+.lbl.fl{color:#4a3510;background:rgba(236,220,180,.92);font-family:var(--font-sans);font-size:12px;padding:4px 7px}
+.lbl.ga{color:#fff;background:#b06d1c;font-family:var(--font-sans);font-size:12px;padding:4px 7px}
+.lbl.nb{color:var(--boundary);background:var(--hud);border:1px solid var(--boundary);font-size:10.5px}
+.lbl.lake{color:#1d4f7a;background:rgba(230,242,252,.82);font-family:var(--font-sans);font-style:italic;font-size:13px}
+.lbl.yd{background:#8a5a1c}
+/* side section on a light sky; selection bar; asphalt corner handles */
+.viewer.secview{background:linear-gradient(180deg,#c3d6e5 0%,#e2eaf0 55%,#eef1ef 100%)}
+.viewer.dragging canvas{cursor:grabbing}
+.selbar{left:50%;bottom:12px;transform:translateX(-50%);display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:8px 14px;background:var(--hud);border:1px solid var(--accent);border-radius:12px;padding:6px 8px 6px 12px;font-size:var(--fs-s);box-shadow:0 2px 10px rgba(0,0,0,.16);max-width:calc(100% - 24px - 2 * var(--ctl))}
+.selbar b{font-weight:600}
+.sel-t{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.sel-b{display:flex;gap:6px;flex-wrap:wrap}
+.sel-c{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.sel-c .seg button{min-height:30px;padding:2px 10px}
+.sel-fl{display:flex;align-items:center;gap:8px;font-size:var(--fs-s);color:var(--muted)}
+.sel-fl input{width:130px;height:30px}
+.sel-fl .num{color:var(--ink);min-width:62px}
+.selbar .mb-read.warn{color:var(--boundary)}
+.selbar .btn{min-height:30px;padding:3px 10px}
+#handles{position:absolute;inset:0;pointer-events:none;z-index:4;overflow:hidden}
+#handles .hd,#handles .hm{position:absolute;left:0;top:0;pointer-events:auto;touch-action:none;border-radius:50%}
+#handles .hd{z-index:2;width:16px;height:16px;margin:-8px 0 0 -8px;background:var(--accent);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);cursor:grab}
+#handles .hd.on{cursor:grabbing;transform-origin:center;outline:3px solid rgba(255,255,255,.6)}
+#handles .hm{z-index:1;width:13px;height:13px;margin:-6.5px 0 0 -6.5px;background:rgba(255,255,255,.88);border:1.5px solid var(--accent);cursor:copy;display:grid;place-items:center;font:600 11px/1 var(--font-sans);color:var(--accent)}
+#handles .hm::before{content:"+"}
+@media (pointer:coarse){ #handles .hd{width:26px;height:26px;margin:-13px 0 0 -13px} #handles .hm{width:20px;height:20px;margin:-10px 0 0 -10px} }
+
+/* one toolbar for the viewing modes */
+.modebar{left:50%;top:calc(12px + var(--ctl) + 10px);transform:translateX(-50%);background:var(--hud);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:grid;gap:8px;width:max-content;max-width:calc(100% - 24px);font-size:var(--fs-s);box-shadow:0 2px 10px rgba(0,0,0,.14)}
+.mb-row{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}
+.mb-h b{font-size:var(--fs-m);font-weight:600}
+.mb-read{color:var(--muted);font-size:var(--fs-xs)}
+.mb-sp{flex:1}
+.mb-help{color:var(--muted);font-size:var(--fs-xs);line-height:1.5;max-width:620px}
+.sec-msg{font-size:var(--fs-s);line-height:1.45;color:var(--ink);max-width:600px}
+.ic{width:var(--ctl);height:var(--ctl);border-radius:50%;border:1px solid var(--line);background:var(--surface-2);font-weight:600;cursor:pointer;flex:none}
+.sec-more{display:none}
+input[type=range]{accent-color:var(--accent);height:var(--ctl)}
+.secax{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.secax svg{display:block;width:100%;height:100%}
+.secax .g{stroke:var(--ink);stroke-opacity:.12;stroke-width:1}
+.secax .k{stroke:var(--ink);stroke-opacity:.5;stroke-width:1}
+.secax .t{font:500 11px var(--font-mono);fill:var(--ink);paint-order:stroke;stroke:var(--hud);stroke-width:3px;stroke-linejoin:round;font-variant-numeric:tabular-nums}
+.secax .t.dir{font-family:var(--font-sans);font-style:italic;fill:var(--muted)}
+.secax line.fl{stroke:var(--accent);stroke-width:1.5;stroke-dasharray:6 4}
+.secax line.ey{stroke:var(--boundary);stroke-width:1.5;stroke-dasharray:6 4}
+.secax line.lk{stroke:#2f76b8;stroke-width:1;stroke-dasharray:2 3}
+.secax .t.fl{fill:var(--accent)} .secax .t.ey{fill:var(--boundary)} .secax .t.lk{fill:#2f76b8}
+.secax .sl{stroke:var(--boundary);stroke-width:2}
+.secax .sl.dash{stroke-dasharray:5 5;stroke-width:1.5}
+.secax .hs{fill:var(--accent);fill-opacity:.18;stroke:var(--accent);stroke-width:2}
+.secax .ob{fill:var(--hud);stroke:var(--boundary);stroke-width:2}
+.secax .eye{fill:var(--boundary)}
+.secax .p0{fill:none;stroke:var(--ink);stroke-opacity:.55;stroke-width:1.2;stroke-dasharray:5 4}
+.secax .ph{fill:var(--accent);fill-opacity:.12;stroke:var(--accent);stroke-width:2}
+.secax .pg{fill:#c2812f;fill-opacity:.14;stroke:#c2812f;stroke-width:2}
+.secax .sel{stroke-width:3.5;fill-opacity:.24}
+.secax .pd{stroke:var(--boundary);stroke-width:1.5}
+.secax .t.pdt{fill:var(--boundary);font-weight:600}
+.secax .fz{fill:#d9bf82;fill-opacity:.75;stroke:none}
+.secax .fp{fill:none;stroke:#8a6a36;stroke-width:2}
+.secax .fc{fill:#6f8796;fill-opacity:.55;stroke:none}
+.secax .fe{fill:none;stroke:var(--ink);stroke-opacity:.7;stroke-width:1.2;stroke-dasharray:4 3}
+/* the foundation in the section: concrete, EPS, insulating gravel, crushed rock, capillary break, backfill, frost
+   insulation, drain, piles, the penetration level, the callouts */
+.secax .fd-c{fill:#a7aaa9;stroke:#5d6163;stroke-width:.8}
+.secax .fd-e{fill:#f4f1e8;stroke:#9a9688;stroke-width:.6}
+.secax .fd-s{fill:#d8c497;stroke:#a08a5c;stroke-width:.5}
+.secax .fd-k{fill:#ae9c7c;stroke:#6e604a;stroke-width:.8}
+.secax .fd-g{fill:#8d979c;stroke:#5f686d;stroke-width:.5}
+.secax .fd-b{fill:#d9bf82;fill-opacity:.85;stroke:none}
+.secax .fd-f{fill:#86b9de;stroke:#4f7fa3;stroke-width:.6}
+.secax .fd-d{fill:#d9a12a;stroke:#7a5410;stroke-width:1}
+.secax .fd-p{stroke:#3d464e;stroke-linecap:round}
+.secax .fd-t{stroke:#5b3b22;stroke-width:1.2;stroke-dasharray:7 4}
+.secax .fd-l{fill:none;stroke:var(--ink);stroke-opacity:.55;stroke-width:1}
+.secax .fd-o{fill:var(--ink);fill-opacity:.7}
+
+/* site plan: the drawing over the 3D view; legend of the soil types */
+.viewer canvas.plancv{position:absolute;left:0;top:0;pointer-events:none}
+.legend{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;font-size:var(--fs-xs);color:var(--muted)}
+.legend li{display:flex;align-items:center;gap:8px}
+.legend i{width:12px;height:12px;border-radius:2px;flex:none}
+.legend i.ring{border:2px solid #9aa3a8;border-radius:50%;background:#f4f1ea}
+.legend i.rod{width:4px;margin-inline:4px}
+.btn.center{text-align:center}
+
+/* panel */
+.panel{min-height:0;height:100%;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tabbar{display:flex;flex:none;border-bottom:1px solid var(--line);background:var(--surface)}
+.tabs{display:flex;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.m-close{display:none}
+.tabs button{flex:1 1 auto;border:0;background:transparent;padding:0 8px;min-height:calc(var(--ctl) + 8px);font-size:var(--fs-s);font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.grab{display:none}
+.panes{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+.pane{padding:14px 16px 20px;display:grid;gap:16px;align-content:start}
+/* rows that open a page of their own (›) or select a thing in the model; the page comes in over its tab with a way back */
+.drills{display:grid;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface-2)}
+.drill{display:flex;align-items:center;gap:10px;width:100%;min-height:calc(var(--ctl) + 6px);padding:6px 10px 6px 12px;border:0;background:transparent;color:var(--ink);font-size:var(--fs-m);text-align:left;cursor:pointer}
+.drill+.drill{border-top:1px solid var(--line)}
+.drill:hover{background:var(--accent-soft)}
+.drill .dl-t{flex:1;font-weight:500}
+.drill .dl-v{font-size:var(--fs-s);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
+.drill .dl-c{color:var(--faint);font-size:20px;line-height:1}
+.pane.subpage{padding-top:0;animation:subIn .2s ease-out}
+@keyframes subIn{from{transform:translateX(18px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.pane.subpage{animation:none}}
+.sub-h{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;margin:0 -16px;padding:6px 12px 6px 6px;background:var(--surface);border-bottom:1px solid var(--line)}
+.sub-h h2{margin:0;flex:1;font-size:var(--fs-m);font-weight:600}
+.sub-back{border:0;background:transparent;color:var(--accent);font-size:var(--fs-s);font-weight:500;min-height:var(--ctl);padding:0 8px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.sub-back:hover{background:var(--accent-soft)}
+.sub-h3{margin-top:4px}
+.grp{display:grid;gap:8px}
+.grp+.grp{border-top:1px solid var(--line);padding-top:14px}
+.grp-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h3{margin:0;font-size:var(--fs-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lead{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.lead b{font-size:var(--fs-m);font-weight:600}
+.lead span{font-size:var(--fs-s);color:var(--muted)}
+.ctl{display:grid;gap:4px}
+.ctl-h{display:flex;justify-content:space-between;gap:12px;font-size:var(--fs-s);color:var(--muted)}
+.ctl-h .num{color:var(--ink);font-size:var(--fs-s)}
+
+/* one segmented control */
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface-2)}
+.seg button{border:0;background:transparent;color:var(--ink);min-height:var(--ctl);padding:4px 8px;font-size:var(--fs-s);font-weight:500;cursor:pointer;font-variant-numeric:tabular-nums;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
+
+/* one switch row; the swatch doubles as the legend */
+.tg{display:flex;align-items:center;gap:10px;width:100%;min-height:var(--ctl);padding:2px 0;border:0;background:transparent;cursor:pointer;text-align:left;font-size:var(--fs-m)}
+.tg .key{width:14px;height:14px;border-radius:3px;flex:none}
+.tg .tl{flex:1}
+.tg .track{width:34px;height:20px;border-radius:999px;background:var(--line);position:relative;flex:none;transition:background .15s}
+.tg .track::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:var(--surface-2);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.tg[aria-pressed="true"] .track{background:var(--accent)}
+.tg[aria-pressed="true"] .track::after{transform:translateX(14px)}
+.tg[aria-pressed="false"] .tl{color:var(--muted)}
+.tg[aria-pressed="false"] .key{opacity:.35}
+.gsw{width:auto;min-height:0;gap:8px;font-size:var(--fs-xs);color:var(--muted)}
+.sub{display:flex;flex-wrap:wrap;gap:4px 12px;padding:0 0 4px 24px;font-size:var(--fs-xs);color:var(--muted)}
+.tg[aria-pressed="false"] + .sub{display:none}
+.sub span{display:inline-flex;align-items:center;gap:6px}
+.sub i{width:11px;height:11px;border-radius:2px;flex:none}
+.views{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.seg.g2{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}
+.seg.g2 button:nth-child(3){border-left:0}
+.seg.g2 button:nth-child(n+3){border-top:1px solid var(--line)}
+.btnrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.btnrow.b2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.btnrow .btn{text-align:center;padding-inline:6px}
+.btn[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.gaps{margin:0;font-size:var(--fs-xs);color:var(--muted)}
+.grp.off .ctl,.grp.off .btnrow,.ctl.off{opacity:.45}
+.seg button:disabled,.btn:disabled{cursor:default}
+.btn:disabled:hover{border-color:var(--line)}
+.gaps.warn{color:var(--boundary)}
+.rng-ends{display:flex;justify-content:space-between;font-size:var(--fs-xs);color:var(--faint);margin-top:-4px}
+.row-in{display:flex;gap:6px}
+.txt{flex:1;min-width:0;min-height:var(--ctl);border:1px solid var(--line);border-radius:8px;background:var(--surface-2);padding:0 10px;font-size:var(--fs-s);color:var(--ink)}
+.plist{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.plist li{display:flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2);padding:2px 4px 2px 2px}
+.plist .pl-name{flex:1;min-width:0;text-align:left;border:0;background:transparent;color:var(--ink);font-size:var(--fs-s);font-weight:500;min-height:calc(var(--ctl) - 6px);padding:0 8px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:6px}
+.plist .pl-name:hover{background:var(--accent-soft);color:var(--accent)}
+.ic.sm{width:28px;height:28px;font-size:13px;font-weight:500}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips:empty{display:none}
+.chip{display:inline-flex;align-items:center;gap:2px;padding:2px 2px 2px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font:600 var(--fs-s)/1 var(--font-mono)}
+.chip button{border:0;background:transparent;color:inherit;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:14px}
+.chip button:hover{background:rgba(0,0,0,.08)}
+.runbar{left:50%;top:12px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:var(--hud);border:1px solid var(--accent);border-radius:999px;padding:4px 4px 4px 14px;font-size:var(--fs-s);box-shadow:0 2px 10px rgba(0,0,0,.16)}
+.runbar .btn{min-height:30px;border-radius:999px;padding:3px 12px}
+#prebar{top:auto;bottom:16px}
+.tglist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px}
+.tglist .tg{font-size:var(--fs-s)}
+.sel{min-height:var(--ctl);border:1px solid var(--line);border-radius:8px;background:var(--surface-2);padding:0 8px;font-size:var(--fs-s)}
+.lbl.vp{color:#fff;background:rgba(24,34,52,.82);font-family:var(--font-sans);font-size:11.5px;padding:4px 8px;border-radius:999px;cursor:pointer;border:1px solid rgba(255,255,255,.5)}
+.lbl.vp:hover{background:var(--accent)}
+.btn{font-size:var(--fs-s);font-weight:500;min-height:var(--ctl);padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);cursor:pointer;text-align:left}
+.btn:hover,.ic:hover{border-color:var(--faint)}
+dl.facts{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;margin:0}
+dl.facts dt{color:var(--muted);font-size:var(--fs-s)}
+dl.facts dd{margin:0;font:500 var(--fs-s)/1.5 var(--font-mono);text-align:right;font-variant-numeric:tabular-nums}
+.callout{font-size:var(--fs-s);line-height:1.5;background:var(--accent-soft);border-radius:8px;padding:9px 11px}
+.callout b{font-weight:600}
+.note{font-size:var(--fs-s);color:var(--muted);line-height:1.5;margin:0}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font:var(--fs-s)/1.3 var(--font-mono);font-variant-numeric:tabular-nums}
+th{font-size:var(--fs-xs);font-weight:600;font-family:var(--font-sans);text-align:right;color:var(--muted);padding:0 0 6px;border-bottom:1px solid var(--line)}
+td{text-align:right;padding:5px 0;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+td:first-child{font-family:var(--font-sans)}
+tr.sub td{font:600 var(--fs-xs)/1.2 var(--font-sans);color:var(--muted);padding-top:10px;text-align:left;border-bottom:0}
+details{border-bottom:1px solid var(--line);padding-bottom:10px}
+details+details{padding-top:10px}
+summary{cursor:pointer;font-weight:600;font-size:var(--fs-m);min-height:var(--ctl);display:flex;align-items:center;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"";width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);margin:0 12px 0 2px;transition:transform .15s}
+details[open] summary::before{transform:rotate(45deg)}
+details>div{display:grid;gap:10px;padding-top:4px}
+.ramp{height:10px;border-radius:3px}
+.ticks{position:relative;height:14px;font:var(--fs-xs)/1 var(--font-mono);color:var(--muted)}
+.ticks span{position:absolute;top:0;transform:translateX(-50%)}
+.ticks span:first-child{transform:none}
+.ticks span:last-child{transform:translateX(-100%)}
+.src{font-size:var(--fs-s);color:var(--muted);line-height:1.55;margin:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* simulation: the 3D view alone, the bar to end it */
+html.cine header,html.cine .panel,html.cine #labels,html.cine .viewer .ov:not(#simbar){display:none!important}
+html.cine .app{grid-template-columns:minmax(0,1fr)}
+#simbar{top:auto;bottom:calc(16px + env(safe-area-inset-bottom,0px));opacity:.92}
+/* phone: the 3D view on the whole screen; the menu button opens the panel as a sheet over its lower part, half or most of
+   the screen, the view showing above it; a thumb pad */
+.joy{display:none}
+.joy{width:118px;height:118px;border-radius:50%;background:var(--hud);border:1px solid var(--line);box-shadow:0 2px 12px rgba(0,0,0,.2);touch-action:none;-webkit-user-select:none;user-select:none}
+.joy::before{content:"";position:absolute;inset:14px;border-radius:50%;border:1px dashed var(--faint);opacity:.6}
+.joy-k{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);box-shadow:0 2px 6px rgba(0,0,0,.28);transition:transform .16s}
+.joy.on .joy-k{transition:none;background:var(--accent-soft);border-color:var(--accent)}
+.joy{opacity:.84}.joy.on{opacity:1}
+@media (max-width:860px){
+  body{padding-inline:0}
+  .wrap{padding:0;gap:0}
+  header{display:none}
+  .app{position:fixed;inset:0;display:block}
+  .viewer{position:absolute;inset:0;height:auto;border:0;border-radius:0}
+  .panel{position:fixed;left:0;right:0;bottom:0;z-index:8;height:var(--sheetH,50vh);border-radius:16px 16px 0 0;border:1px solid var(--line);border-bottom:0;box-shadow:0 -6px 22px rgba(0,0,0,.2);padding-bottom:env(safe-area-inset-bottom,0px);transform:translateY(calc(100% + 24px));visibility:hidden;transition:height .26s cubic-bezier(.2,.8,.2,1),transform .26s cubic-bezier(.2,.8,.2,1),visibility 0s linear .26s}
+  .app.m-open .panel{transform:none;visibility:visible;transition:height .26s cubic-bezier(.2,.8,.2,1),transform .26s cubic-bezier(.2,.8,.2,1)}
+  .panel.dragging{transition:none!important}
+  .grab{display:flex;justify-content:center;align-items:center;flex:none;height:26px;border:0;background:transparent;cursor:grab;width:100%;touch-action:none}
+  .grab::before{content:"";width:40px;height:4px;border-radius:2px;background:var(--faint)}
+  .tabbar{touch-action:none}
+  .m-close{display:grid;place-items:center;flex:none;width:calc(var(--ctl) + 6px);border:0;background:transparent;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+  .camctl .cam-menu{display:grid}
+  .vsheet{left:0;right:0;bottom:0;transform:none;width:auto;max-height:72%;border-radius:16px 16px 0 0;border-width:1px 0 0;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));animation-name:vsInM}
+  #tb-tech{display:none}
+  .pane{padding-inline:16px}
+  .modesw{left:10px;top:calc(10px + env(safe-area-inset-top,0px))}
+  .compass{right:10px;top:calc(10px + env(safe-area-inset-top,0px));width:40px;height:40px} .compass svg{width:40px;height:40px}
+  .camctl{right:10px;top:calc(58px + env(safe-area-inset-top,0px));bottom:auto}
+  .fp-hrow input{width:96px}
+  .modebar{top:calc(20px + var(--ctl) + env(safe-area-inset-top,0px));max-width:calc(100% - 20px);width:calc(100% - 20px);padding:8px}
+  .runbar{top:calc(20px + var(--ctl) + env(safe-area-inset-top,0px))}
+  .badge{left:10px;bottom:calc(var(--sheetB,0px) + 12px + env(safe-area-inset-bottom,0px))}
+  .selbar,#prebar{bottom:calc(var(--sheetB,0px) + 12px + env(safe-area-inset-bottom,0px))}
+  .sec-more{display:inline-block}.secbar:not(.open) .sec-opt{display:none}
+  .secbar #sec-read{display:none}
+  html.touch .joy{display:block;right:16px;bottom:calc(var(--sheetB,0px) + 18px + env(safe-area-inset-bottom,0px))}
+  .app.sheet-full .joy{display:none}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Ali-Haakkointie 1</h1>
+    <div class="hdr-r">
+      <div class="meta">Kiinteistö 927-401-2-632 · Vihti, Nummela · <span id="hdr-model">Ideal 132</span> · ETRS-GK24 / N2000</div>
+      <button type="button" class="btn hdr-btn" id="panel-tg" aria-controls="panel" aria-expanded="true" title="Piilota sivupaneeli, niin 3D-näkymä vie koko leveyden">Piilota paneeli</button>
+    </div>
+  </header>
+
+  <div class="app" id="app">
+    <div class="viewer" id="view">
+      <div id="labels" aria-hidden="true"></div>
+      <canvas id="plancv" class="plancv" hidden aria-hidden="true"></canvas>
+      <div class="ov modesw" id="modesw">
+        <button type="button" class="fp-tg" data-mode="fp" aria-pressed="false" title="Katsele ympärille: näkymä kääntyy silmän ympäri siitä kohdasta, jossa kamera on. Uusi painallus tai Esc palaa."><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Katsele</span></button>
+        <label class="fp-hrow" id="fp-hrow" hidden title="Silmien korkeus maasta tai lattiasta"><input type="range" id="fp-h" min="0" max="1" step="0.002" value="0.1" aria-label="Silmien korkeus"><span class="num" id="fp-hv">1,7 m</span></label>
+      </div>
+      <div class="ov badge" id="badge" hidden></div>
+      <div class="ov compass" title="Pohjoinen">
+        <svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true">
+          <g id="needle">
+            <path d="M24 9 L29 25 L24 22 L19 25 Z" style="fill:var(--boundary)"/>
+            <path d="M24 39 L29 25 L24 28 L19 25 Z" style="fill:var(--faint)"/>
+            <text x="24" y="8" text-anchor="middle" style="fill:var(--ink);font:600 8px var(--font-sans)">P</text>
+          </g>
+        </svg>
+      </div>
+      <div class="ov hud" id="hud" hidden aria-live="polite">
+        <div class="hud-k" id="hudk">Maanpinta · N2000</div>
+        <div class="hud-z" id="hz">—</div>
+        <div class="hud-s" id="hs1"></div>
+        <div class="hud-s" id="hs2"></div>
+        <div class="hud-s em" id="hs3"></div>
+      </div>
+      <div class="ov camctl" id="camctl" role="group" aria-label="Kamera">
+        <button type="button" class="cam-menu" id="cam-menu" aria-expanded="false" aria-controls="panel" title="Valikko" aria-label="Valikko"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4.5 7h15M4.5 12h15M4.5 17h15"/></svg></button>
+        <button type="button" data-cam="in" title="Lähemmäs (+)" aria-label="Lähemmäs"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button type="button" data-cam="out" title="Kauemmas (−)" aria-label="Kauemmas"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+        <button type="button" data-cam="ccw" title="Kierrä vastapäivään" aria-label="Kierrä vastapäivään"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4 4v4.5h4.5"/></svg></button>
+        <button type="button" data-cam="cw" title="Kierrä myötäpäivään" aria-label="Kierrä myötäpäivään"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M20 4v4.5h-4.5"/></svg></button>
+        <button type="button" data-cam="home" title="Perusnäkymä" aria-label="Perusnäkymä"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg></button>
+        <button type="button" id="cam-views" aria-expanded="false" aria-controls="vsheet" title="Näkymät" aria-label="Näkymät"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M3.5 17.5l5.2-6 3.8 4.3 2.6-2.8 5.4 5.6"/><circle cx="16" cy="9" r="1.7"/></svg></button>
+        <button type="button" id="cam-labels" aria-pressed="true" title="Tekstit näkyvissä (T)" aria-label="Tekstit"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6.5h12M12 6.5v12"/><path class="lb-off" d="M4.5 4.5l15 15"/></svg></button>
+      </div>
+      <div class="ov vsheet" id="vsheet" role="dialog" aria-label="Näkymät" hidden>
+        <div class="vs-h" id="vs-h"><h2>Näkymät</h2><button type="button" class="btn" id="vs-back" hidden>↩ Palaa</button><button type="button" class="vs-x" id="vs-x" aria-label="Sulje" title="Sulje">×</button></div>
+        <div class="vs-grp"><p class="vlab">Ulkoa</p><div class="vs-list" id="vs-out"></div></div>
+        <div class="vs-grp" id="vs-ing"><p class="vlab">Sisältä</p><div class="vs-list" id="vs-in"></div></div>
+        <div class="vs-grp" id="vs-owng" hidden><p class="vlab">Omat</p><div class="vs-list" id="vs-own"></div></div>
+        <div class="row-in vs-save"><input type="text" id="vs-name" class="txt" maxlength="60" placeholder="Nimi tälle näkymälle" aria-label="Näkymän nimi"><button type="button" class="btn" id="vs-save">Tallenna</button></div>
+      </div>
+      <div class="secax" id="secaxw" hidden aria-hidden="true"><svg id="secax"></svg></div>
+      <div id="handles"></div>
+      <div class="ov runbar" id="runbar" hidden><span>Kamera-ajo</span><button type="button" class="btn" id="run-stop">■ Pysäytä</button></div>
+      <div class="ov runbar" id="simbar" hidden><span>Tesla Model 3 ajaa kotiin</span><button type="button" class="btn" id="sim-stop">■ Lopeta</button></div>
+      <div class="ov joy" id="joy" aria-hidden="true"><div class="joy-k" id="joyk"></div></div>
+      <div class="ov runbar" id="prebar" hidden><span id="pre-name">Pohja ylhäältä</span><button type="button" class="btn" id="pre-back2">↩ Palaa</button></div>
+      <div class="ov selbar" id="selbar" hidden>
+        <div class="sel-t"><b id="sel-name">Ideal 132</b><span class="mb-read num" id="sel-info"></span></div>
+        <div class="sel-c" id="sel-main">
+          <div class="seg" role="group" aria-label="Autotalli" id="gar-type" hidden><button type="button" data-gartype="gs" aria-pressed="true" title="Talli ja varasto">6 × 7 m</button><button type="button" data-gartype="gs6" aria-pressed="false" title="Talli ja varasto, ovet vierekkäin">6 × 6 m</button><button type="button" data-gartype="g45" aria-pressed="false" title="Pelkkä talli, työtila perällä">4,5 × 7 m</button></div>
+          <div class="seg" role="group" aria-label="Allas" id="tub-type" hidden><button type="button" data-tubtype="palju" aria-pressed="true" title="Puulämmitteinen palju Ø 1,95 m">palju</button><button type="button" data-tubtype="spa" aria-pressed="false" title="Poreallas 2,2 × 2,2 m">poreallas</button></div>
+          <div class="seg" role="group" aria-label="Katto"><button type="button" data-broof="gable" aria-pressed="false">harjakatto</button><button type="button" data-broof="mono" aria-pressed="false">pulpettikatto</button><button type="button" data-broof="low" id="broof-low" aria-pressed="false" hidden>loiva pulpetti</button></div>
+          <label class="sel-fl"><span id="f-bfl-label">Korko</span><input type="range" id="bld-floor" min="-1" max="2" step="0.05" value="0" aria-label="Koron hienosäätö" title="Korko omasta oletuksestaan"><span class="num" id="f-bfloor">±0,00 m</span></label>
+        </div>
+        <div class="sel-c" id="sel-deck" hidden>
+          <div class="seg" role="group" aria-label="Pergolan lasitus"><button type="button" data-glaze="closed" aria-pressed="true">lasit kiinni</button><button type="button" data-glaze="open" aria-pressed="false">auki</button></div>
+          <div class="seg" role="group" aria-label="Terassin koko"><button type="button" data-decksz="big" aria-pressed="true" title="Terassi 5,4 m ja kasvihuone pergolan jatkona">iso</button><button type="button" data-decksz="small" aria-pressed="false" title="Terassi 1 m lyhyempi, ei kasvihuonetta">pieni</button></div>
+          <button type="button" class="btn" id="screen-tg" aria-pressed="true" title="Seinäke pergolaa vastapäätä">Seinäke</button>
+        </div>
+        <div class="sel-c" id="sel-sp" hidden>
+          <div class="seg" role="group" aria-label="Puu"><button type="button" data-spon="1" aria-pressed="true" title="Puu on paikallaan">päällä</button><button type="button" data-spon="0" aria-pressed="false" title="Puu on kaadettu: kanto jää merkiksi">pois</button></div>
+        </div>
+        <div class="sel-c" id="sel-tree" hidden>
+          <div class="seg" role="group" aria-label="Laji"><button type="button" data-tsp="cherry" aria-pressed="false">kirsikka</button><button type="button" data-tsp="apple" aria-pressed="false">omena</button><button type="button" data-tsp="pear" aria-pressed="false">päärynä</button></div>
+          <div class="seg" role="group" aria-label="Koko"><button type="button" data-tsz="s" aria-pressed="false">pieni</button><button type="button" data-tsz="m" aria-pressed="false">keski</button><button type="button" data-tsz="l" aria-pressed="false">iso</button></div>
+        </div>
+        <div class="sel-b"><button type="button" class="btn" id="sel-rot" title="Käännä 90° (R)">⟳ 90°</button><button type="button" class="btn" id="sel-align" aria-pressed="false" hidden title="Seinät tontin sisääntulon reunan ja aidan suuntaan">Aidan suuntaan</button><button type="button" class="btn" id="sel-mir" aria-pressed="false" title="Peilikuva (M)">⇋ Peilikuva</button><button type="button" class="btn" id="sel-reset" title="Oletuspaikka, -suunta ja -korko">Palauta</button><button type="button" class="btn" id="sel-del" hidden>Poista</button><button type="button" class="btn" id="sel-done">Valmis</button></div>
+      </div>
+      <div class="ov modebar" id="aedbar" hidden>
+        <div class="mb-row mb-h"><b>Asfaltti</b><span class="mb-read num" id="f-asph2">—</span><span class="mb-sp"></span><button type="button" class="ic" data-mbhelp aria-expanded="false" title="Ohjeet">?</button><button type="button" class="btn" id="aed-reset">Palauta</button><button type="button" class="btn" id="aed-done">Valmis</button></div>
+        <div class="mb-help" hidden>Vedä sinisiä kulmia. Plus-merkistä saat uuden kulman, ja kulman klikkaus poistaa sen. Kun viet asfaltin rajan yli tielle, siihen tulee liittymä ja aitaan aukko. Tontin sisällä kulmat pyöristyvät.</div>
+      </div>
+      <div class="ov modebar secbar" id="secbar" hidden>
+        <div class="mb-row mb-h"><b>Leikkaus</b><span class="mb-read num" id="sec-read">—</span><span class="mb-sp"></span><button type="button" class="btn sec-more" id="sec-more" aria-expanded="false">Säädöt</button><button type="button" class="ic" data-mbhelp aria-expanded="false" title="Ohjeet">?</button><button type="button" class="btn" id="sec-exit">Poistu</button></div>
+        <div class="mb-row"><div class="seg" role="group" aria-label="Rajaus" style="flex:1"><button type="button" data-secframe="near" aria-pressed="true">Tontti ja naapuri</button><button type="button" data-secframe="lake" aria-pressed="false">Järvelle asti</button><button type="button" data-secframe="fnd" aria-pressed="false">Perustus</button></div></div>
+        <div class="mb-row sec-opt"><span>Katsotaan</span><div class="seg" role="group" aria-label="Katselupuoli"><button type="button" data-secside="R" aria-pressed="true">oikealta</button><button type="button" data-secside="L" aria-pressed="false">vasemmalta</button></div>
+          <div class="seg" role="group" aria-label="Esitystapa"><button type="button" data-secmode="side" aria-pressed="true">sivukuva</button><button type="button" data-secmode="3d" aria-pressed="false">3D</button></div></div>
+        <div class="mb-row sec-opt"><label for="sec-m">Leikkaus rajoista</label><input type="range" id="sec-m" min="0" max="25" step="1" value="5" style="width:130px"><span class="num" id="sec-mv">±5 m</span></div>
+        <div class="sec-msg" id="sec-msg"></div>
+        <div class="mb-help" hidden>Tontin pitkien rajojen suuntainen leikkaus, katsottuna oikealta tai vasemmalta talolta järvelle päin. <span class="m-only">Vedä: siirrä · Rulla: zoomaa.</span><span class="t-only">Vedä: siirrä · Nipistä: zoomaa.</span> Mittakaava on sama pysty- ja vaakasuunnassa. Punainen viiva: näkölinja talon keskeltä, silmät 1,7 m lattiasta · Katkoviiva: nykyinen maanpinta talon keskilinjalla · Ruskea: täyttö · Sininen: kaivu · Leikkauspinnan jako 1 m. Talon kohdalla näkyy perustus talon keskilinjalla: paalulaatta, sokkeli, täytöt, salaojat ja sivulta katsottuna kaikki paalut. Perustus-painike tuo sen niin lähelle, että kerrokset on nimetty.</div>
+      </div>
+      <div class="ov modebar" id="planbar" hidden>
+        <div class="mb-row mb-h"><b>Asemakuva</b><span class="mb-read num" id="plan-read">—</span><span class="mb-sp"></span><button type="button" class="btn" id="plan-shot2">Tallenna kuva</button><button type="button" class="ic" data-mbhelp aria-expanded="false" title="Ohjeet">?</button><button type="button" class="btn" id="plan-exit">Poistu</button></div>
+        <div class="mb-help" hidden><span class="m-only">Vedä: siirrä · Rulla: zoomaa.</span><span class="t-only">Vedä: siirrä · Nipistä: zoomaa.</span> Kuva on ylhäältä ilman perspektiiviä, joten mittakaava on sama joka kohdassa. Klikkaa rakennusta, niin voit siirtää sitä, ja etäisyydet rajoihin päivittyvät. Sisältö valitaan Tekninen-välilehdeltä.</div>
+      </div>
+      <div id="loading"><div><i></i>Rakennetaan 3D-mallia…</div></div>
+      <div id="fail" hidden>3D-näkymä ei käynnistynyt. Selain ei tue WebGL:ää tai kirjasto ei latautunut.</div>
+    </div>
+
+    <aside class="panel" id="panel">
+      <button type="button" class="grab" id="grab" aria-label="Suurenna tai pienennä paneeli" aria-expanded="false"></button>
+      <div class="tabbar">
+      <div class="tabs" role="tablist" aria-label="Paneeli">
+        <button type="button" role="tab" id="tb-house" data-tab="house" aria-selected="true" aria-controls="tab-house">Talo</button>
+        <button type="button" role="tab" id="tb-yard" data-tab="yard" aria-selected="false" aria-controls="tab-yard">Piha</button>
+        <button type="button" role="tab" id="tb-env" data-tab="env" aria-selected="false" aria-controls="tab-env">Ympäristö</button>
+        <button type="button" role="tab" id="tb-views" data-tab="views" aria-selected="false" aria-controls="tab-views">Näkymä</button>
+        <button type="button" role="tab" id="tb-tech" data-tab="tech" aria-selected="false" aria-controls="tab-tech">Tekninen</button>
+      </div>
+      <button type="button" class="m-close" id="m-close" aria-label="Sulje paneeli" title="Sulje">×</button>
+      </div>
+      <div class="panes" id="panes">
+
+      <section class="pane" id="tab-house" role="tabpanel" aria-labelledby="tb-house">
+        <div class="grp">
+          <h3>Talomalli</h3>
+          <div class="seg" role="group" aria-label="Talomalli"><button type="button" data-hmodel="132" aria-pressed="true">Ideal 132</button><button type="button" data-hmodel="L125" aria-pressed="false">Lehtikuusi 125</button><button type="button" data-hmodel="K152" aria-pressed="false">Kaarna 152</button></div>
+        </div>
+        <div class="grp">
+          <h3>Julkisivu</h3>
+          <div class="ctl"><div class="ctl-h"><span>Ulkoseinät</span><span class="num" id="f-facade">tumma laudoitus</span></div>
+            <div class="seg" role="group" aria-label="Julkisivu"><button type="button" data-facade="dark" aria-pressed="true">Tumma</button><button type="button" data-facade="wood" aria-pressed="false">Puu</button></div></div>
+        </div>
+        <div class="grp">
+          <h3>Pohja</h3>
+          <div class="ctl"><div class="ctl-h"><span>Eteinen</span><span class="num" id="f-plan">alkuperäinen</span></div>
+            <div class="seg" role="group" aria-label="Pohja"><button type="button" data-hplan="a" aria-pressed="true">Alkuperäinen</button><button type="button" data-hplan="b" aria-pressed="false">Tallin takana</button></div></div>
+        </div>
+        <div class="grp">
+          <h3>Takka</h3>
+          <div class="ctl"><div class="ctl-h"><span>Malli ja paikka</span><span class="num" id="f-fire">syvennyksessä</span></div>
+            <div class="seg" role="group" aria-label="Takka"><button type="button" data-fire="veronika" aria-pressed="true">Veronika</button><button type="button" data-fire="wilma" aria-pressed="false">Wilma AIR</button><button type="button" data-fire="pj" aria-pressed="false">Pikku-Jussi</button></div></div>
+        </div>
+      </section>
+
+      <section class="pane" id="tab-yard" role="tabpanel" aria-labelledby="tb-yard" hidden>
+        <div class="grp">
+          <h3>Asfaltti</h3>
+          <div class="ctl"><div class="ctl-h"><span>Pinta-ala</span><span class="num" id="f-asph3"></span></div>
+            <div class="btnrow b2"><button type="button" class="btn" id="asph-edit" aria-pressed="false">Muokkaa muotoa</button><button type="button" class="btn" id="asph-reset">Palauta</button></div></div>
+        </div>
+        <div class="grp">
+          <h3>Tuija-aita</h3>
+          <div class="ctl"><div class="ctl-h"><label for="hedge-h">Korkeus</label><span class="num" id="f-hedge">2,0 m</span></div>
+            <input type="range" id="hedge-h" min="0.5" max="3" step="0.1" value="2" style="width:100%"></div>
+          <button type="button" class="tg" id="hedge-front" aria-pressed="false"><span class="tl">Myös sisääntulon puolella</span><span class="track"></span></button>
+        </div>
+        <div class="grp">
+          <h3>Lauta-aita</h3>
+          <button type="button" class="tg" id="fence-tg" aria-pressed="true"><span class="tl">Sisääntulon puolella</span><span class="track"></span></button>
+          <div class="ctl"><div class="ctl-h"><label for="fence-h">Korkeus</label><span class="num" id="f-fence">1,0 m</span></div>
+            <input type="range" id="fence-h" min="0.6" max="2" step="0.1" value="1" style="width:100%"></div>
+        </div>
+        <div class="grp">
+          <h3>Rakennukset</h3>
+          <p class="note">Valitse tästä tai klikkaa mallissa. Palkista rakennusta voi siirtää, kääntää, peilata ja nostaa, ja sille voi valita katon.</p>
+          <div class="drills">
+            <button type="button" class="drill" data-pick="gar"><span class="dl-t">Autotalli</span><span class="dl-v num" id="d-gar"></span><span class="dl-c" aria-hidden="true">›</span></button>
+            <button type="button" class="drill" data-pick="gh"><span class="dl-t">Kasvihuone</span><span class="dl-v num" id="d-gh"></span><span class="dl-c" aria-hidden="true">›</span></button>
+          </div>
+        </div>
+        <div class="grp">
+          <h3>Eläimet</h3>
+          <button type="button" class="tg" id="animals-tg" aria-pressed="false"><span class="tl">Eläimet pihalla</span><span class="track"></span></button>
+          <p class="note">Neljä vuohta, kaksi ankkaparvea ja kaksi koiraa kulkevat tontilla omia aikojaan.</p>
+        </div>
+        <div class="grp">
+          <h3>Tontin puut</h3>
+          <div class="drills" id="sp-list"></div>
+          <p class="note">Viiden haavan ja männyn paikat on mitattu dronekuvista. Valitse puu tästä tai klikkaa sen tyveä mallissa: palkista puun saa pois ja takaisin päälle. Pois otetusta puusta jää kanto merkiksi.</p>
+        </div>
+        <div class="grp">
+          <h3>Hedelmäpuut</h3>
+          <div class="ctl"><div class="ctl-h"><span>Uuden puun koko</span></div>
+            <div class="seg" role="group" aria-label="Uuden puun koko"><button type="button" data-newsz="s" aria-pressed="false">Pieni</button><button type="button" data-newsz="m" aria-pressed="true">Keskikokoinen</button><button type="button" data-newsz="l" aria-pressed="false">Iso</button></div></div>
+          <div class="btnrow"><button type="button" class="btn" data-addtree="cherry">+ Kirsikka</button><button type="button" class="btn" data-addtree="apple">+ Omena</button><button type="button" class="btn" data-addtree="pear">+ Päärynä</button></div>
+          <div class="drills" id="tree-list"></div>
+          <p class="note">Valitse puu tästä tai klikkaa sitä mallissa. Puuta voi siirtää vetämällä, ja palkista sen lajia ja kokoa voi vaihtaa tai sen voi poistaa.</p>
+        </div>
+      </section>
+
+      <section class="pane" id="tab-env" role="tabpanel" aria-labelledby="tb-env" hidden>
+        <div class="grp">
+          <h3>Maasto</h3>
+          <div class="seg" role="group" aria-label="Pinta"><button type="button" data-look="ortho" aria-pressed="true">Ilmakuva</button><button type="button" data-look="hyp" aria-pressed="false">Korkeusvärit</button><button type="button" data-look="gray" aria-pressed="false">Harmaasävy</button></div>
+          <div id="rampbox" hidden><div class="ramp" id="ramp"></div><div class="ticks" id="ticks"></div></div>
+          <div class="seg" role="group" aria-label="Maaston laajuus"><button type="button" data-terrain="full" aria-pressed="true">Koko maasto</button><button type="button" data-terrain="cut" aria-pressed="false">Vain tontti</button></div>
+        </div>
+        <div class="grp">
+          <h3>Valaistus</h3>
+          <div class="ctl"><div class="ctl-h"><label for="tod">Vuorokaudenaika</label><span class="num" id="f-tod">klo 20.00 · ilta</span></div>
+            <input type="range" id="tod" min="8" max="24" step="0.25" value="20" style="width:100%"></div>
+          <div class="drills">
+            <button type="button" class="drill" data-sub="lin"><span class="dl-t">Sisävalot</span><span class="dl-v num" id="d-lin"></span><span class="dl-c" aria-hidden="true">›</span></button>
+            <button type="button" class="drill" data-sub="lout"><span class="dl-t">Ulkovalot</span><span class="dl-v num" id="d-lout"></span><span class="dl-c" aria-hidden="true">›</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="pane subpage" id="sub-lin" data-parent="env" role="region" aria-label="Sisävalot" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Ympäristö">‹ Ympäristö</button><h2>Sisävalot</h2></div>
+        <div class="grp">
+          <div class="ctl"><div class="ctl-h"><label for="lv-all">Kaikki sisävalot</label><span class="num" id="f-lv-all">100 %</span></div>
+            <input type="range" id="lv-all" data-lv="all" min="0" max="1" step="0.05" value="1" style="width:100%"></div>
+          <div class="ctl"><div class="ctl-h"><label for="lv-spot">Kattospotit</label><span class="num" id="f-lv-spot">70 %</span></div>
+            <input type="range" id="lv-spot" data-lv="spot" min="0" max="1" step="0.05" value="0.7" style="width:100%"></div>
+          <div class="ctl"><div class="ctl-h"><label for="lv-pend">Riippuvalaisimet</label><span class="num" id="f-lv-pend">80 %</span></div>
+            <input type="range" id="lv-pend" data-lv="pend" min="0" max="1" step="0.05" value="0.8" style="width:100%"></div>
+          <div class="ctl"><div class="ctl-h"><label for="lv-led">Keittiön välitila</label><span class="num" id="f-lv-led">80 %</span></div>
+            <input type="range" id="lv-led" data-lv="led" min="0" max="1" step="0.05" value="0.8" style="width:100%"></div>
+          <div class="ctl"><div class="ctl-h"><label for="lv-tv">TV:n taustavalo ja pöytävalaisin</label><span class="num" id="f-lv-tv">70 %</span></div>
+            <input type="range" id="lv-tv" data-lv="tv" min="0" max="1" step="0.05" value="0.7" style="width:100%"></div>
+          <div class="ctl"><div class="ctl-h"><label for="lv-wall">Seinävalaisimet sohvan vieressä</label><span class="num" id="f-lv-wall">80 %</span></div>
+            <input type="range" id="lv-wall" data-lv="wall" min="0" max="1" step="0.05" value="0.8" style="width:100%"></div>
+          <div class="ctl"><div class="ctl-h"><label for="lv-sauna">Sauna</label><span class="num" id="f-lv-sauna">80 %</span></div>
+            <input type="range" id="lv-sauna" data-lv="sauna" min="0" max="1" step="0.05" value="0.8" style="width:100%"></div>
+          <div class="ctl"><div class="ctl-h"><label for="lv-ph">Pesuhuone</label><span class="num" id="f-lv-ph">70 %</span></div>
+            <input type="range" id="lv-ph" data-lv="ph" min="0" max="1" step="0.05" value="0.7" style="width:100%"></div>
+          <div class="ctl"><div class="ctl-h"><label for="lv-mh4">Musiikkihuone</label><span class="num" id="f-lv-mh4">80 %</span></div>
+            <input type="range" id="lv-mh4" data-lv="mh4" min="0" max="1" step="0.05" value="0.8" style="width:100%"></div>
+          <div class="ctl"><div class="ctl-h"><label for="lv-fire">Takan tuli</label><span class="num" id="f-lv-fire">100 %</span></div>
+            <input type="range" id="lv-fire" data-lv="fire" min="0" max="1" step="0.05" value="1" style="width:100%"></div>
+        </div>
+      </section>
+      <section class="pane subpage" id="sub-lout" data-parent="env" role="region" aria-label="Ulkovalot" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Ympäristö">‹ Ympäristö</button><h2>Ulkovalot</h2></div>
+        <div class="grp">
+          <div class="ctl"><div class="ctl-h"><label for="ext-w">Seinävalot</label><span class="num" id="f-ext-w">80 %</span></div>
+            <input type="range" id="ext-w" data-ext="w" min="0" max="1" step="0.05" value="0.8" style="width:100%"></div>
+          <div class="ctl"><div class="ctl-h"><label for="ext-b">Aidan valot</label><span class="num" id="f-ext-b">80 %</span></div>
+            <input type="range" id="ext-b" data-ext="b" min="0" max="1" step="0.05" value="0.8" style="width:100%"></div>
+          <p class="note">Ulkovalot syttyvät auringonlaskun aikaan.</p>
+        </div>
+      </section>
+
+      <section class="pane" id="tab-views" role="tabpanel" aria-labelledby="tb-views" hidden>
+        <div class="grp">
+          <h3>Valmiit näkymät</h3>
+          <div class="pre-groups" id="pre-list"></div>
+          <button type="button" class="btn" id="pre-back" hidden>↩ Palaa edelliseen näkymään</button>
+        </div>
+        <div class="grp">
+          <h3>Tallennetut näkymät</h3>
+          <div class="row-in"><input type="text" id="pv-name" class="txt" maxlength="60" placeholder="Nimi" aria-label="Näkymän nimi"><button type="button" class="btn" id="pv-save">Tallenna nykyinen</button></div>
+          <p class="note">Näkymä tallentaa kuvakulman ja kaikki valinnat: rakennusten paikat ja korot, talomallin ja sen valinnat, asfaltin, tasot, pinnan ja valot. Avattaessa kaikki palaa sellaiseksi kuin se oli.</p>
+          <ul class="plist" id="pv-list"></ul>
+          <p class="gaps" id="pv-empty">Ei tallennettuja näkymiä</p>
+        </div>
+        <div class="grp">
+          <h3>Näytä</h3>
+          <div class="drills">
+            <button type="button" class="drill" data-sub="layers"><span class="dl-t">Tasot</span><span class="dl-v num" id="d-layers"></span><span class="dl-c" aria-hidden="true">›</span></button>
+          </div>
+        </div>
+        <div class="grp">
+          <h3>Kamera</h3>
+          <div class="ctl"><div class="ctl-h"><label for="cam-speed">Kameran nopeus</label><span class="num" id="f-cam">normaali</span></div>
+            <input type="range" id="cam-speed" min="0.3" max="1.8" step="0.05" value="1" style="width:100%"></div>
+          <div class="ctl"><div class="ctl-h"><label for="tree-hide">Esteet pois kameran edestä</label><span class="num" id="f-treehide">ei</span></div>
+            <input type="range" id="tree-hide" min="0" max="150" step="10" value="0" style="width:100%"></div>
+          <div class="drills">
+            <button type="button" class="drill" data-sub="run"><span class="dl-t">Kamera-ajo</span><span class="dl-v num" id="d-run"></span><span class="dl-c" aria-hidden="true">›</span></button>
+            <button type="button" class="drill" data-sub="help"><span class="dl-t">Ohjeet</span><span class="dl-v"></span><span class="dl-c" aria-hidden="true">›</span></button>
+          </div>
+        </div>
+        <div class="grp">
+          <h3>Simulaatio ja kuva</h3>
+          <button type="button" class="btn center" id="sim-tesla">▶ Tesla Model 3 ajaa kotiin</button>
+          <button type="button" class="btn" id="shot">Tallenna kuva nykyisestä näkymästä</button>
+          <p class="gaps num" id="v-msg" role="status" hidden></p>
+        </div>
+      </section>
+      <section class="pane subpage" id="sub-layers" data-parent="views" role="region" aria-label="Tasot" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Näkymä">‹ Näkymä</button><h2>Tasot</h2><button type="button" class="tg gsw" data-alllayers aria-pressed="true" aria-label="Kaikki tasot"><span class="tl">Kaikki</span><span class="track"></span></button></div>
+        <div class="grp">
+          <div class="tglist">
+            <button type="button" class="tg" data-layer="house" aria-pressed="true"><span class="key" style="background:var(--accent)"></span><span class="tl">Talo</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="roof" aria-pressed="true"><span class="key" style="background:#2c2f32"></span><span class="tl">Katto</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="garage" aria-pressed="true"><span class="key" style="background:#33383d"></span><span class="tl">Autotalli</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="gh" aria-pressed="true"><span class="key" style="background:#cfe3ea;box-shadow:inset 0 0 0 1px #8a968f"></span><span class="tl">Kasvihuone</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="yard" aria-pressed="true"><span class="key" style="background:linear-gradient(90deg,#6f9b4d 50%,#4b4f53 50%)"></span><span class="tl">Piha</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="hedge" aria-pressed="true"><span class="key" style="background:#2f5a2c"></span><span class="tl">Tuija-aita</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="fill" aria-pressed="true"><span class="key" style="background:linear-gradient(90deg,#d6ccb0,#9f7f52)"></span><span class="tl">Täytöt</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="ptrees" aria-pressed="true"><span class="key" style="background:#8aa84e;border-radius:50% 50% 3px 3px"></span><span class="tl">Pihapuut</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="trees" aria-pressed="true"><span class="key" style="background:#3f6e3a;border-radius:50% 50% 3px 3px"></span><span class="tl">Muut puut</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="bldg" aria-pressed="true"><span class="key" style="background:#d9d3c9;box-shadow:inset 0 0 0 1px #8a968f"></span><span class="tl">Rakennukset</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="plot" aria-pressed="true"><span class="key" style="background:var(--boundary)"></span><span class="tl">Rajat</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="roads" aria-pressed="true"><span class="key" style="background:#66696b"></span><span class="tl">Tiet</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="contours" aria-pressed="true"><span class="key" style="background:#8a6a48"></span><span class="tl">Korkeuskäyrät</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="util" aria-pressed="true"><span class="key" style="background:#d7263d"></span><span class="tl">Vesihuolto</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="points" aria-pressed="true"><span class="key" style="background:#161917;border-radius:50%"></span><span class="tl">Mittapisteet</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="soil" aria-pressed="false"><span class="key" style="background:#7d93ab"></span><span class="tl">Maaperä</span><span class="track"></span></button>
+            <button type="button" class="tg" data-layer="water" aria-pressed="false"><span class="key" style="background:#3f86c9"></span><span class="tl">Vesihavainto</span><span class="track"></span></button>
+          </div>
+        </div>
+      </section>
+      <section class="pane subpage" id="sub-run" data-parent="views" role="region" aria-label="Kamera-ajo" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Näkymä">‹ Näkymä</button><h2>Kamera-ajo</h2></div>
+        <div class="grp">
+          <div class="chips" id="run-pts"></div>
+          <p class="gaps" id="run-hint">Pisteet A, B, C … nykyisestä kuvakulmasta</p>
+          <div class="btnrow"><button type="button" class="btn" id="run-add">+ Lisää piste</button><button type="button" class="btn" id="run-play" disabled>▶ Toista</button><button type="button" class="btn" id="run-clear">Tyhjennä</button></div>
+          <div class="ctl"><div class="ctl-h"><label for="run-speed">Nopeus</label><span class="num" id="f-run-speed">1×</span></div>
+            <input type="range" id="run-speed" min="0.25" max="4" step="0.05" value="1" style="width:100%"></div>
+          <div class="row-in"><input type="text" id="run-name" class="txt" maxlength="60" placeholder="Nimi" aria-label="Kamera-ajon nimi"><button type="button" class="btn" id="run-save">Tallenna ajo</button></div>
+          <ul class="plist" id="run-list"></ul>
+          <p class="gaps" id="run-empty">Ei tallennettuja ajoja</p>
+        </div>
+      </section>
+      <section class="pane subpage" id="sub-help" data-parent="views" role="region" aria-label="Ohjeet" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Näkymä">‹ Näkymä</button><h2>Ohjeet</h2></div>
+        <div class="grp">
+          <h3>Liikkuminen</h3>
+          <p class="note m-only">Vedä: kierrä kuvan keskellä olevan kohdan ympäri. Oikea painike tai Shift ja vedä: siirrä. Rulla tai kosketuslevy: zoomaa osoittimen kohtaan. Tuplaklikkaus: kohdista ja tule lähemmäs. W A S D: liiku, Q: ylös, E: alas, Shift: nopeammin, + ja −: zoomaa.</p>
+          <p class="note t-only">Yhdellä sormella: kierrä. Kahdella sormella: siirrä, nipistä ja käännä. Kaksoisnapautus: kohdista ja tule lähemmäs. Peukaloympyrä oikeassa alakulmassa: liiku.</p>
+        </div>
+        <div class="grp">
+          <h3>Reunan painikkeet</h3>
+          <p class="note">+ ja − zoomaavat, kaarinuolet kiertävät ja talo palaa perusnäkymään. Kamera avaa näkymät: valmiit näkymät ulkoa ja sisältä sekä nykyisen näkymän tallennus. Puhelimessa ylin painike avaa paneelin näkymän alaosaan; sitä voi vetää ylös tai alas.</p>
+        </div>
+        <div class="grp">
+          <h3>Katsele</h3>
+          <p class="note">Katsele kääntää näkymää silmän ympäri siitä kohdasta, jossa kamera on. Sen vieressä säädetään silmien korkeutta, ja uusi painallus palaa takaisin. Katsellessa vedä katsoaksesi ympärille.<span class="m-only"> Nuolet tai W A S D kävelevät ja rulla muuttaa näkökenttää.</span> Tuplaklikkaus tai -napautus maastoon siirtää sinne.</p>
+        </div>
+        <div class="grp">
+          <h3>Välilehdet</h3>
+          <p class="note">Talo- ja Piha-välilehdillä ovat talon ja pihan valinnat, ja Ympäristö-välilehdellä maaston pinta ja valot. Näkymä-välilehdellä ovat valmiit ja tallennetut näkymät, tasot, tekstit ja kamera-ajot. Tallennettu näkymä palauttaa myös rakennusten paikat ja valinnat. Tekninen-välilehdellä ovat asemakuva, leikkaus, kairaukset ja kaikki tiedot.</p>
+        </div>
+        <div class="grp">
+          <h3>Valitseminen ja siirtäminen</h3>
+          <p class="note">Klikkaa taloa, autotallia, kasvihuonetta, allasta tai terassia. Rakennuksia ja allasta voi siirtää vetämällä tontin sisällä. Valinnan palkissa ovat kaikki sen säädöt samassa järjestyksessä: malli, korko, kääntö (R), peilikuva (M), Palauta ja Valmis. Naapurin taloa klikkaamalla näet, miltä talosi näyttää sieltä. Maanpinnan korko näkyy, kun Mittapisteet-taso on päällä. Asemakuvasta ja leikkauksesta pääsee takaisin Poistu-painikkeella tai Esc-näppäimellä.</p>
+        </div>
+      </section>
+
+      <section class="pane" id="tab-tech" role="tabpanel" aria-labelledby="tb-tech" hidden>
+        <div class="grp">
+          <h3>Asemakuva</h3>
+          <button type="button" class="btn center" id="plan-open" aria-pressed="false">Avaa asemakuva ylhäältä</button>
+          <div class="seg" role="group" aria-label="Asemakuvan suunta"><button type="button" data-planup="lake" aria-pressed="true">Järvi ylhäällä</button><button type="button" data-planup="north" aria-pressed="false">Pohjoinen ylhäällä</button></div>
+          <div class="tglist">
+            <button type="button" class="tg" data-plan="dims" aria-pressed="true"><span class="key" style="background:#1a56c4"></span><span class="tl">Etäisyydet</span><span class="track"></span></button>
+            <button type="button" class="tg" data-plan="floor" aria-pressed="true"><span class="key" style="background:#2a2e2c"></span><span class="tl">Talon pohja</span><span class="track"></span></button>
+            <button type="button" class="tg" data-plan="bores" aria-pressed="true"><span class="key" style="background:#1a56c4;border-radius:50%"></span><span class="tl">Kairaukset</span><span class="track"></span></button>
+            <button type="button" class="tg" data-plan="trees" aria-pressed="true"><span class="key" style="background:#5d8a48;border-radius:50%"></span><span class="tl">Puut</span><span class="track"></span></button>
+            <button type="button" class="tg" data-plan="contours" aria-pressed="false"><span class="key" style="background:#8a6a48"></span><span class="tl">Korkeuskäyrät</span><span class="track"></span></button>
+            <button type="button" class="tg" data-plan="util" aria-pressed="false"><span class="key" style="background:#d7263d"></span><span class="tl">Vesihuolto</span><span class="track"></span></button>
+            <button type="button" class="tg" data-plan="lights" aria-pressed="true"><span class="key" style="background:#ffd27a;border-radius:50%;box-shadow:inset 0 0 0 1px #a35f00"></span><span class="tl">Ulkovalot</span><span class="track"></span></button>
+            <button type="button" class="tg" data-plan="bg" aria-pressed="true"><span class="key" style="background:linear-gradient(90deg,#6f9b4d 50%,#8f8a7a 50%)"></span><span class="tl">Malli taustalla</span><span class="track"></span></button>
+          </div>
+          <button type="button" class="btn center" id="plan-shot">Tallenna asemakuva (PNG)</button>
+          <p class="gaps num" id="t-msg" role="status" hidden></p>
+        </div>
+        <div class="grp">
+          <h3>Leikkaus</h3>
+          <button type="button" class="btn center" id="sec-open" aria-pressed="false">Avaa leikkaus järvelle päin</button>
+        </div>
+        <div class="grp">
+          <h3>Maaperä ja kairaukset</h3>
+          <button type="button" class="btn center" id="soil-view">Näytä kairaukset maan alla</button>
+          <div class="ctl"><div class="ctl-h"><label for="soil-op">Maanpinnan läpinäkyvyys</label><span class="num" id="f-soilop">75 %</span></div>
+            <input type="range" id="soil-op" min="0" max="0.95" step="0.05" value="0.75" style="width:100%"></div>
+          <ul class="legend">
+            <li><i style="background:#4a3a2b"></i>Pintamaa</li>
+            <li><i style="background:#b7a47c"></i>Savinen siltti</li>
+            <li><i style="background:#9aa3a8"></i>Silttinen savi</li>
+            <li><i style="background:#7d93ab"></i>Savi</li>
+            <li><i style="background:#8b7659"></i>Moreeni</li>
+            <li><i class="ring"></i>Näyte</li>
+            <li><i style="background:#2a2d2b;clip-path:polygon(0 0,100% 0,50% 100%)"></i>Kairaus päättyi</li>
+            <li><i class="rod" style="background:#a9afac"></i>Kairaus 2013</li>
+          </ul>
+        </div>
+        <div class="grp">
+          <h3>Tiedot</h3>
+          <div class="drills">
+            <button type="button" class="drill" data-sub="ifacts"><span class="dl-t">Talo ja tontti</span><span class="dl-v">mitat ja korot</span><span class="dl-c" aria-hidden="true">›</span></button>
+            <button type="button" class="drill" data-sub="iwater"><span class="dl-t">Vesihuolto</span><span class="dl-v">liitokset</span><span class="dl-c" aria-hidden="true">›</span></button>
+            <button type="button" class="drill" data-sub="isoil"><span class="dl-t">Maaperä ja kairaukset</span><span class="dl-v">perustaminen</span><span class="dl-c" aria-hidden="true">›</span></button>
+            <button type="button" class="drill" data-sub="ihouse"><span class="dl-t">Talon kuvaus</span><span class="dl-v">mallit ja varusteet</span><span class="dl-c" aria-hidden="true">›</span></button>
+            <button type="button" class="drill" data-sub="iyard"><span class="dl-t">Piha ja rakennukset</span><span class="dl-v">terassi ja talli</span><span class="dl-c" aria-hidden="true">›</span></button>
+            <button type="button" class="drill" data-sub="isrc"><span class="dl-t">Lähteet</span><span class="dl-v">aineistot</span><span class="dl-c" aria-hidden="true">›</span></button>
+          </div>
+        </div>
+      </section>
+      <section class="pane subpage" id="sub-ifnd" data-parent="house" role="region" aria-label="Perustus ja täytöt" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Talo">‹ Talo</button><h2>Perustus ja täytöt</h2></div>
+        <dl class="facts">
+          <dt>Perustamistapa</dt><dd>paalulaatta</dd>
+          <dt>Paalut</dt><dd id="fd-piles">18 × teräsputki 90/6,3</dd>
+          <dt>Paalujen pituus, arvio</dt><dd id="fd-plen">—</dd>
+          <dt>Paalumetrit, arvio</dt><dd id="fd-psum">—</dd>
+          <dt>Talokaupan oletus</dt><dd>18 × 8 m = 144 m</dd>
+          <dt>Lisämetrit, arvio</dt><dd id="fd-pcost">—</dd>
+          <dt>Arvioitu tunkeumataso</dt><dd>+31,8 … +26,8</dd>
+        </dl>
+        <h3 class="sub-h3">Korot</h3>
+        <dl class="facts">
+          <dt>Valmis lattia</dt><dd id="fd-fl">—</dd>
+          <dt>Betonilaatan pinta</dt><dd id="fd-bl">—</dd>
+          <dt>Sokkelin yläpinta ±0</dt><dd id="fd-s0">—</dd>
+          <dt>Maanpinta seinän vierellä</dt><dd id="fd-g">—</dd>
+          <dt>Paalulaatan yläpinta</dt><dd id="fd-st">—</dd>
+          <dt>Laatan alla olevan EPS:n alapinta</dt><dd id="fd-eb">—</dd>
+          <dt>Kaivupohja enintään</dt><dd id="fd-kb">—</dd>
+          <dt>Salaojat, arvio</dt><dd id="fd-dr">—</dd>
+        </dl>
+        <h3 class="sub-h3">Rakenne ylhäältä alas</h3>
+        <div class="tbl">
+          <table>
+            <thead><tr><th>Kerros</th><th>Paksuus</th></tr></thead>
+            <tbody>
+              <tr><td>Lattianpinnoite</td><td>17 mm</td></tr>
+              <tr><td>Betonilaatta Ø5#150</td><td>80 mm</td></tr>
+              <tr><td>EPS 100 Pro Lattia, 2 × 85</td><td>170 mm</td></tr>
+              <tr><td>Eristyssora (täyttökerros)</td><td>430 mm</td></tr>
+              <tr><td>Paalulaatta, teräsbetoni</td><td>200 mm</td></tr>
+              <tr><td>EPS</td><td>150 mm</td></tr>
+              <tr><td>Kapillaarikatkosepeli #6/32</td><td>≥ 200 mm</td></tr>
+              <tr><td>Alustäyttö SrM/KaM #0/63…#0/90</td><td>≥ 300 mm</td></tr>
+              <tr><td>Suodatinkangas N3, perusmaa savi</td><td></td></tr>
+              <tr class="sub"><td colspan="2">Sokkeli</td></tr>
+              <tr><td>Sokkelielementti, betoni + EPS</td><td>210 + 100 mm</td></tr>
+              <tr><td>Korkeus laatan päältä</td><td>600 mm</td></tr>
+              <tr><td>Näkyvissä maan yläpuolella</td><td>400 mm</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3 class="sub-h3">Määrät talon kohdalla, arvio</h3>
+        <dl class="facts">
+          <dt>Kaivu, myös pintamaa</dt><dd id="fd-v-cut">—</dd>
+          <dt>Alustäyttö KaM</dt><dd id="fd-v-kam">—</dd>
+          <dt>Kapillaarikatkosepeli</dt><dd id="fd-v-cap">—</dd>
+          <dt>Eristyssora sokkelin sisällä</dt><dd id="fd-v-sand">—</dd>
+          <dt>Vierustäyttö 1,2 m leveydeltä</dt><dd id="fd-v-back">—</dd>
+          <dt>Betoni: laatta, sokkeli ja lattia</dt><dd id="fd-v-conc">—</dd>
+        </dl>
+        <p class="note">Määrät on laskettu talon alta ja 1,2 m sen ympäriltä. Ne eivät sisälly Talo ja tontti -sivun pihan täyttöön, joka on suunnitellun ja nykyisen maanpinnan erotus.</p>
+        <div class="callout" id="fd-drain"></div>
+        <p class="note">Rakenteet ja korot ovat Designtalon alustavista lupakuvista 602319 (5.11.2026): detalji M1 Paalulaatta/AP:n liittymä, leikkaus A-A ja alapohja AP1. Sokkelin yläpinta on ±0, valmis lattia +0,097 ja maanpinta seinän vierellä −0,400. Laatan alla on talokaupan mukaan EPS 150 mm ja teräsbetonia 200 mm.</p>
+        <p class="note">Alustäyttö, kaivupohja ja salaojien taso ovat Maavakion perustamistapalausunnon (3388, 24.9.2026) alustäytön periaatepiirustuksesta. Humusta sisältävä pintamaa (n. 0,2 m) poistetaan, kaivupohja muotoillaan salaojiin päin 1:100, ja sen päälle tulee suodatinkangas. Paalutus tehdään alustäytön päältä.</p>
+        <p class="note">Paalujen pituus on arvioitu lausunnon pohjatutkimusleikkauksista. Tunkeumataso on +31,8 talon koillispäässä (pisteet 4–6) ja +26,8 lounaispäässä (pisteet 1–3), ja niiden välillä se muuttuu tasaisesti. Lausunnon mukaan paalu lyödään vähintään metrin kairaussyvyyttä syvemmälle, ja lopullinen pituus varmistetaan koepaalutuksella. Kalliopintaa ei ole varmistettu porakonekairauksella.</p>
+        <p class="note">Paalujako on havainnollinen: 3 × 6 riviä eli 18 paalua, kuten talokaupassa. Reunarivit ovat 0,71 m seinästä, missä detalji M1 vahventaa laattaa. Lisämetrien hinta on talokaupan muutoshinnaston 43 €/m (sis. alv) mukaan.</p>
+        <p class="note">Routaeristys on mallissa 1,2 m leveä ja 100 mm paksu, ja se viettää ulospäin. Mitoittava pakkasmäärä on F50 = 37 000 Kh, ja lopullinen routasuojaus mitoitetaan RIL 261-2013:n mukaan. Lausunnon mukaan maanpinta kallistetaan talosta poispäin vähintään 1:20 kolmen metrin matkalla. Mallin pihaehdotuksessa etupiha on talon edessä tasainen, joten kallistus on tehtävä pihasuunnitelmassa.</p>
+        <p class="note">UMA:n lausunnon mukaan täyttö painuu pitkällä aikavälillä 200–300 mm ja aiheuttaa paaluihin negatiivista vaippahankausta. Paalulaatta ei painu, mutta vierustäyttö ja piha painuvat, joten talon putkiliitoksiin tarvitaan joustavat liitokset. Detaljissa M1 täyttökerroksessa on radonputki noin 1,5 m sokkelista, ja Perustustiedot-lomakkeen mukaan radonputkitus tilataan erikseen, jos sitä ei ole lisätty kaupan yhteydessä.</p>
+      </section>
+      <section class="pane subpage" id="sub-ifacts" data-parent="tech" role="region" aria-label="Talo ja tontti" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Tekninen">‹ Tekninen</button><h2>Talo ja tontti</h2></div>
+        <dl class="facts">
+          <dt>Talo</dt><dd id="f-model">Ideal 132</dd>
+          <dt>Rungon koko</dt><dd id="f-dims">15,02 × 8,79 m</dd>
+          <dt>Maanpinta talon kohdalla nyt</dt><dd id="f-ground">+40,55 … +41,51</dd>
+          <dt>Sokkelin yläpinta</dt><dd id="f-sokkeli">+42,400</dd>
+          <dt>Valmis lattia</dt><dd id="f-floor">+42,497</dd>
+          <dt>Sokkeli maan yläpuolella</dt><dd id="f-lift">0,89–1,85 m</dd>
+          <dt>Autotalli</dt><dd id="f-gar">6 × 7 m</dd>
+          <dt>Kasvihuone</dt><dd>3 × 5 m</dd>
+          <dt>Pergola</dt><dd id="f-perg">4,5 × 5,4 m + kasvihuone 3,6 m</dd>
+          <dt>Allas</dt><dd id="f-tub">palju Ø 1,95 m</dd>
+          <dt>Etupihan nousu tielle</dt><dd id="f-slope">6 %</dd>
+          <dt>Asfaltti</dt><dd id="f-asph">n. 300 m²</dd>
+          <dt>Täyttö enintään</dt><dd id="f-fillmax">1,5 m</dd>
+          <dt>Täyttö yhteensä</dt><dd id="f-fillvol">n. 840 m³</dd>
+        </dl>
+        <h3 class="sub-h3">Korot</h3>
+          <dl class="facts">
+            <dt>Tontin pinta-ala</dt><dd>1 326 m²</dd>
+            <dt>Maanpinta tontilla</dt><dd>+39,6 … +43,5</dd>
+            <dt>Hiidenveden pinta</dt><dd>+32,5</dd>
+            <dt>Hiidenrannantie tontin kohdalla</dt><dd>n. +55</dd>
+            <dt>Alueen korkein kohta</dt><dd>+68,4</dd>
+            <dt>MML-malli vs. vaaitus 9/2026</dt><dd>+0,12 m mediaani</dd>
+            <dt>Vaaitus 7/2026 vs. 9/2026</dt><dd>+0,08 m keskim.</dd>
+          </dl>
+          <p class="note">Leikattu alue ulottuu noin 3 m uloimpien vaaituspisteiden yli, ja sen reunat on pyöristetty (noin 2 970 m²). Vaaitusalueen reunalla pinta liittyy MML:n malliin 6 m matkalla, joten saumaa ei näy.</p>
+          <p class="note">Ympäristö on MML:n 2 m korkeusmallista. Tontin kohdalla se on keskimäärin 0,12 m vaaitusta korkeammalla, ja 205 pistettä 230:stä on ±0,3 m sisällä. Rakennukset ja puut eivät näy korkeusmallissa.</p>
+          <p class="note">Heinäkuun vaaituksen 33 pistettä ovat keskimäärin 0,08 m syyskuun maastomallia korkeammalla. 24 / 32 pisteestä on ±0,15 m sisällä. Suurimmat erot, 0,4–0,6 m, ovat jyrkissä kohdissa, kuten koillisrajan luiskassa.</p>
+      </section>
+      <section class="pane subpage" id="sub-iwater" data-parent="tech" role="region" aria-label="Vesihuolto" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Tekninen">‹ Tekninen</button><h2>Vesihuolto</h2></div>
+          <dl class="facts">
+            <dt>Jätevesi, liitoskorkeus</dt><dd>+37,34</dd>
+            <dt>Jätevesi, padotuskorkeus</dt><dd>+38,34</dd>
+            <dt>Sadevesi, liitoskorkeus</dt><dd>+41,37</dd>
+            <dt>Sadevesi, padotuskorkeus</dt><dd>kansi +10 cm</dd>
+            <dt>Vesijohto, painetaso</dt><dd>776 kPa</dd>
+            <dt>Talolta jätevesi- ja vesijohtoliitokseen</dt><dd>n. 26 m</dd>
+            <dt>Talolta sadevesiliitokseen</dt><dd>n. 32 m</dd>
+          </dl>
+          <p class="note">Jätevesi- ja vesijohtoliitos ovat tontin länsikulmassa. Kunnan runkolinjat kulkevat kulman läpi noin 14 m matkalla, samassa kohdassa kuin asemakaavan maanalaisen johdon varaus. Sadevesiliitos on Opistontien ja Ali-Haakkointien risteyksen kaivossa.</p>
+          <div class="callout">Sadevesiliitos on korkealla (+41,37). Jotta salaoja- ja sadevedet valuvat liitokseen omalla painollaan, niiden pitää lähteä talolta noin tasolta <b>+41,5…41,7</b>. Tämä edellyttää 0,5–1 % kaatoa 32 m matkalla. Tarkista taso LVI- ja pohjarakennesuunnittelijan kanssa, koska talon kohdalla maanpinta on nyt +40,6…41,6.</div>
+          <p class="note">Asemapiirroksen mukaan katto- ja pihavedet ohjataan perusvesikaivoon ja siitä kunnan sadevesiverkkoon. Perusvesikaivoon tulee padotusventtiili, ja nurmialueiden vedet ohjataan painanteisiin tontin rajoilla. Jäteveden padotuskorkeus on selvästi talon lattian (+42,50) alapuolella.</p>
+          <p class="note">Lausunnon mukaan liitoskorkeus pitää tarkistaa ennen tonttijohtojen kaivua, ja katualueen kaivutöistä tehdään ilmoitus Lupapiste.fi-palvelussa. Seuraavaksi täytetään liittymishakemus Vihdin Veden sivuilla. Sen jälkeen tulee liittymissopimus, ja allekirjoituksen jälkeen liittämistyön voi tilata.</p>
+      </section>
+      <section class="pane subpage" id="sub-isoil" data-parent="tech" role="region" aria-label="Maaperä ja kairaukset" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Tekninen">‹ Tekninen</button><h2>Maaperä ja kairaukset</h2></div>
+          <dl class="facts">
+            <dt>Maalajit</dt><dd>savi, siltti</dd>
+            <dt>Moreeni alkaa</dt><dd>5,6 … 12,4 m</dd>
+            <dt>Näytteet</dt><dd>pisteet 3 ja 5</dd>
+            <dt>Märkä maa</dt><dd>n. 3 m · +38</dd>
+            <dt>Perustamistapa</dt><dd>paalut</dd>
+            <dt>Luokat</dt><dd>GL2 · CC2 · PTL2</dd>
+          </dl>
+          <p class="note">Maalajit perustuvat pääosin arvioon. Näytteitä otettiin vain pisteistä 3 ja 5 syvyyksiltä 1, 2 ja 3,5 m, ja ne tarkastettiin silmämääräisesti. Kaikki näytteet olivat savea tai savista silttiä. Syvemmät kerrokset on arvioitu kairausvastuksesta. Kairareikiin ei noussut vettä, mutta näytteet muuttuivat märiksi noin 3 m syvyydellä.</p>
+          <p class="note">UMA:n lausunnon mukaan täyttö painuu pitkällä aikavälillä noin 200 mm, kun täyttöä on 1 m, ja noin 300 mm, kun sitä on 1,7 m.</p>
+        <h3 class="sub-h3">Kairaukset</h3>
+          <div class="tbl">
+            <table>
+              <thead><tr><th>Piste</th><th>Maanpinta</th><th>Syvyys</th><th>Päättyi</th></tr></thead>
+              <tbody>
+                <tr class="sub"><td colspan="4">Pohjatutkimus 9/2026 (GEO 3388)</td></tr>
+                <tr><td>1 · katos</td><td>+41,43</td><td>12,1 m</td><td>+29,4</td></tr>
+                <tr><td>2</td><td>+41,10</td><td>12,7 m</td><td>+28,4</td></tr>
+                <tr><td>3 · näytteet</td><td>+40,72</td><td>12,9 m</td><td>+27,8</td></tr>
+                <tr><td>4</td><td>+41,11</td><td>5,7 m</td><td>+35,4</td></tr>
+                <tr><td>5 · näytteet</td><td>+41,51</td><td>8,6 m</td><td>+32,9</td></tr>
+                <tr><td>6</td><td>+41,79</td><td>9,0 m</td><td>+32,8</td></tr>
+                <tr class="sub"><td colspan="4">Kairattu 2013, korot vaaittu 7/2026 (UMA)</td></tr>
+                <tr><td>U2</td><td>+41,05</td><td>15,0 m</td><td>+26,05</td></tr>
+                <tr><td>U3</td><td>+40,92</td><td>12,9 m</td><td>+28,02</td></tr>
+                <tr><td>U8</td><td>+40,24</td><td>14,0 m</td><td>+26,24</td></tr>
+                <tr><td>U9</td><td>+40,21</td><td>9,3 m</td><td>+30,91</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note">Kairaukset päättyivät kiveen, lohkareeseen, tiiviiseen maakerrokseen tai kallioon. Kalliopintaa ei ole varmistettu porakonekairauksella.</p>
+      </section>
+      <section class="pane subpage" id="sub-ihouse" data-parent="tech" role="region" aria-label="Talon kuvaus" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Tekninen">‹ Tekninen</button><h2>Talon kuvaus</h2></div>
+        <p class="src">Talon paikka ja korot sekä autotallivaraus ovat Designtalon alustavista lupakuvista (työ 602319, 5.11.2026): asemapiirros 01 sekä julkisivut ja leikkaus A-A 03. Lupakuvat on nyt piirretty Ideal 132:lle (15,018 × 8,786 m). Talo on 0,89 m lähempänä lounaisrajaa kuin aiemmissa kuvissa (työ 602291), joten se on 2,89 m kummastakin sivurajasta. Etuseinä on samassa kohdassa kuin ennen, ja lisäsyvyys on järven puolella. Oletuspaikka on asemapiirroksesta, joka on sovitettu tontin rajapisteisiin 14P, 63P ja 103 noin 1 cm tarkkuudella.</p>
+        <p class="src">Ideal 132 -malli: Designtalon Ideal 132 -pohjakuva ja Visiofyn esittelymalli, jonka värit ja materiaalit ovat suuntaa-antavia. Ulkomitat 15,02 × 8,79 m, aukkojen ja väliseinien paikat on mitattu pohjakuvasta noin 5 cm tarkkuudella. Kuistin katos, portaat ja kattovarusteet on mallinnettu 3D-mallin mukaan silmämääräisesti. Kalusteet on sijoitettu pohjakuvan mukaan: ruokapöytä ja kuusi tuolia, sohva, kaksi nojatuolia, sohvapöytä ja TV-taso, sängyt ja työpöydät, kaapistot ja WC. Keittiö on Visiofyn mallin mukainen: valkoiset ovet, tammitaso, musta liesi, uuni ja allas, yläkaapit koko tason pituudelta ja niiden alla LED-nauha, jääkaappi ja pakastin, joiden yläpuolella on ilmanvaihdon säleikkö, sekä valkoinen saareke tammitasolla. Keittiön välitilassa ei ole ikkunaa, vaan kermanväriset, kiiltävät ja reunoiltaan pyöristetyt pystylaatat (65 × 260 mm) ja LED-valo. Saarekkeen ja ruokapöydän päällä on kolme yksinkertaista riippuvalaisinta. Riippuvalaisimet ja kattospotit valaisevat kartiona alaspäin. Työtason etureunan yläpuolella on kolme kattospottia, jotka valaisevat kaappien ovia. Lattia on vaaleaa tammiparkettia. Olohuoneessa on 75 tuuman televisio. Sen alareuna on 1,12 m korkeudella, ja sen takana on lämmin valo. Televisiossa pyörii äänetön pätkä Georges Mélièsin elokuvasta Matka kuuhun (Le Voyage dans la Lune, 1902). Elokuva on tekijänoikeusvapaa (public domain), ja pätkä on leikattu Wikimedia Commonsin tiedostosta. Television alla on 2,4 m leveä ja 0,6 m syvä tamminen laatikosto. Sen runko on 0,3 m korkea, ja siinä on neljä laatikkoa ja omat 0,2 m korkeat jalat. Laatikoston päädyissä television reunojen ulkopuolella ovat valkoiset Genelec-kaiuttimet. Ne ovat 8040:n kokoiset ja muotoiset: pyöristetty, taaksepäin kapeneva runko, diskantti matalassa aaltoputkessa, bassoelementti ritilän takana ja Iso-Pod-jalusta. Kaiuttimien välissä ovat levysoitin, tamminen LP-teline ja sienimallinen pöytävalaisin. Edessä on iso vaalea matto ja selkeälinjainen tamminen sohvapöytä. Spotit ja valaisimet ovat suuntaa-antavia. Sisävalot ja takan hehku on laskettu sisäpintoihin, joten seinät eivät varjosta niitä. Takan tulen hehku ulottuu heikkona myös saarekkeelle ja keittiön kaappeihin. Jokaisella valoryhmällä on oma säätimensä Ympäristö-välilehden Sisävalot-sivulla. Takka on oletuksena Tiileri Veronika, ja vaihtoehtoina ovat Tiileri Wilma AIR ja Pikku-Jussi. Wilma AIR: 730 × 730 × 1640 mm, rappaus tumma Funkkis, ja lasi kolmella sivulla (edessä 740 mm, sivuilla 300 mm, korkeus 410 mm). Se on 0,6 m syvässä syvennyksessä MH3:n ja MH2:n keskellä, niiden välisen seinän kohdalla, ja välinen seinä alkaa syvennyksen takaa. Ovet ovat ennallaan, ja kummankin huoneen oven ja syvennyksen väliin jää 0,62 m seinää: huoneen puolelle syntyy syvennyksen kanssa samassa linjassa oleva 0,6 m syvä nurkkaus, johon mahtuu 60 × 60 cm kaappi tai vaatekaappi. Takan syvennys on noin 1,72 m leveä, ja 0,73 m syvä takka ulottuu vain 13 cm sen suun ohi, joten käytävä pysyy täysleveänä. Syvennykseen päin katsottaessa takka on vasemmalla 6 cm sivuseinästä, ja toisella puolella on mustalla teräsalustalla 42 cm leveä halkopino, jossa on kaksi riviä koivuhalkoja noin metrin korkeudelle. Takan päältä nousee 300 mm teräshormi suoraan kattoon ja katon läpi piipuksi, eikä se kulje seinän sisällä. Sisällä hormi on Veronikan kanssa takan vaaleaa sävyä ja Wilman kanssa musta. Katon yläpuolella se on aina musta. Kaksi nojatuolia on olohuoneen ikkunoiden edessä takkaan päin käännettyinä. Ne ovat matalia, pehmeän muotoisia lampaantaljanojatuoleja &amp;Traditionin Little Petran (Viggo Boesen, 1938) tapaan: noin 84 × 84 cm ja 75 cm korkeita, istuinkorkeus 40 cm, luonnonvalkoinen kihara talja ja lyhyet vinot tammijalat. Pikku-Jussin kanssa tuolit ovat pohjakuvan paikoillaan käytävän puolella ja käännettyinä takkanurkkaan päin. Sohva on samaa sarjaa: noin 2,17 m pitkä ja 1,10 m syvä. Siinä on noin 32 cm leveät käsinojat, joiden päällä on tasainen kohta esimerkiksi puhelimelle, matala ja täyteläinen pohja, kaksi syvää istuintyynyä, kaksi paksua selkätyynyä ja kuusi tukevaa tammijalkaa sohvan alla. Istuinsyvyys selkätyynyyn on noin 0,6 m. Sohvan vieressä terassin oven ja ikkunan välisessä seinässä on kolme päällekkäistä seinävalaisinta. Niiden opaalikupu on samaa muotoa kuin levysoittimen vieressä olevan sienilampun, mutta halkaistu, ylöspäin avautuva ja hieman syvempi. Ne hehkuvat lämpimästi ja valaisevat seinää yläpuolellaan, ja niillä on oma säätimensä Sisävalot-sivulla. Ruokapöytä on öljyttyä tammea: 1,82 × 0,90 m:n kansi, jonka kulmat ja reunat on pyöristetty, ja neljä pyöreää kapenevaa jalkaa. Ruokatuolit ovat pieniä kuppimaisia lampaantaljanojatuoleja tammijaloilla. Niiden istuinkorkeus on 48 cm, ja matalat käsinojat mahtuvat pöydän alle. Keittiön valkoisissa ovissa ja laatikoissa on varjosaumat ja ohuet mustat vetimet, ja välitilassa on kermanvalkoiset kiiltävät 65 × 272 mm pystylaatat kahdessa rivissä, jokainen omana laattanaan. MH3:n ovi on huoneen vasemmassa päässä musiikkihuoneen vieressä ja MH2:n ovi oikeassa päässä WC:n vieressä.</p>
+        <p class="src">Lehtikuusi 125 ja Kaarna 152 (Sievitalo; Kaarnan sivun osoite on kaarna-176): seinien, aukkojen ja kuistien paikat on mitattu Sievitalon pohjakuvista, ja mittakaava on laskettu huoneiden pinta-aloista. Lehtikuusi on 15,29 × 10,44 m ja Kaarnan päärakennus 11,03 × 8,03 m. Korot, kattokaltevuudet ja pintamateriaalit ovat havainnekuvien mukaan arvioituja. Lehtikuusessa on vaalea vaakapaneeli ja samanväriset listat, kuisteissa luonnonvaalea puuverhous ja musta säleseinä. Kaarnassa on luonnonvaalea pystylaudoitus, musta paneeli suurten ikkunoiden välissä ja lumiesteet. Kummankin katto on musta konesaumattu peltikatto. Sisätiloissa on vain seinät, lattiat ja Kaarnan portaat, ei kalusteita. Mallit sijoittuvat Ideal 132:n paikalle niin, että etuseinä on samalla linjalla. Havainnekuvat ovat pohjakuvien peilikuvia, ja malli on oletuksena havainnekuvan suuntainen; Peilikuva-painike kääntää sen pohjakuvan suuntaiseksi.</p>
+        <p class="src">Sauna ja pesuhuone ovat omistajan toiveen mukaiset, eivät pohjakuvan. Saunan ja pesuhuoneen välinen seinä on 0,5 m kauempana takaseinästä, joten sauna on noin 1,7 × 2,1 m (3,7 m²) ja pesuhuone noin 1,7 × 1,9 m (3,2 m²). Pesuhuoneen ja musiikkihuoneen välinen seinä on 0,2 m pohjakuvaa lähempänä musiikkihuonetta, ja rumpusetti on siirtynyt seinän mukana. Saunan ovi siirtyi seinän mukana, ja pesuhuoneen ovi kodinhoitohuoneesta on siirretty alemmas. Lauteet ovat lämpöhaapaa ovelta katsoen vasemmalla seinällä: ylälaude 1,05 m ja alalaude 0,45 m lattiasta. Alalaude levenee takaosassa oikeaan seinään asti, ja kiuas nousee sen läpi takaseinällä oikealla. Kiuas on Pilari-IKI 9 kW -sähkökiuas (Ø 340 mm, korkeus 1 200 mm, saunoihin 8–16 m³). Saunan tilavuus on noin 9 m³, ja ikkuna sekä lasiovi lisäävät laskennallista tilavuutta noin 3 m³. Seinissä ja katossa on pystysuuntainen lämpöhaapapaneeli. Ikkuna on Visiofyn mallin mukaan 0,9 × 0,4 m nauhaikkuna seinän yläosassa: alareuna on 1,8 m lattiasta (0,75 m ylälauteen yläpuolella) ja yläreuna ovien tasalla, ja ovi on pronssinsävyistä lasia. Ylälauteen etureunan alla ja selkänojan takana on LED-nauha. Pesuhuoneessa on tummat suurlaatat, lattialla 60 × 60 cm ja seinillä 60 × 120 cm. Sadesuihku (300 × 300 mm) on nurkassa ilman suihkuseinää ja tavallinen lattialle asennettava WC-istuin ikkunan alla. Oven puoleisella seinällä oven ja musiikkihuoneen seinän välissä on sama käsienpesuallas tammikaapilla kuin eteisen WC:ssä, ja sen yllä on pyöreä valopeili. Hanat ja suihkun kalusteet ovat mattamustia.</p>
+        <p class="src">Julkisivun voi valita Talo-välilehdellä. Vaihtoehdot ovat tumma laudoitus tai luonnollinen kirkkaaksi öljytty kuusipaneeli: 70 mm leveä pystylauta, jossa on kapea ura, kuten käyttäjän referenssikuvissa. Lehtikuusessa sama puu on vaakaan. Valinta koskee taloa ja autotallia. Katto, otsalaudat, ikkunanpuitteet, ovet ja pellitykset pysyvät hyvin tummina, jotta puu erottuu. Katot ovat mustaa saumapeltiä: saumat ovat 32 mm korkeita ja 0,5 m välein.</p>
+        <p class="src">Ideal 132:n katto ja ulkovarusteet ovat Visiofyn mallin mukaiset (talo sellaisena kuin se rakennetaan):
+          räystäskourut (125 mm) ja syöksytorvet talon nurkissa;
+          takalappeella 0,4 m harjasta neljä tuuletusputkea (160 mm) hatuilla ja yksi ohut putki (75 mm), kaikissa kartiomainen läpivientikappale;
+          takan pyöreä musta teräspiippu (300 mm) sadehatulla, 0,8 m katon korkeimman kohdan yläpuolella 3 m:n säteellä (takka on omistajan toive, Visiofyn mallissa sitä ei ole);
+          lumiesteet molempien räystäiden koko pituudelta;
+          seinätikkaat saunan päädyssä harjan takapuolella ja niiden yläpäässä lyhyt kattosilta;
+          saunan päädyssä ilma-vesilämpöpumpun ulkoyksikkö jalustallaan ja sen putkikotelo.
+          Sisääntulon katos on pääkaton lappeen jatke samassa kaltevuudessa ilman taitetta. Se ulottuu 1,4 m seinästä ja on kuistin levyinen, ja siinä on oma kouru ja syöksytorvi.</p>
+        <p class="src">Talo-välilehden Pohja-valinnalla eteinen siirtyy autotallin taakse (pohjaluonnosten ehdotus 1): eteinen, WC ja arkieteinen ovat entisen MH3:n kohdalla KHH:n edessä, MH2 ja MH3 vanhan eteisen puolella, MH1:een kuljetaan ruokailutilasta walk-in-vaatehuoneen päädyn kautta, musiikkihuoneeseen eteisestä käytävän puoleisesta päästä, ja takka on samanlaisessa syvennyksessä MH2:n seinässä WC:n vieressä. Nojatuolit ovat silloin olohuoneen ikkunoiden edessä. Takka valitaan Talo-välilehdeltä. Vaihtoehdot ovat Tiileri Veronika (740 × 535 × 1 690 mm; lämmin, vaalea ja karhea rappaus vanilja; kolmeen suuntaan avautuva lasiluukku mustissa kehyksissä) ja Tiileri Wilma AIR (730 × 730 × 1 640 mm), ja kumpikin on syvennyksessä makuuhuoneen seinässä halkopinon vieressä. Toinen vaihtoehto on Tiileri Pikku-Jussi Funkkis alaliittymällä ja mustalla rappauspinnalla olohuoneen takanurkassa kodinhoitohuoneen puolella. Se on 805 mm kumpaakin seinää pitkin ja 1 620 mm korkea. Seinistä lähtevät 320 mm suorat sivut, ja 686 mm leveä etuviiste on huoneeseen päin. Edessä on mustan mosaiikkilaatoituksen keskellä grafiitinvärinen luukku, jossa on 385 × 390 mm lasi ja kahva oikealla. Luukun alla on tuhkaluukku, ja kummankin sivun alaosassa on nuohousluukku. Takan edessä on tumma kivinen lattiasuoja, joka ulottuu 400 mm takan etupinnasta ja 100 mm sen ohi seinien vieressä. Kun Pikku-Jussi on valittuna, olohuoneen kaksi takaseinän ikkunaa siirtyvät takan viereltä terassin oven suuntaan ja kapenevat noin 1,35 metristä 0,97 metriin. TV-taso lyhenee 2,4 metristä 2,06 metriin, ja koko TV-seinä siirtyy 0,34 m kauemmas takasta sohvan keskikohdalle. Tason pää jää 15 cm takan sivusta.</p>
+        <p class="src">Makuuhuone 4 on musiikkihuone. Syvennyksen nurkassa on viininpunainen rumpusetti: 22" bassorumpu, 10" ja 12" tomit, 16" lattiatomi, 14" virveli, hi-hat, kaksi crashia ja ride. Kaksi kattospottia valaisee settiä. Ulkoseinällä rumpujen ja ikkunaseinän välissä on 2,2 × 0,8 m tamminen sähköpöytä. Sillä ovat leveä näyttö, valkoiset Genelecit (8030-koko), tumma MacBook Pro 16, Applen näppäimistö, Logitech MX Master sekä Native Instrumentsin rumpukone ja DJ-ohjain. Pöydän yläpuolella ovat 2,2 × 0,4 × 0,3 m tammikaapit, joiden alla on lämmin LED-nauha, ja pöydän ja kaappien välissä on tammirimoitus. Makuuhuone 3:n puoleisella seinällä on 2,2 × 0,4 m taso, jolla ovat MIDI-koskettimisto, pallovalaisin ja kasveja. Tason yläpuolella on kolme 60 × 90 cm taulua: Hilma af Klintin The Ten Largest -sarjan No. 2, 3 ja 7 (1907). Maalaukset ovat tekijänoikeusvapaita (public domain), ja kuvat on haettu Wikimedia Commonsista. Huoneessa ovat lisäksi studiomikrofoni heijastinsuojineen, Herman Millerin Embodyn tapainen tuoli ja vaalea, pehmeä nukkamatto neutraalin beigenharmaassa sävyssä. Huoneen valoilla on oma säädin. Musiikkihuoneen, makuuhuoneiden, WC:n, saunan, pesuhuoneen ja kodinhoitohuoneen valot eivät näy seinien läpi viereisiin huoneisiin.</p>
+        <p class="src">Talon korot ovat lupakuvista: lattia +42,497, sokkeli +42,400 ja seinän yläpää +45,734. Harja (+47,94) on laskettu katon kaltevuudesta 1:2, ja räystäät ovat 0,5 m. Pulpettikatossa matala seinä on tien puolella samassa korossa, ja katto nousee järven puolelle kaltevuudella 14 %, kuten järven puolen naapurin katossa. Järvenpuoleinen seinä on silloin noin 1,2 m korkeampi. Järven puolella on lupakuvien mukainen 14,4 × 3,0 m avoterassi, jonka taso on +0,050 sokkelista. Talon, autotallin ja kasvihuoneen voi siirtää vapaasti tontin sisällä ja kääntää 90° kerrallaan. Lattia asettuu siirrettäessä maanpinnan mukaan: talossa 0,497 m suunnitellun maanpinnan korkeimman kohdan yläpuolelle seinien vierellä, kuten lupakuvissa, autotallissa 0,40 m ja kasvihuoneessa 0,30 m. Lattiakorkoa voi hienosäätää −1…+2 m. Talon lattiakoron säätö nostaa tai laskee myös etupihan: talon edessä maanpinta seuraa lattiaa, joten asfaltti, nurmi ja autotalli nousevat mukana. Kun piha nostetaan tien tason yläpuolelle, piha pysyy tasaisena tielle asti, ja liittymä laskee ojan yli tien reunaan.</p>
+      </section>
+      <section class="pane subpage" id="sub-iyard" data-parent="tech" role="region" aria-label="Piha ja rakennukset" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Tekninen">‹ Tekninen</button><h2>Piha ja rakennukset</h2></div>
+        <p class="src">Terassi, pergola, allas ja ulkovalot ovat omistajan toiveen mukaiset. Terassi on 150 mm leveää terassilautaa 6 mm raoin, ja se ulottuu talon päätyseinästä toiseen. Pergola on 4,5 × 5,4 m, ja sen jatkeena on 3,6 m syvä kasvihuone samassa rungossa: tolpat ovat 0,9 m ja kattopalkit 0,6 m välein, ja katto on samaa lasia kuin talon ikkunat. Pergolan avoimen sivun voi sulkea liukulaseilla, ja Peilikuva vie pergolan terassin toiseen päähän. Pergolaa vastapäätä on 2,5 m korkea seinäke julkisivun materiaalista. Altaaksi voi valita puulämmitteisen paljun tai porealtaan. Palju on Ø 1,95 m: lämpöpuiset laudat, kaksi teräsvannetta, tumma sisäallas ja ulkokamiina, jonka savupiippu nousee pergolan katon läpi. Poreallas on 2,2 × 2,2 m ja pyöreäkulmainen: sama puureunus kuin paljussa, valkoinen akryyliallas, istuin ympäri, niskatyynyt kulmissa ja ohjauspaneeli reunalla. Terassiin upotettuna paljun reuna on 0,5 m ja porealtaan 0,2 m lautojen yläpuolella, ja korkoa voi säätää. Puureunus ulottuu aina maahan asti. Allasta voi siirtää vetämällä, ja 90° kääntö vie kamiinan tai ohjauspaneelin toiselle sivulle. Ulkovalot ovat lämpimän valkoisia. Talossa ja autotallissa on mustat seinävalaisimet, ja sisääntulon tuijien vieressä on 0,8 m korkeat mustat pyöreät pollarit, joiden valo suuntautuu alas. Pollarit siirtyvät, kun asfaltin muotoa muutetaan. Ulkovalot syttyvät auringonlaskun aikaan, ja seinävaloilla ja pollareilla on omat himmentimensä.</p>
+        <p class="src">Pergolan seinäke on laudoitettu julkisivun laudalla molemmilta puolilta, ja sen edessä 20 cm irti on jalustallinen kevyttakka Aduro 9.3:n tapaan (50 × 104 cm, kaareva etulasi ja korkea lasi kummallakin sivulla, joten tuli hohkaa myös sivuille), jonka hormi nousee katon läpi. Sen tuli palaa talon takan kanssa samalla säädöllä. Pergolan keskitolpassa on alasvalot molemmin puolin, ja seinäkkeessä on alasvalo paljun kohdalla.</p>
+        <p class="src">Sisääntulon puolella on oletuksena 1 m korkea lauta-aita, joka on molemmilta puolilta samaa lautaa kuin julkisivu. Se kulkee tontin rajalla, kääntyy kulmissa 1 m säteellä ja jatkuu noin 2,5 m sivuille, joista tuija-aita jatkuu. Liittymän kohdalla se kaartuu sisään ajotien suuntaisesti, ja sen tien puolella on alasvalot 1,5 metrin välein liittymästä alkaen. Aidan edessä nurmi ulottuu tien asfalttiin asti. Tuija-aidan voi pitää myös etupuolella lauta-aidan takana. Hedelmäpuiden ympärillä on hakeympyrä: pienellä 1,1 m, keskikokoisella 1,4 m ja isolla 1,8 m. Myös tontin isojen puiden juurella on hake.</p>
+        <p class="src">Autotalli on 6 × 7 m: ajopuolelta katsoen 4 m leveä talliosa nosto-ovella ja 3 m leveä varasto. Varastossa on ovi sekä ajopuolella että vastakkaisella sivulla samassa kohdassa. Katoksi voi valita pulpettikaton, joka nousee ajopuolelle 12 %, tai 1:2-harjakaton, jonka harja on pidemmän sivun suuntainen. Peilikuvassa talli ja varasto vaihtavat puolta. Mitat ja korot ovat ehdotuksia, ja asemapiirroksen autotallivaraus on 6 × 7 m. Autotallin lattian korko lasketaan koko seinälinjan suunnitellusta maanpinnasta. Ovien edessä on aina tallin levyinen luiska, joka nousee tai laskee enintään 1:10 kynnykseen 3 cm lattian alapuolelle, ja varaston takaovelle johtaa 1,2 m leveä luiska. Muualla maanpinta pidetään vähintään 0,30 m lattian alapuolella, jotta kivijalka näkyy kaikilla lattiakoroilla, ja se nousee takaisin pihan tasoon 1:3. Asfaltti seuraa tallia: sen ympärillä on 0,5 m reunus, ja ovien edestä ajoyhteys jatkuu pihan asfalttiin. Kasvihuone on 3 × 5 m, ja sen runko on 100 × 100 mm ruskeaksi kuultokäsiteltyä puuta. Räystäs on 1,95 m ja harja 2,85 m lattiasta, ja pulpettikatto nousee takareunalle 2,6 metriin. Oletuspaikka on takapihalla 3 m järvenpuoleisesta rajasta, männyn oikealla puolella.</p>
+        <p class="src">Pihasuunnitelma on ehdotus, ei suunnittelijan piirustus. Maanpinta ei muutu, kun taloa, autotallia tai kasvihuonetta siirretään. Talon takaseinän linjalta Opistontielle pinta on yksi taso: +42,00 kolmeen metriin talon edestä ja siitä tasaisesti nousten tien reunan korkoon liittymän kohdalla. Nurmi ja asfaltti ovat samassa tasossa, joten asfaltin muotoa voi muuttaa vapaasti. Oletuksena asfaltti jatkuu talon alle ja ulottuu talon koillisseinän linjasta lounaisseinän linjaan, joka kulkee asfaltin reunalla olevan haavan keskeltä. Talon takana nurmi on samassa tasossa kuin etupiha (+42,00) noin 6,5 m päähän talosta eli pergolan päähän asti. Siitä se laskee julkisivupiirroksen 03 maanpintaviivaan noin 16 m päässä talosta. Terassi on noin 0,45 m nurmen yläpuolella. Rajoilla suunniteltu pinta liittyy nykyiseen maanpintaan metrin matkalla rajan vieressä. Liittymä on se kohta, jossa asfaltti ylittää rajan tielle. Siinä asfaltti kulkee matalalla penkereellä ojan yli, ja aidassa on aukko. Etupihan nousu lasketaan tien reunan korosta tässä kohdassa. Tontin sisällä asfaltin kulmat on pyöristetty 1 m säteellä. Haavan ympärillä piha jatkuu samassa tasossa ilman reunusta. Tuija-aita on oletuksena 2 m korkea (säädettävissä 0,5–3 m) ja 0,8 m leveä. Naapureiden ja järven puolella se kulkee rajan keskellä, puoliksi naapurin puolella; tien puolella sen keskilinja on 0,5 m rajan sisäpuolella. Aidan yläreuna seuraa maanpintaa aidan kohdalla. Täyttö on suunnitellun ja vaaitetun pinnan erotus 0,25 m ruudussa.</p>
+        <p class="src">Naapureista katsottaessa silmät ovat 1,7 m arvioidun lattian yläpuolella talollesi päin olevan seinän kohdalla. Lattia on arvioitu 0,5 m maanpinnan yläpuolelle, koska naapuritalojen korkoja ei ole aineistossa. Katsele ympärille -tilassa silmien korkeus lasketaan maasta, ja talossa, autotallissa ja kasvihuoneessa lattiasta.</p>
+        <p class="src">Vuorokaudenaika noudattaa 15. heinäkuuta Vihdissä kesäajassa: klo 14 aurinko on noin 51° korkeudella etelässä ja klo 20 noin 15° korkeudella suunnassa 288°, ja se laskee noin klo 22.30. Auringonlaskun jälkeen valaistus tummuu myöhäisillaksi, joka on tunnelmavalaistus ja todellista heinäkuun yötä tummempi.</p>
+        <p class="src">Asemakuva on ylhäältä ilman perspektiiviä. Tontin raja on vaaituskartasta ja rajanaapurit kiinteistörekisterikartasta. Etäisyydet ovat lyhimpiä etäisyyksiä rakennuksen seinästä tai nurkasta rajaan, ja alle 4 m etäisyys naapurin rajaan näkyy punaisena. Kairauspisteiden kohdalla on maanpinnan korko ja kairauksen syvyys. Kuva on luonnos eikä korvaa pääsuunnittelijan asemapiirrosta.</p>
+      </section>
+      <section class="pane subpage" id="sub-isrc" data-parent="tech" role="region" aria-label="Lähteet" hidden>
+        <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Tekninen">‹ Tekninen</button><h2>Lähteet</h2></div>
+        <p class="src">Maanpinta, korkeuskäyrät, tontin raja ja kairaukset 1–6: pintavaaitus- ja pohjatutkimuskartta GEO 3388.1 sekä perustamistapalausunto, 23.9.2026.</p>
+        <p class="src">Perustus: Designtalon alustavat lupakuvat 602319 (5.11.2026), ARK-leikkausten detalji M1 Paalulaatta/AP:n liittymä (102.6), leikkaus A-A sekä rakennetyypit AP1, US1 ja YP1. Alustäyttö, kaivupohja, salaojat, kuivatus, routasuojauksen pakkasmäärä ja paalujen tunkeumataso: Maavakio Oy, perustamistapalausunto 3388 (24.9.2026), pohjatutkimusleikkaukset GEO 3388.2 ja paaluperustuksen alustäytön periaatepiirustus. Paalujen määrä ja lisämetrien hinta: talokauppa ja sen muutoshinnasto. Täytön painuma: UMA:n lausunto 6951/26.</p>
+        <p class="src">Vesihuolto: Vihdin Veden liitoskohtalausunto 5.8.2026 ja sen karttaliite 4.8.2026 (mitatut korot, N2000). Putkien reitit on kohdistettu kartasta tontin rajan avulla, tarkkuus noin 0,5 m. Vesijohdon syvyydeksi on oletettu 2,2 m, ja kaivojen pohjat, joita kartassa ei ole, on arvioitu.</p>
+        <p class="src">Syyskuun vaaituksen kohdekoodit piirustuksen tasokuvauksista: maan hajapiste (1101), luiskan ylä- ja alareuna (1173, 1174), asfaltin reuna (510), reunakiven ala- ja yläreuna (565, 566), rakennukset (450), sadevesikaivo (2305), sulkuventtiili (2401), kaivo (3406) ja valaisinpylväs (2102). Mittapisteet yhdistävät molemmat vaaitukset. Tontin ulkopuolella pisteitä on harvennettu noin 3,5 m välein, ja tontin sisällä kaikki pisteet ovat mukana.</p>
+        <p class="src">Vaaitus 7/2026 ja kairaukset U2–U9: Uudenmaan Maanrakennussuunnittelu, työ 6951/26, pintavaaitus 30.7.2026 ja lausunto 2.8.2026. Kairaukset on tehty 18.9.2013 (työ 4352/13), jolloin korot mitattiin vielä N60-järjestelmässä.</p>
+        <p class="src">Rakennukset: sisältää Maanmittauslaitoksen Maastotietokannan aineistoa 03/2025 (641 rakennusta noin 900 m säteellä talosta) ja laserkeilausaineistoa kesältä 2024, lisenssi CC BY 4.0. Pohjan muoto ja sijainti ovat Maastotietokannasta. Koillisnaapurin kaksi rakennusta ja yksi pieni rakennus Opistontien itäpuolella ovat syyskuun vaaituksesta. Kolmen rakennuksen, myös luoteisnaapurin talon, pohja on laajennettu laserkeilauksen kattopisteiden mukaan. Räystäs- ja harjakorkeudet ovat laserista 625 rakennukselle, ja muiden korkeudet on arvioitu. Kauempana kuin 900 m rakennukset ovat mukana maastopinnassa. Katoilla on 0,5 m räystäät. Lähimmät naapuritalot molemmilla sivuilla ja rannan puolella on piirretty tummina.</p>
+        <p class="src">Tontin puut: viisi haapaa ja yksi mänty on mallinnettu yksitellen. Rungon tyvien paikat on mitattu omistajan dronekuvista (27.7.2026): viisi suoraan alaspäin otettua kuvaa on sovitettu toisiinsa maanpinnan sidospisteillä, kiinnitetty risteyksen mitattuihin sulkuventtiileihin ja valaisinpylvääseen ja tarkistettu Maanmittauslaitoksen ilmakuvaa vasten. Tarkkuus on haavoilla noin 0,3 m ja männyllä noin 0,5 m. Korkeudet (haavat 16–24 m, mänty 16 m) ovat laserista, ja lajit sekä männyn noin 8° kallistus ovat omistajan tiedoista. Puun saa pois ja takaisin päälle klikkaamalla sen tyveä. Rungon paksuus ja latvuksen leveys on arvioitu: kärjen haapa on tehty paksummaksi ja tuuheammaksi omistajan kuvauksen mukaan.</p>
+        <p class="src">Puulajit ovat arvio. Kesän 2024 ilmakuvan latvusväristä on erotettu lehti- ja havupuut. Noin 900 m säteellä (puhelimessa 500 m) havupuu on kuusi tai mänty niin, että mänty on todennäköisempi ylempänä kuivemmilla mailla. Lehtipuut ovat enimmäkseen koivuja ja haapoja, ja talojen lähellä pihoilla on myös vaahteroita ja tammia. Korkea lehtipuu on useammin haapa. Puukohtaista lajia ei ole tunnistettu. Tätä kauempana puusto on maastopinnassa latvuskorkeutena.</p>
+        <p class="src">Puusto: 16 681 puuta noin 900 m säteellä talosta. Sijainti ja korkeus ovat laserkeilauksen latvoista (mediaani 17 m), ja latvuksen leveys on arvioitu korkeudesta. Tätä kauempana puusto on mukana maastopinnassa latvuskorkeutena, jolloin vastarannan horisontti on metsän latvalinja eikä paljas maa.</p>
+        <p class="src">Ilmakuva: sisältää Maanmittauslaitoksen ortokuva-aineistoa, kuvattu 2024, pikselikoko 0,5 m (karttalehdet L4123E–H, Kapsi ry:n avoimen datan peili; laajalla alueella 10 m pikseleinä), lisenssi CC BY 4.0. Tiet ja katujen nimet © OpenStreetMapin tekijät, ODbL. Tiet on piirretty ilmakuvan päälle noin 1,6 × 1,2 km alueella: ajotiet ja kevyen liikenteen väylät asfalttina, polut sorana. Leveydet on arvioitu tieluokan mukaan. Tontin kohdalla tien reunat ovat syyskuun vaaituksesta.</p>
+        <p class="src">Laaja alue on 12 × 12 km (ETRS-TM35FIN E 344–356 km, N 6 690–6 702 km). Horisontti laskettiin talon silmäkorkeudelta (+44,2) 0,25° välein kaikkiin suuntiin paljaasta maanpinnasta ja maan kaarevuus huomioiden. Järven suunnassa (286–346°) horisontti on 1,2–7,4 km päässä, kauimpana luoteessa järvenselän yli. Kaikki horisontit ovat alueen sisällä, ja alue ulottuu talosta vähintään 2,7 km joka suuntaan. Talon ympärillä 4 × 3,7 km alue on 10 m hilana, muu alue 24 m hilana. Latvuskorkeudet ovat 16 laserkeilauslehdestä L4123E1–H4 (kesä 2024), ja maanpinta Korkeusmalli 2 m ja 10 m -aineistoista (L4123). Järven pinta on tasattu tasoon +32,5, koska eri vuosien keilauksissa se vaihtelee +31,5 ja +32,6 välillä.</p>
+        <p class="src">Ympäristö: sisältää Maanmittauslaitoksen Korkeusmalli 2 m -aineistoa 09/2026 (karttalehdet L4123E ja L4123G, keilattu 2011–2024), lisenssi CC BY 4.0.</p>
+        <p class="src">Tonttien rajat: sisältää Maanmittauslaitoksen kiinteistörekisterikartan aineistoa 23.9.2026 (karttalehti L4123G), lisenssi CC BY 4.0. Oma raja täsmää vaaituskartan rajaan 1–2 mm tarkkuudella. Rajanaapurit ovat 927-401-2-369, -978 ja -982.</p>
+      </section>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!--LOADER-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// the site data first, then the application
+fetch('../data/site.json').then(function(r){ if (!r.ok) throw new Error('data'); return r.json(); }).then(function(d){
+  window.SITE_DATA = d; var s = document.createElement('script'); s.src = 'main.js'; document.body.appendChild(s);
+}).catch(function(){ var f = document.getElementById('fail'), l = document.getElementById('loading'); if (l) l.hidden = true; if (f) { f.hidden = false; f.textContent = 'Mallin tiedot eivät latautuneet. Lataa sivu uudelleen.'; } });
+</script>
+<!--/LOADER-->
+
+</body></html>

@@ -333,6 +333,7 @@ dl.facts dd{margin:0;font:500 var(--fs-s)/1.5 var(--font-mono);text-align:right;
 .callout{font-size:var(--fs-s);line-height:1.5;background:var(--accent-soft);border-radius:8px;padding:9px 11px}
 .callout b{font-weight:600}
 .note{font-size:var(--fs-s);color:var(--muted);line-height:1.5;margin:0}
+.ver{font-size:var(--fs-xs);color:var(--faint);margin:0;text-align:center}
 .tbl{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font:var(--fs-s)/1.3 var(--font-mono);font-variant-numeric:tabular-nums}
 th{font-size:var(--fs-xs);font-weight:600;font-family:var(--font-sans);text-align:right;color:var(--muted);padding:0 0 6px;border-bottom:1px solid var(--line)}
@@ -712,6 +713,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
             <button type="button" class="drill" data-sub="isrc"><span class="dl-t">Lähteet</span><span class="dl-v">aineistot</span><span class="dl-c" aria-hidden="true">›</span></button>
           </div>
         </div>
+        <p class="ver num" id="ver">Versio __BUILD__</p>
       </section>
       <section class="pane subpage" id="sub-ifnd" data-parent="tech" role="region" aria-label="Perustus ja täytöt" hidden>
         <div class="sub-h"><button type="button" class="sub-back" data-back aria-label="Takaisin: Tekninen">‹ Tekninen</button><h2>Perustus ja täytöt</h2></div>
@@ -916,7 +918,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
 }}
 </script>
-<script type="module" src="./src/boot.js"></script>
+<script type="module" src="./src/boot.js?v=__VERSION__"></script>
 <!--/LOADER-->
 
 </body></html>

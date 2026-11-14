@@ -39,6 +39,11 @@ jobs:
         run: |
           mkdir _site
           cp index.html _site/
+          # versioleima: skriptit ja data haetaan leimalla, joten uusi sivu ei koskaan aja välimuistin vanhaa koodia;
+          # sama leima näkyy Tekninen-välilehden alareunassa
+          V=${GITHUB_SHA::7}; B=$(TZ=Europe/Helsinki date +'%-d.%-m.%Y klo %H.%M')
+          sed -i "s/__VERSION__/$V/g; s/__BUILD__/$B/g" _site/index.html
+          grep -q "boot.js?v=$V" _site/index.html || { echo "versioleima puuttuu"; exit 1; }
           cp -r src data assets vanha next _site/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5

@@ -19,14 +19,15 @@ def once(s, old, new):
     return s.replace(old, new)
 
 js = once(js, "var TV_CLIP = 'assets/tv.mp4'", "var TV_CLIP = 'data:video/mp4;base64," + mp4 + "'")
-# tehosteet (fx.js) samaan moduuliin käynnistyksen kanssa
-boot = once(boot, "import { FX } from './fx.js';\n", once(fx, 'export const FX', 'const FX'))
+# tehosteet (fx.js) samaan moduuliin käynnistyksen kanssa: fx.js moduulin alkuun, sen lataus pois
+boot = once(fx, 'export const FX', 'const FX') + '\n' + once(boot, "  const { FX } = await import('./fx.js' + VQ);\n", '')
 assert '</script' not in js and '</script' not in boot and '</script' not in data
 
 inline = ('<script type="application/json" id="data">' + data + '</script>\n'
           + '<script type="text/plain" id="app-src">' + js + '</script>\n'
           + '<script type="module">\n' + boot + '</script>\n')
-out, n = re.subn(r'<script type="module" src="./src/boot.js"></script>\n', lambda m: inline, html)
+out, n = re.subn(r'<script type="module" src="./src/boot.js\?v=__VERSION__"></script>\n', lambda m: inline, html)
+out = out.replace('Versio __BUILD__', 'Yksitiedostoversio')
 assert n == 1
 dist = root / 'dist'
 dist.mkdir(exist_ok=True)

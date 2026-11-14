@@ -3,12 +3,18 @@
 import * as THREE_NS from 'three/webgpu';
 import * as TSL from 'three/tsl';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { FX } from './fx.js';
 
 const failEl = document.getElementById('fail'), loadEl = document.getElementById('loading');
 const fail = (msg) => { if (loadEl) loadEl.hidden = true; if (failEl) { failEl.hidden = false; failEl.textContent = msg; } };
 
+// The page's build stamp (index.html gives it in this file's address): the other files are asked for with the same
+// stamp, so a new version of the page never runs with older copies of them from the browser's cache
+const V = new URL(import.meta.url).searchParams.get('v'), VQ = V && V.indexOf('__') < 0 ? '?v=' + encodeURIComponent(V) : '';
+const verEl = document.getElementById('ver');
+if (verEl && verEl.textContent.indexOf('__') >= 0) verEl.textContent = 'Kehitysversio';
+
 try {
+  const { FX } = await import('./fx.js' + VQ);
   // the application was written for the classic material names: the node materials take the same parameters
   const THREE = Object.assign({}, THREE_NS, { OrbitControls });
   THREE.MeshLambertMaterial = THREE_NS.MeshLambertNodeMaterial;
@@ -71,11 +77,11 @@ try {
   // the data and the application: separate files on the site, inside the page in the single-file build (tools/)
   const dataEl = document.getElementById('data'), appEl = document.getElementById('app-src');
   if (dataEl) window.SITE_DATA = JSON.parse(dataEl.textContent);
-  else { const res = await fetch('data/site.json'); if (!res.ok) throw new Error('data'); window.SITE_DATA = await res.json(); }
+  else { const res = await fetch('data/site.json' + VQ); if (!res.ok) throw new Error('data'); window.SITE_DATA = await res.json(); }
   window.THREE = THREE; window.TSL = TSL; window.FX = FX; window.TALO_RENDERER = renderer; window.TALO_Q = Q;
   window.TALO_BACKEND = renderer.backend && renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL2';
   if (appEl) { const s = document.createElement('script'); s.textContent = appEl.textContent; document.body.appendChild(s); }
-  else await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'src/main.js'; s.onload = ok; s.onerror = no; document.body.appendChild(s); });
+  else await new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'src/main.js' + VQ; s.onload = ok; s.onerror = no; document.body.appendChild(s); });
 } catch (e) {
   console.error(e);
   fail('3D-näkymä ei käynnistynyt: ' + (e && e.message ? e.message : e));

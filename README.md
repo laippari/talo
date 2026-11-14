@@ -1,4 +1,4 @@
-# Tontti 3D – Ideal 132 tontilla
+# Talo – Ideal 132 tontilla
 
 Selaimessa toimiva three.js-malli tontista, talosta, pihasta ja perustuksista. Koko sivu on
 yksi staattinen tiedosto (`index.html`): maastodata, tekstuurit ja koodi ovat sen sisällä, ja
@@ -9,6 +9,8 @@ three.js ladataan CDN:stä (`three.js r128`, lukittu versio).
 ```sh
 python3 -m http.server 8000      # → http://localhost:8000
 ```
+
+Julkaistu sivu: https://laippari.github.io/talo/
 
 **Julkaisu:** jokainen `main`-haaran push julkaisee sivun GitHub Pagesiin
 (`.github/workflows/pages.yml`; kertaluonteinen asetus: Settings → Pages → Source → GitHub

@@ -1,6 +1,8 @@
 .DS_Store
 __pycache__/
 *.pyc
+# yksitiedostoversio kootaan tarvittaessa: python3 tools/build_single.py
+dist/
 # työkopiot ja kuvakaappaukset pysyvät poissa repositoriosta
 shots/
 *.tmp.html

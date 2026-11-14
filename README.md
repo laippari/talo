@@ -1,8 +1,19 @@
 # Talo – Ideal 132 tontilla
 
-Selaimessa toimiva three.js-malli tontista, talosta, pihasta ja perustuksista. Koko sivu on
-yksi staattinen tiedosto (`index.html`): maastodata, tekstuurit ja koodi ovat sen sisällä, ja
-three.js ladataan CDN:stä (`three.js r128`, lukittu versio).
+Selaimessa toimiva three.js-malli tontista, talosta, pihasta ja perustuksista. Julkaistu sivu:
+https://laippari.github.io/talo/
+
+## Rakenne
+
+| Polku | Sisältö |
+| --- | --- |
+| `index.html` | Sivun rakenne ja tyylit. Lataa datan ja käynnistää sovelluksen. |
+| `src/main.js` | Koko sovellus (three.js r128, WebGL). |
+| `data/site.json` | Maasto, tontti, rakennukset, puut ja ilmakuvat. |
+| `assets/` | Media (olohuoneen television video). |
+| `next/` | Uusi piirtomoottori (three.js 0.186.1, WebGPU ja WebGL2-varatie). Kehitysversio, joka korvaa `src/`-version, kun se on valmis. |
+| `tools/build_single.py` | Kokoaa sivusta yhden HTML-tiedoston (`dist/talo.html`). |
+| `docs/SUUNNITELMA.md` | Renderöinnin ja mallinnuksen parannussuunnitelma ja sen tilanne. |
 
 ## Avaaminen
 
@@ -10,32 +21,33 @@ three.js ladataan CDN:stä (`three.js r128`, lukittu versio).
 python3 -m http.server 8000      # → http://localhost:8000
 ```
 
-Julkaistu sivu: https://laippari.github.io/talo/
+Sivu hakee datan erillisestä tiedostosta, joten se tarvitsee palvelimen. Yksitiedostoversio aukeaa
+kaksoisnapsautuksella:
 
-**Julkaisu:** jokainen `main`-haaran push julkaisee sivun GitHub Pagesiin
-(`.github/workflows/pages.yml`; kertaluonteinen asetus: Settings → Pages → Source → GitHub
-Actions). Käännösvaihetta ei ole. Workflow tarkistaa, että `index.html` on olemassa ja että sen
-skriptit ovat syntaktisesti kunnossa, ja julkaisee sen.
+```sh
+python3 tools/build_single.py    # → dist/talo.html
+```
+
+## Julkaisu
+
+Jokainen `main`-haaran push julkaisee sivun GitHub Pagesiin (`.github/workflows/pages.yml`).
+Käännösvaihetta ei ole. Workflow tarkistaa datan ja skriptien syntaksin ja julkaisee tiedostot sellaisinaan.
 
 ## Työtapa
 
 Sama malli kuin Oura- ja kartat-projekteissa:
 
-1. Muutokset tehdään suoraan tämän kansion `index.html`-tiedostoon.
-2. Muutos tarkistetaan paikallisesti (`python3 -m http.server`): siirrot, kierrot, peilaus,
-   mallinvaihto, näkymät, simulaatio ja mobiili kaikilla talomalleilla.
+1. Muutokset tehdään `src/main.js`-tiedostoon (tai uuden moottorin osalta `next/`-kansioon).
+2. Muutos tarkistetaan paikallisesti: siirrot, kierrot, peilaus, mallinvaihto, näkymät, simulaatio ja mobiili
+   kaikilla talomalleilla.
 3. Commit ja push `main`-haaraan → GitHub Actions julkaisee sivun noin minuutissa.
 
-Claude-artefakti voi jatkaa esikatseluna, mutta lähde on tämä repositorio.
+## Tallennus
 
-## Tallennus GitHub Pagesissa
-
-Claude-artefaktina sivu tallentaa omat näkymät ja kamera-ajot katsojan omaan pilvivarastoon.
-GitHub Pagesissa sitä ei ole, joten ne tallentuvat selaimen paikalliseen muistiin
-(`localStorage`) ja näkyvät vain samalla selaimella. Kuvien tallennus lataa PNG-tiedoston
-tavalliseen tapaan.
+Omat näkymät ja kamera-ajot tallentuvat selaimen paikalliseen muistiin (`localStorage`) ja näkyvät vain samalla
+selaimella. Kuvien tallennus lataa PNG-tiedoston.
 
 ## Mitä repositorioon ei laiteta
 
-Vain sivu ja sen työkalut. Sopimukset, lupakuvat, pohjatutkimukset, pankki- ja muut
-henkilökohtaiset asiakirjat pysyvät pois tästä kansiosta (ks. `.gitignore`).
+Vain sivu ja sen työkalut. Sopimukset, lupakuvat, pohjatutkimukset, pankki- ja muut henkilökohtaiset asiakirjat
+pysyvät pois tästä kansiosta.

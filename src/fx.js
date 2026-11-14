@@ -280,13 +280,19 @@ function washMaterial(U){
   return m;
 }
 // a pool of light on the ground: bright under the lamp, spreading softly a couple of metres
-function poolMaterial(U, k, c){
+// lit: the light falls on the surface under the pool instead of being painted over it. The pool's colour is multiplied
+// with what is already drawn there (blending dst * (1 + src)), counted against the light the surface has from the sky
+// (U.uE), so boards keep their pattern and colour under a fire's glow and a dark surface stays dark
+function poolMaterial(U, k, c, lit){
   c = c || [1.0, 0.7, 0.42];
   const m = lampBase(); m.polygonOffset = true; m.polygonOffsetFactor = -4; m.polygonOffsetUnits = -4;
   const d = length(attribute('lp', 'vec2')), a = exp(d.mul(d).mul(-7.0)).mul(0.55).add(pow(max(float(1).sub(d), 0.0), 1.4).mul(0.5));
   // the colour as screen values: fixed, or a colour object the application changes (the tub's light)
   const cv = c.isColor ? vec3(uniform(c)) : vec3(c[0], c[1], c[2]);
-  m.colorNode = vec4(toL(cv).mul(a).mul(U.uL).mul(k), 1.0);
+  if (lit) {
+    m.blending = THREE.CustomBlending; m.blendEquation = THREE.AddEquation; m.blendSrc = THREE.DstColorFactor; m.blendDst = THREE.OneFactor;
+    m.colorNode = vec4(toL(cv).mul(a).mul(U.uL).mul(k).div(max(vec3(U.uE), vec3(0.003))), 1.0);
+  } else m.colorNode = vec4(toL(cv).mul(a).mul(U.uL).mul(k), 1.0);
   m.maskNode = d.lessThan(1.0);
   m.uniforms = U;
   return m;

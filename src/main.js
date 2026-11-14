@@ -1170,7 +1170,7 @@
   var FT_SZ = {s:0, m:1, l:2}, FT_SZN = ['pieni', 'keskikokoinen', 'iso'], FT_MULCH = [0.55, 0.7, 0.9];
   var clamp = function(v, a, b){ return Math.max(a, Math.min(b, v)); };
   var copyOf = function(o){ return JSON.parse(JSON.stringify(o)); };
-  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:11, fire:'veronika', plan:'a', facade:'wood', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, tubK:0.7, tubC:TUB_COLS[0][0], treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:12, fire:'ville', plan:'a', facade:'wood', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, tubK:0.7, tubC:TUB_COLS[0][0], treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
   // checked readers of a stored place (this browser's, or a saved view's)
   var plNum = function(v, d){ v = Number(v); return isFinite(v) ? v : d; }, plQuarter = function(v){ return ((Math.round(plNum(v, 0)) % 4) + 4) % 4; };
   var plHalf = function(v){ return ((Math.round(plNum(v, 0) * 2) / 2 % 4) + 4) % 4; };
@@ -1183,7 +1183,7 @@
         var g5 = bld(p5.bld.gar, BLD0.gar); g5.type = p5.bld.gar && GAR_T[p5.bld.gar.type] ? p5.bld.gar.type : 'gs'; g5.rot = half(p5.bld.gar && p5.bld.gar.rot); g5.al = !!(p5.bld.gar && p5.bld.gar.al); if (g5.al) g5.rot = Math.round(g5.rot) % 4;
         // before version 6 the tub's stove stood out from the house; now towards the neighbour, beside the pergola's low edge
         if (!(p5.v >= 6)) place.bld.tub.rot = 1; if (Math.abs(g5.c[0] - 12.94) < 0.01 && Math.abs(g5.c[1] + 4.0) < 0.01) g5.c = BLD0.gar.c.slice(); place.bld.gar = g5;
-        place.asph = poly(p5.asph); place.hedge = clamp(num(p5.hedge, 2), 0.5, 3); place.fire = p5.v >= 9 && p5.fire === 'wilma' ? 'wilma' : 'veronika'; place.plan = p5.plan === 'b' ? 'b' : 'a'; place.facade = p5.facade === 'dark' ? 'dark' : 'wood'; place.deckDz = clamp(num(p5.deckDz, 0), -0.4, 0.3); place.screen = p5.screen !== false; place.glaze = p5.glaze === 'open' ? 'open' : 'closed'; place.pergSide = p5.pergSide === 'far' ? 'far' : 'near'; place.deckSmall = p5.deckSmall === true;
+        place.asph = poly(p5.asph); place.hedge = clamp(num(p5.hedge, 2), 0.5, 3); place.fire = p5.fire === 'ville' ? 'ville' : p5.v >= 9 && p5.fire === 'wilma' ? 'wilma' : 'veronika'; place.plan = p5.plan === 'b' ? 'b' : 'a'; place.facade = p5.facade === 'dark' ? 'dark' : 'wood'; place.deckDz = clamp(num(p5.deckDz, 0), -0.4, 0.3); place.screen = p5.screen !== false; place.glaze = p5.glaze === 'open' ? 'open' : 'closed'; place.pergSide = p5.pergSide === 'far' ? 'far' : 'near'; place.deckSmall = p5.deckSmall === true;
         place.treesOff = [];
         place.tubK = clamp(num(p5.tubK, 0.7), 0, 1); place.tubC = TUB_COLS.some(function(c){ return c[0] === p5.tubC; }) ? p5.tubC : TUB_COLS[0][0];
         var of5 = p5.bld && p5.bld.ofire; place.bld.ofire = of5 && of5.c && isFinite(of5.c[0]) && isFinite(of5.c[1]) ? {c:[Number(of5.c[0]), Number(of5.c[1])], rot:plQuarter(of5.rot)} : {c:null, rot:of5 ? plQuarter(of5.rot) : 0};
@@ -1198,6 +1198,8 @@
         // version 11: the defaults are the wooden facade, the original plan as a mirror image and no fine-tuning of the
         // levels (the house and the garage now have levels of their own); this browser's earlier place takes them once,
         // a saved view keeps what it was saved with
+        // version 12: Ville (the Veronika with the door only in the front) takes the Veronika's place once
+        if (own && !(p5.v >= 12) && place.fire === 'veronika') place.fire = 'ville';
         if (own && !(p5.v >= 11)) { place.facade = 'wood'; place.plan = 'a'; place.bld.house.mir = true; place.bld.house.dz = 0; place.bld.gar.dz = 0; }
   }
   (function(){
@@ -1913,7 +1915,7 @@
     // black steel hatches below the glass: ash door, air intake and cleaning hatch
     var hatch = function(w, za, zb){ g.add(boxAlong(P(-w / 2, d + 0.005), P(w / 2, d + 0.005), 0.01, F + za, F + zb, M132.black)); };
     hatch(0.42, 0.33, 0.47); hatch(0.26, 0.24, 0.28); hatch(0.2, 0.06, 0.17);
-    IL_LIST.push({p:[ctr[0] + nx * 0.4, z0 + 0.25, ctr[1] + nz * 0.4], r:5.2, c:[1.0, 0.5, 0.18], k:1.5, fire:true, grp:'fire'});
+    IL_LIST.push({p:[ctr[0] + nx * 0.4, z0 + 0.25, ctr[1] + nz * 0.4], r:4.8, c:[1.0, 0.5, 0.18], k:1.0, fire:true, grp:'fire'});
   }
   var LOGM = null;
   function logMats(){
@@ -2245,21 +2247,21 @@
     if (VERM) return VERM;
     var draw = function(bump){ return function(g, w, h){
       var r = pjRnd(93);
-      g.fillStyle = bump ? '#808080' : '#e3d4b9'; g.fillRect(0, 0, w, h);
+      g.fillStyle = bump ? '#808080' : '#ece8e0'; g.fillRect(0, 0, w, h);
       for (var i = 0; i < 150; i++) {
-        var x = r() * w, y = r() * h, rr = 10 + r() * 36, lt = r() < 0.5, al = (0.035 + r() * 0.04).toFixed(3);
-        g.fillStyle = bump ? (lt ? 'rgba(255,255,255,' + al + ')' : 'rgba(0,0,0,' + al + ')') : (lt ? 'rgba(255,250,238,' + al + ')' : 'rgba(150,125,95,' + al + ')');
+        var x = r() * w, y = r() * h, rr = 10 + r() * 36, lt = r() < 0.5, al = (0.035 + r() * 0.04).toFixed(3), ac = (0.012 + r() * 0.016).toFixed(3);
+        g.fillStyle = bump ? (lt ? 'rgba(255,255,255,' + al + ')' : 'rgba(0,0,0,' + al + ')') : (lt ? 'rgba(255,255,252,' + ac + ')' : 'rgba(168,160,146,' + ac + ')');
         [[0, 0], [-w, 0], [0, -h], [-w, -h], [w, 0], [0, h]].forEach(function(o){ g.beginPath(); g.ellipse(x + o[0], y + o[1], rr * 1.6, rr, 0.3, 0, 6.2832); g.fill(); });
       }
       for (var j = 0; j < 11000; j++) {
         var lt2 = r() < 0.5, a2 = (0.12 + r() * 0.3).toFixed(2), sz = r() < 0.85 ? 1 : 2;
-        g.fillStyle = bump ? (lt2 ? 'rgba(255,255,255,' + a2 + ')' : 'rgba(0,0,0,' + a2 + ')') : (lt2 ? 'rgba(255,252,244,' + (a2 * 0.6).toFixed(2) + ')' : 'rgba(140,118,90,' + (a2 * 0.45).toFixed(2) + ')');
+        g.fillStyle = bump ? (lt2 ? 'rgba(255,255,255,' + a2 + ')' : 'rgba(0,0,0,' + a2 + ')') : (lt2 ? 'rgba(255,255,253,' + (a2 * 0.3).toFixed(2) + ')' : 'rgba(150,143,130,' + (a2 * 0.16).toFixed(2) + ')');
         g.fillRect(r() * w, r() * h, sz, sz);
       }
     }; };
     var map = cvTex(256, 256, draw(false), 2, 2), bump = cvTex(256, 256, draw(true), 2, 2);
     var render = new THREE.MeshPhongMaterial({map:map, bumpMap:bump, bumpScale:0.035, specular:0x000000, shininess:0}); interiorLit(render);
-    var flue = new THREE.MeshLambertMaterial({color:0xe2d4bd}); interiorLit(flue);
+    var flue = new THREE.MeshLambertMaterial({color:0xebe7df}); interiorLit(flue);
     VERM = {render:render, flue:flue, plinth:new THREE.MeshLambertMaterial({color:0x3a3632})};
     return VERM;
   }
@@ -2292,7 +2294,38 @@
     gl(P(-hw, d + 0.004), P(hw, d + 0.004)); gl(P(-hw - 0.004, d), P(-hw - 0.004, d - gs)); gl(P(hw + 0.004, d), P(hw + 0.004, d - gs));
     // the ash door with its small grip
     add(Q(-0.15, d, 0.15, d + 0.008), F + 0.2, F + 0.33, M132.black); add(Q(-0.03, d + 0.008, 0.03, d + 0.02), F + 0.258, F + 0.272, M132.black);
-    IL_LIST.push({p:[ctr[0] + nx * 0.4, z0 + 0.25, ctr[1] + nz * 0.4], r:5.2, c:[1.0, 0.5, 0.18], k:1.5, fire:true, grp:'fire'});
+    IL_LIST.push({p:[ctr[0] + nx * 0.4, z0 + 0.25, ctr[1] + nz * 0.4], r:4.8, c:[1.0, 0.5, 0.18], k:1.0, fire:true, grp:'fire'});
+  }
+  // Ville: the Veronika's body and size, slurried light, with the door only in the front: the sides are whole, a glass
+  // door 52 cm wide in a slim black frame a little proud of the face, the firebox behind it, the ash door below
+  function buildVille(g, pm, F, P){
+    var V = VERONIKA, M = veronikaMats(), hw = V.w / 2, d = V.d, gs = V.gs, z0 = F + V.b0, z1 = F + V.b1, gz0 = z0 + 0.028, gz1 = z1 - 0.028, ow = 0.26, fr = 0.012;
+    var Q = function(u0, w0, u1, w1){ return [P(u0, w0), P(u1, w0), P(u1, w1), P(u0, w1)]; };
+    var add = function(c, za, zb, mat){ g.add(new THREE.Mesh(prism(c, Y(za), Y(zb)), mat)); };
+    add(Q(-hw + 0.015, 0.015, hw - 0.015, d - 0.015), F, F + 0.04, M.plinth);
+    add(Q(-hw, 0, hw, d), F + 0.04, z0, M.render); add(Q(-hw, 0, hw, d), z1, F + V.h, M.render);
+    add(Q(-hw, 0, hw, d - gs), z0, z1, M.render);
+    add(Q(-hw, d - gs, -ow, d), z0, z1, M.render); add(Q(ow, d - gs, hw, d), z0, z1, M.render);
+    // the door: sill and lintel, the frame's sides and a slim handle
+    add(Q(-ow, d - gs, ow, d + fr), z0, gz0, M132.black); add(Q(-ow, d - gs, ow, d + fr), gz1, z1, M132.black);
+    add(Q(-ow - 0.02, d, -ow, d + fr), z0, z1, M132.black); add(Q(ow, d, ow + 0.02, d + fr), z0, z1, M132.black);
+    add(Q(ow - 0.004, d + fr, ow + 0.012, d + fr + 0.03), gz0 + 0.1, gz0 + 0.24, M132.black);
+    // the firebox: a dark lining at the back, on the floor, under the top and on both sides, embers, two logs, the fire
+    add(Q(-ow, d - gs - 0.004, ow, d - gs + 0.002), gz0, gz1, FBOX);
+    add(Q(-ow, d - gs, ow, d - 0.02), gz0, gz0 + 0.008, FBOX); add(Q(-ow, d - gs, ow, d - 0.02), gz1 - 0.006, gz1, FBOX);
+    add(Q(-ow, d - gs, -ow + 0.004, d - 0.01), gz0, gz1, FBOX); add(Q(ow - 0.004, d - gs, ow, d - 0.01), gz0, gz1, FBOX);
+    add(Q(-0.18, d - gs + 0.03, 0.18, d - 0.07), gz0 + 0.008, gz0 + 0.016, emberMat);
+    [[-0.1, 0.03], [0.09, -0.02]].forEach(function(l){ g.add(boxAlong(P(-0.18, d - gs + 0.07 - l[1]), P(0.18, d - gs + 0.09 + l[1]), 0.06, gz0 + 0.016, gz0 + 0.07, logMat)); });
+    var ctr = P(0, d), fw = P(0, d + 1), nx = fw[0] - ctr[0], nz = fw[1] - ctr[1], nl = Math.hypot(nx, nz) || 1; nx /= nl; nz /= nl;
+    var gh = gz1 - gz0;
+    [0.06, 0.1, 0.14].forEach(function(dd, i){
+      var pl = new THREE.Mesh(new THREE.PlaneGeometry(0.44 * (1 - i * 0.12), gh * (0.92 - i * 0.12)), fireMat), cx = ctr[0] - nx * dd, cz = ctr[1] - nz * dd;
+      pl.position.set(cx, Y(gz0 + 0.016 + gh * (0.92 - i * 0.12) / 2), cz); pl.lookAt(new THREE.Vector3(cx + nx, pl.position.y, cz + nz)); pl.renderOrder = 7; g.add(pl);
+    });
+    var gm = boxAlong(P(-ow, d + 0.004), P(ow, d + 0.004), 0.006, gz0, gz1, fireGlass); gm.renderOrder = 8; g.add(gm);
+    // the ash door with its small grip
+    add(Q(-0.15, d, 0.15, d + 0.008), F + 0.2, F + 0.33, M132.black); add(Q(-0.03, d + 0.008, 0.03, d + 0.02), F + 0.258, F + 0.272, M132.black);
+    IL_LIST.push({p:[ctr[0] + nx * 0.4, z0 + 0.25, ctr[1] + nz * 0.4], r:4.8, c:[1.0, 0.5, 0.18], k:1.0, fire:true, grp:'fire'});
   }
   var PETRA = null;
   // at: plan points of the chairs, look: the plan point they face
@@ -2422,7 +2455,7 @@
     });
     // the warm light of the fire in front of the door
     var fl = C(cA + 0.45 * r2, cA + 0.45 * r2);
-    IL_LIST.push({p:[fl[0], F + 0.6, fl[1]], r:5.2, c:[1.0, 0.5, 0.18], k:1.5, fire:true, grp:'fire'});
+    IL_LIST.push({p:[fl[0], F + 0.6, fl[1]], r:4.8, c:[1.0, 0.5, 0.18], k:1.0, fire:true, grp:'fire'});
   }
   // the house has several hundred small parts: those of one material (and the same roof flag and drawing order) are
   // merged into one mesh; the walls with a different material inside and out are split by material first
@@ -2592,11 +2625,11 @@
   // Outdoor lights are warm white: up/down wall lights on the house and the garage, black 0.8 m bollards at the entrance
   // and in front of the deck. They light downwards only: a small wash on the wall and a pool of light on the ground, faded
   // in as it gets dark (Valot: Ulkovalot)
-  var EXT_U = FX.uniforms({uL:0}), EXT_B = FX.uniforms({uL:0}), FIRE_U = FX.uniforms({uL:0});
+  var EXT_U = FX.uniforms({uL:0}), EXT_B = FX.uniforms({uL:0}), FIRE_U = FX.uniforms({uL:0, uE:new THREE.Vector3(0.3, 0.3, 0.3)});
   var washMat = FX.washMaterial(EXT_U);
   // a pool of light: bright under the light and spreading out softly a couple of metres over the ground
   var poolOf = function(U, k, c){ return FX.poolMaterial(U, k, c); };
-  var poolMat = poolOf(EXT_U, 0.5), poolMatB = poolOf(EXT_B, 0.55), poolMatF = poolOf(FIRE_U, 0.5, [1.0, 0.5, 0.2]), poolMatFL = poolOf(EXT_B, 0.34);
+  var poolMat = poolOf(EXT_U, 0.5), poolMatB = poolOf(EXT_B, 0.55), poolMatF = FX.poolMaterial(FIRE_U, 0.5, [1.0, 0.76, 0.52], true), poolMatFL = poolOf(EXT_B, 0.34);
   var washMatB = FX.washMaterial(EXT_B);
   // the glow round a light seen from the side: a soft halo (the bollards' under their caps, the pergola fire's in front of
   // its glass), only in the dark
@@ -2681,15 +2714,13 @@
     pillow:new THREE.MeshPhongMaterial({color:0x4a4e52, specular:0x141414, shininess:12}), spaLed:new THREE.MeshBasicMaterial({color:0xe2f5ff})
   };
   shinyAdd([OD.acryl, OD.spaWater]);
-  // The tub's light: lamps under the water. The water and the shell under it glow in the light's colour, faintly by day
-  // and fully once the evening darkens, and after dusk the light spills on the deck round the tub. Its strength and
-  // colour are the tub's own, set in the bar of the selected tub (place.tubK, place.tubC)
-  var TUBL = {U:FX.uniforms({uL:0}), G:FX.uniforms({uY:0}), col:THREE.screenColor(TUB_COLS[0][0]), ledOff:new THREE.Color(0x3a4044), white:new THREE.Color(0xffffff)};
+  // The tub's light: lamps under the water. Only the water and the shell under it glow in the light's colour, faintly
+  // by day and fully once the evening darkens; nothing of it falls outside the tub. Its strength and colour are the
+  // tub's own, set in the bar of the selected tub (place.tubK, place.tubC)
+  var TUBL = {G:FX.uniforms({uY:0}), ledOff:new THREE.Color(0x3a4044), white:new THREE.Color(0xffffff)};
   FX.belowGlow(OD.acryl, TUBL.G); FX.belowGlow(OD.liner, TUBL.G);
-  var tubGlowMat = FX.poolMaterial(TUBL.U, 0.9, TUBL.col);
   function applyTubLight(){
     var k = clamp(place.tubK == null ? 0.7 : place.tubK, 0, 1), on = (LT && LT.ext) || 0, hex = place.tubC || TUB_COLS[0][0], e = new THREE.Color(hex), lk = Math.min(1, k * 1.6);
-    TUBL.col.copy(THREE.screenColor(hex)); TUBL.U.uL.value = k * on;
     OD.spaWater.emissive.copy(e).multiplyScalar(k * (0.2 + 0.8 * on)); OD.water.emissive.copy(e).multiplyScalar(k * (0.22 + 0.9 * on));
     OD.acryl.emissive.copy(e).multiplyScalar(k * (0.14 + 0.8 * on)); OD.liner.emissive.copy(e).multiplyScalar(k * (0.12 + 0.7 * on));
     OD.spaLed.color.copy(TUBL.ledOff).lerp(e, lk).lerp(TUBL.white, 0.35 * lk);
@@ -3117,29 +3148,8 @@
         var dW = new THREE.Vector3(SW[0] - TCw[0], 0, SW[1] - TCw[1]).normalize(), pc = [TCw[0] + dW.x * (R + 0.1), TCw[1] + dW.z * (R + 0.1)];
         [0.18, 0.48].forEach(function(zz){ put(new THREE.CylinderGeometry(0.04, 0.04, 0.2, 10), pc, z0 + zz, M132.steel).quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dW); });
       }
-      // the tub's light: the level of the water for the glow under it, and the spill of the light on the deck or the
-      // ground round the tub (not under the tub itself)
+      // the tub's light glows under the water only: the level of the water
       TUBL.G.uY.value = Y(rim - (spa ? 0.13 : 0.17)) + 0.005;
-      (function(){
-        var hw = spa ? SPA.h : R, RG = hw + 2.4, K = Math.ceil(2 * RG / 0.22), pos = [], lp = [];
-        // a point of the grid: one inside the tub is moved out to the tub's side, so nothing of the spill lies under the
-        // water; on the terrace the light stays on its boards (the pergola's wall stops it), elsewhere on the ground
-        var P = function(i, j){
-          var u = -RG + 2 * RG * i / K, v = -RG + 2 * RG * j / K, din = spa ? Math.max(Math.abs(u), Math.abs(v)) : Math.hypot(u, v), ins = din < hw;
-          if (ins) { if (din < 1e-6) { u = hw; v = 0; } else { u *= hw / din; v *= hw / din; } }
-          var x = tc[0] + u, y = tc[1] + v, w = L(x, y), px = flip ? tx1 - x : x;
-          var onD = inDeck(x, y) || (GL > 0 && px >= 0 && px <= PW && y >= PD && y <= PD + GL);
-          return [w[0], Y(onD ? D : gAt(w[0], w[1])) + 0.035, w[1], u / RG, v / RG, ins, onD];
-        };
-        for (var j = 0; j < K; j++) for (var i = 0; i < K; i++) {
-          var q = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)];
-          if (q.every(function(e){ return e[3] * e[3] + e[4] * e[4] > 1.1; }) || q.every(function(e){ return e[5]; })) continue;
-          if (onDeck && !q.every(function(e){ return e[6]; })) continue;
-          [0, 1, 2, 0, 2, 3].forEach(function(n){ pos.push(q[n][0], q[n][1], q[n][2]); lp.push(q[n][3], q[n][4]); });
-        }
-        var gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); gg.setAttribute('lp', new THREE.Float32BufferAttribute(lp, 2));
-        var gm = new THREE.Mesh(gg, tubGlowMat); gm.raycast = function(){}; gm.renderOrder = 4; gm.castShadow = gm.receiveShadow = false; tg.add(gm);
-      })();
       TUB = {g:tg, c:TCw, R:R, type:spa ? 'spa' : 'palju', rim:rim, base:base, up:up, surf:surf, onDeck:onDeck, stove:SW,
         out:tubRing(T, 0, 48).map(function(q){ return L(q[0], q[1]); }), foot:tubRing(T, 0.08).map(function(q){ return L(q[0], q[1]); }),
         redo:function(){ g.remove(tg); tg.traverse(function(o){ if (o.geometry && o.geometry !== unitBox) o.geometry.dispose(); }); makeTub(); }};
@@ -3809,7 +3819,7 @@
       buildArmchairs(g, pm, F, [[857, 562], [942, 562]], [PJ.x + (PJ.L + PJ.s) / 2 / pm.sb, PJ.y + (PJ.L + PJ.s) / 2 / pm.sa]);
     }
     else {
-      var vero = place.fire === 'veronika', sw2 = (vero ? VERONIKA.w : FIREPLACE.w) / 2;
+      var vero = place.fire === 'veronika' || place.fire === 'ville', sw2 = (vero ? VERONIKA.w : FIREPLACE.w) / 2;
       if (vero) { stoveD = VERONIKA.d; stoveH = VERONIKA.h; }
       if (NI) {
         // the stove on the side the owner sees as the left, 60 mm from that side wall, the log store (0.42 m wide, about a
@@ -3820,10 +3830,10 @@
         var nlx = leftPlus ? NI.xa + (0.04 + nW / 2) / pm.sb : NI.xb - (0.04 + nW / 2) / pm.sb;
         buildLogPile(g, F, pm.pt(nlx, NI.yb), pm.pt(nlx, NI.yb - 1), nW, Math.min(0.58, (NI.yb - 668.5) * pm.sa - 0.02), 1.0);
       }
-      (vero ? buildVeronika : buildFireplace)(g, pm, F, function(u, w){ return pm.pt(wilX + u / pm.sb, wilY - w / pm.sa); });
+      (place.fire === 'ville' ? buildVille : vero ? buildVeronika : buildFireplace)(g, pm, F, function(u, w){ return pm.pt(wilX + u / pm.sb, wilY - w / pm.sa); });
       // the two armchairs by the living room windows, turned to the stove
       buildArmchairs(g, pm, F, [[860, 298], [952, 298]], [wilX, wilY - stoveD / pm.sa]);
-      var kf = pm.pt(1480, 420); IL_LIST.push({p:[kf[0], F + 1.2, kf[1]], r:3.0, c:[1.0, 0.55, 0.22], k:0.45, fire:true, grp:'fire'});
+      var kf = pm.pt(1480, 420); IL_LIST.push({p:[kf[0], F + 1.2, kf[1]], r:3.0, c:[1.0, 0.55, 0.22], k:0.3, fire:true, grp:'fire'});
     }
     buildLiving(g, pm, F);
     buildWetRooms(g, pm, F, CH);
@@ -3868,7 +3878,17 @@
       var fx = place.fire === 'pj' ? PJ.x + 0.4 / pm.sb : wilX, fy = place.fire === 'pj' ? PJ.y + 0.4 / pm.sa : wilY - stoveD / 2 / pm.sa;
       var A = (fy - P.y0) * pm.sa, q = pm.pt(fx, fy), zs = zRoof(A), hiA = mono ? Math.max(-eo, A - 3) : (Math.abs(A - la / 2) <= 3 ? la / 2 : (A < la / 2 ? A + 3 : A - 3));
       var top = Math.max(zs + 1.0, zRoof(hiA) + 0.8), put = function(geo, z){ var m = new THREE.Mesh(geo, M132.metal); m.position.set(q[0], Y(z), q[1]); addR(m); return m; };
-      put(new THREE.CylinderGeometry(0.2, 0.3, 0.2, 24), zs + 0.06);
+      // a flashing plate lying on the roof round the pipe (in two halves, so it bends over the ridge), and the collar
+      // set down into it: its foot stands level while the roof slopes, so it must go into the roof on the upper side
+      // and still reach it on the lower one
+      (function(){
+        var Bq = pm.Bpx(fx), fl = 0.42, zq = function(a){ return zRoof(a) + 0.018; };
+        [[A - fl, A], [A, A + fl]].forEach(function(sg){
+          var c = [V3(sg[0], Bq - fl, zq(sg[0])), V3(sg[1], Bq - fl, zq(sg[1])), V3(sg[1], Bq + fl, zq(sg[1])), V3(sg[0], Bq + fl, zq(sg[0]))];
+          addR(quadsMesh([c, c.slice().reverse()], M132.metal));
+        });
+      })();
+      put(new THREE.CylinderGeometry(0.19, 0.3, 0.38, 24), zs - 0.03);
       put(new THREE.CylinderGeometry(0.15, 0.15, top - zs + 0.4, 24), (top + zs - 0.4) / 2);
       put(new THREE.CylinderGeometry(0.165, 0.165, 0.06, 24), top - 0.03);
       put(new THREE.CylinderGeometry(0.28, 0.28, 0.025, 24), top + 0.17); put(new THREE.CylinderGeometry(0.02, 0.28, 0.09, 24), top + 0.225);
@@ -3876,8 +3896,8 @@
       // the Wilma's flue inside, free of the walls: the same black steel straight up from the middle of the stove's top (a
       // collar on it), a trim plate round it on the ceiling, and on through the attic to the part above the roof
       if (place.fire !== 'pj') {
-        // (painted to match the Veronika's light render, black with the Wilma)
-        var fMat = place.fire === 'veronika' ? veronikaMats().flue : M132.metal;
+        // (painted to match the light slurried stoves, black with the Wilma)
+        var fMat = place.fire === 'veronika' || place.fire === 'ville' ? veronikaMats().flue : M132.metal;
         var inP = function(geo, z, roof){ var m = new THREE.Mesh(geo, fMat); m.position.set(q[0], Y(z), q[1]); if (roof) m.userData.roof = true; g.add(m); return m; };
         var zf = F + stoveH;
         inP(new THREE.CylinderGeometry(0.175, 0.175, 0.05, 24), zf + 0.025);
@@ -6689,6 +6709,9 @@
     // the ceiling faces down and would get only the brownish ground light: the light reflected from the floor and the
     // walls lifts it to the walls' tone, following the daylight
     M132.ceilP.emissive.setRGB(0.19, 0.19, 0.205, THREE.SRGBColorSpace).multiplyScalar(hemiN / 0.66 * CEIL_K); GLASSU.uGlassK.value = clamp(hemiN / 0.66, 0, 1.2);
+    // what the sky and the low sun already give a floor, as a share of its own colour: the fire's light on the floor is
+    // counted against it (FX.poolMaterial, lit), so the floor keeps its pattern and colour under the glow
+    (function(){ var eS = hemi.intensity / LK, eD = sun.intensity / LK * Math.max(0, ld.y) * 0.5; FIRE_U.uE.value.set(hemi.color.r * eS + sun.color.r * eD, hemi.color.g * eS + sun.color.g * eD, hemi.color.b * eS + sun.color.b * eD); })();
     skyMat.uniforms.dusk.value = nt; skyMat.uniforms.noon.value = dn; skyMat.uniforms.night.value = dk; scene.fog.color.setHex(mixHex(col('fog'), 0x05070b, dk));
     LT.spots = num('spots'); LT.fire = num('fire'); LT.ext = sstep(10, -2, el);
     shinySet(sstep(-1.5, 5, el));
@@ -6740,7 +6763,7 @@
     dd.set(dd.x + (dx - dd.x) * 0.25, dd.y + (dy - dd.y) * 0.25); if (Math.abs(dd.x - dx) < 0.002) dd.set(dx, dy);
     // with shadows: under the roof an even share of the day's light, with the roof off softer shadows (see FX.interiorLit)
     if (SHADOW) { var rk = (dd.x - IN_DAY[0]) / (1 - IN_DAY[0]); ILU.uBounce.value = 0.36 * rk * clamp(hemi.intensity / LK / SH.hemi / 0.66, 0, 1.2); ILU.uSh.value = 0.35 + 0.65 * rk; }
-    var fo = LV.fire * (LT.ext || 0) * fl; FIRE_U.uL.value = fo; HALO_F.color.setRGB(1.0, 0.55, 0.22, THREE.SRGBColorSpace).multiplyScalar(0.5 * fo);
+    var fo = LV.fire * (LT.ext || 0) * fl; FIRE_U.uL.value = fo; HALO_F.color.setRGB(1.0, 0.55, 0.22, THREE.SRGBColorSpace).multiplyScalar(0.2 * fo);
     lampGlow();
     FBOX.emissive.setRGB(0.44, 0.19, 0.06, THREE.SRGBColorSpace).multiplyScalar(LV.fire * fl * (0.5 + 0.5 * Math.min(1, LT.ext || 0)));
     ILU.uPT0.value.set(ILPT[0], ILPT[1], ILPT[2], 0); ILU.uPT1.value.set(ILPT[3], ILPT[4], ILPT[5], 0);
@@ -7779,7 +7802,7 @@
     dsUI();
   })();
   document.querySelectorAll('[data-fire]').forEach(function(b){ b.addEventListener('click', function(){
-    var v = b.dataset.fire === 'wilma' ? 'wilma' : 'veronika'; if (place.fire === v) return; place.fire = v; syncFireUI();
+    var v = b.dataset.fire === 'wilma' ? 'wilma' : b.dataset.fire === 'ville' ? 'ville' : 'veronika'; if (place.fire === v) return; place.fire = v; syncFireUI();
     buildHouses(); applyLayers(); savePlace(); syncPlaceUI(); if (sec.on) secBuild();
   }); });
   syncFireUI();
@@ -8671,7 +8694,7 @@
   // the hedge and the terrace's; the ground and everything on it are built again
   function applyPlace(p5){
     if (!p5 || !p5.bld) return;
-    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:11, fire:'veronika', plan:'a', facade:'wood', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, tubK:0.7, tubC:TUB_COLS[0][0], treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:12, fire:'ville', plan:'a', facade:'wood', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, tubK:0.7, tubC:TUB_COLS[0][0], treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
     try { readPlace(p5, P); } catch (e) { return; }
     Object.keys(P).forEach(function(k){ place[k] = P[k]; }); delete place.m4;
     var mk = DATA.houses[place.bld.house.model] ? place.bld.house.model : '132'; place.bld.house.model = mk;

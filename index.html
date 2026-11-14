@@ -445,6 +445,9 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
           <div class="seg" role="group" aria-label="Terassin koko"><button type="button" data-decksz="big" aria-pressed="true" title="Terassi 5,4 m ja kasvihuone pergolan jatkona">iso</button><button type="button" data-decksz="small" aria-pressed="false" title="Terassi 1 m lyhyempi, ei kasvihuonetta">pieni</button></div>
           <button type="button" class="btn" id="screen-tg" aria-pressed="true" title="Seinäke pergolaa vastapäätä">Seinäke</button>
         </div>
+        <div class="sel-c" id="sel-sp" hidden>
+          <div class="seg" role="group" aria-label="Puu"><button type="button" data-spon="1" aria-pressed="true" title="Puu on paikallaan">päällä</button><button type="button" data-spon="0" aria-pressed="false" title="Puu on kaadettu: kanto jää merkiksi">pois</button></div>
+        </div>
         <div class="sel-c" id="sel-tree" hidden>
           <div class="seg" role="group" aria-label="Laji"><button type="button" data-tsp="cherry" aria-pressed="false">kirsikka</button><button type="button" data-tsp="apple" aria-pressed="false">omena</button><button type="button" data-tsp="pear" aria-pressed="false">päärynä</button></div>
           <div class="seg" role="group" aria-label="Koko"><button type="button" data-tsz="s" aria-pressed="false">pieni</button><button type="button" data-tsz="m" aria-pressed="false">keski</button><button type="button" data-tsz="l" aria-pressed="false">iso</button></div>
@@ -538,6 +541,11 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
           <h3>Eläimet</h3>
           <button type="button" class="tg" id="animals-tg" aria-pressed="false"><span class="tl">Eläimet pihalla</span><span class="track"></span></button>
           <p class="note">Neljä vuohta, kaksi ankkaparvea ja kaksi koiraa kulkevat tontilla omia aikojaan.</p>
+        </div>
+        <div class="grp">
+          <h3>Tontin puut</h3>
+          <div class="drills" id="sp-list"></div>
+          <p class="note">Viiden haavan ja männyn paikat on mitattu dronekuvista. Valitse puu tästä tai klikkaa sen tyveä mallissa: palkista puun saa pois ja takaisin päälle. Pois otetusta puusta jää kanto merkiksi.</p>
         </div>
         <div class="grp">
           <h3>Hedelmäpuut</h3>
@@ -932,7 +940,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         <p class="src">Syyskuun vaaituksen kohdekoodit piirustuksen tasokuvauksista: maan hajapiste (1101), luiskan ylä- ja alareuna (1173, 1174), asfaltin reuna (510), reunakiven ala- ja yläreuna (565, 566), rakennukset (450), sadevesikaivo (2305), sulkuventtiili (2401), kaivo (3406) ja valaisinpylväs (2102). Mittapisteet yhdistävät molemmat vaaitukset. Tontin ulkopuolella pisteitä on harvennettu noin 3,5 m välein, ja tontin sisällä kaikki pisteet ovat mukana.</p>
         <p class="src">Vaaitus 7/2026 ja kairaukset U2–U9: Uudenmaan Maanrakennussuunnittelu, työ 6951/26, pintavaaitus 30.7.2026 ja lausunto 2.8.2026. Kairaukset on tehty 18.9.2013 (työ 4352/13), jolloin korot mitattiin vielä N60-järjestelmässä.</p>
         <p class="src">Rakennukset: sisältää Maanmittauslaitoksen Maastotietokannan aineistoa 03/2025 (641 rakennusta noin 900 m säteellä talosta) ja laserkeilausaineistoa kesältä 2024, lisenssi CC BY 4.0. Pohjan muoto ja sijainti ovat Maastotietokannasta. Koillisnaapurin kaksi rakennusta ja yksi pieni rakennus Opistontien itäpuolella ovat syyskuun vaaituksesta. Kolmen rakennuksen, myös luoteisnaapurin talon, pohja on laajennettu laserkeilauksen kattopisteiden mukaan. Räystäs- ja harjakorkeudet ovat laserista 625 rakennukselle, ja muiden korkeudet on arvioitu. Kauempana kuin 900 m rakennukset ovat mukana maastopinnassa. Katoilla on 0,5 m räystäät. Lähimmät naapuritalot molemmilla sivuilla ja rannan puolella on piirretty tummina.</p>
-        <p class="src">Tontin puut: viisi haapaa ja yksi mänty on mallinnettu yksitellen. Paikat ja korkeudet (haavat 16–24 m, mänty 16 m) ovat laserista, ja lajit sekä männyn noin 8° kallistus ovat omistajan tiedoista. Rungon paksuus ja latvuksen leveys on arvioitu: kärjen haapa on tehty paksummaksi ja tuuheammaksi omistajan kuvauksen mukaan.</p>
+        <p class="src">Tontin puut: viisi haapaa ja yksi mänty on mallinnettu yksitellen. Rungon tyvien paikat on mitattu omistajan dronekuvista (27.7.2026): viisi suoraan alaspäin otettua kuvaa on sovitettu toisiinsa maanpinnan sidospisteillä, kiinnitetty risteyksen mitattuihin sulkuventtiileihin ja valaisinpylvääseen ja tarkistettu Maanmittauslaitoksen ilmakuvaa vasten. Tarkkuus on haavoilla noin 0,3 m ja männyllä noin 0,5 m. Korkeudet (haavat 16–24 m, mänty 16 m) ovat laserista, ja lajit sekä männyn noin 8° kallistus ovat omistajan tiedoista. Puun saa pois ja takaisin päälle klikkaamalla sen tyveä. Rungon paksuus ja latvuksen leveys on arvioitu: kärjen haapa on tehty paksummaksi ja tuuheammaksi omistajan kuvauksen mukaan.</p>
         <p class="src">Puulajit ovat arvio. Kesän 2024 ilmakuvan latvusväristä on erotettu lehti- ja havupuut. Noin 900 m säteellä (puhelimessa 500 m) havupuu on kuusi tai mänty niin, että mänty on todennäköisempi ylempänä kuivemmilla mailla. Lehtipuut ovat enimmäkseen koivuja ja haapoja, ja talojen lähellä pihoilla on myös vaahteroita ja tammia. Korkea lehtipuu on useammin haapa. Puukohtaista lajia ei ole tunnistettu. Tätä kauempana puusto on maastopinnassa latvuskorkeutena.</p>
         <p class="src">Puusto: 16 681 puuta noin 900 m säteellä talosta. Sijainti ja korkeus ovat laserkeilauksen latvoista (mediaani 17 m), ja latvuksen leveys on arvioitu korkeudesta. Tätä kauempana puusto on mukana maastopinnassa latvuskorkeutena, jolloin vastarannan horisontti on metsän latvalinja eikä paljas maa.</p>
         <p class="src">Ilmakuva: sisältää Maanmittauslaitoksen ortokuva-aineistoa, kuvattu 2024, pikselikoko 0,5 m (karttalehdet L4123E–H, Kapsi ry:n avoimen datan peili; laajalla alueella 10 m pikseleinä), lisenssi CC BY 4.0. Tiet ja katujen nimet © OpenStreetMapin tekijät, ODbL. Tiet on piirretty ilmakuvan päälle noin 1,6 × 1,2 km alueella: ajotiet ja kevyen liikenteen väylät asfalttina, polut sorana. Leveydet on arvioitu tieluokan mukaan. Tontin kohdalla tien reunat ovat syyskuun vaaituksesta.</p>
@@ -961,6 +969,13 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
 <script>
 (function(){
   var DATA = JSON.parse(document.getElementById('data').textContent);
+  // The plot's big trees stand where the feet of their trunks are in the owner's drone photos of 27.7.2026: five photos
+  // straight down (120 m and 53.5 m), fitted together with ground tie points, tied to the surveyed stop valves and lamp
+  // post at the crossing and checked against the 2024 orthophoto (scale within 0.1 %, turn within 0.05 degrees). The laser
+  // scan had given the tops of the crowns, which lean 0.7-2.3 m from the trunks; the aspen at the tip was right as it was
+  var SP_POS = {124:[2.58, 11.13], 121:[4.77, 14.55], 830:[11.54, -2.50], 690:[15.69, 5.41], 1012:[-30.36, -23.51]};
+  var SP_LBL = {95:'Haapa, eteläkärki', 121:'Haapa, lounaisreuna (paksu)', 124:'Haapa, lounaisreuna', 830:'Haapa, koillisreuna', 690:'Haapa, itäkulma', 1012:'Mänty, järven puoli'};
+  (DATA.special || []).forEach(function(t){ var q = SP_POS[t.id]; if (q) { t.x = q[0]; t.z = q[1]; } });
   delete DATA.houses['1' + '18'];
   var view = document.getElementById('view');
   var loadingEl = document.getElementById('loading');
@@ -1779,7 +1794,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
           this.p.push(q.x, q.y, q.z); this.n.push(dir.x, dir.y, dir.z); this.u.push(s / segs * rep, v0 + (v1 - v0) * k / (L - 1)); this.c.push(1, 1, 1);
         }
       }
-      for (var k2 = 0; k2 < L - 1; k2++) for (var s2 = 0; s2 < segs; s2++) { var a0 = o + k2 * (segs + 1) + s2, b0 = a0 + segs + 1; this.i.push(a0, b0, a0 + 1, a0 + 1, b0, b0 + 1); }
+      for (var k2 = 0; k2 < L - 1; k2++) for (var s2 = 0; s2 < segs; s2++) { var a0 = o + k2 * (segs + 1) + s2, b0 = a0 + segs + 1; this.i.push(a0, a0 + 1, b0, a0 + 1, b0 + 1, b0); }
     };
     // a leaf card; dir (optional) lays the card along a branch, nearly flat, as spruce sprays hang
     Acc.prototype.card = function(c, size, r, ctr, tint, dir, droop){
@@ -2133,7 +2148,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   var FT_SZ = {s:0, m:1, l:2}, FT_SZN = ['pieni', 'keskikokoinen', 'iso'], FT_MULCH = [0.55, 0.7, 0.9];
   var clamp = function(v, a, b){ return Math.max(a, Math.min(b, v)); };
   var copyOf = function(o){ return JSON.parse(JSON.stringify(o)); };
-  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:10, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:10, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
   // checked readers of a stored place (this browser's, or a saved view's)
   var plNum = function(v, d){ v = Number(v); return isFinite(v) ? v : d; }, plQuarter = function(v){ return ((Math.round(plNum(v, 0)) % 4) + 4) % 4; };
   var plHalf = function(v){ return ((Math.round(plNum(v, 0) * 2) / 2 % 4) + 4) % 4; };
@@ -2147,6 +2162,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         // before version 6 the tub's stove stood out from the house; now towards the neighbour, beside the pergola's low edge
         if (!(p5.v >= 6)) place.bld.tub.rot = 1; if (Math.abs(g5.c[0] - 12.94) < 0.01 && Math.abs(g5.c[1] + 4.0) < 0.01) g5.c = BLD0.gar.c.slice(); place.bld.gar = g5;
         place.asph = poly(p5.asph); place.hedge = clamp(num(p5.hedge, 2), 0.5, 3); place.fire = p5.fire === 'pj' || p5.fire === 'veronika' ? p5.fire : 'wilma'; if (!(p5.v >= 9) && place.fire === 'wilma') place.fire = 'veronika'; place.plan = p5.plan === 'b' ? 'b' : 'a'; place.facade = p5.facade === 'wood' ? 'wood' : 'dark'; place.deckDz = clamp(num(p5.deckDz, 0), -0.4, 0.3); place.screen = p5.screen !== false; place.glaze = p5.glaze === 'open' ? 'open' : 'closed'; place.pergSide = p5.pergSide === 'far' ? 'far' : 'near'; place.deckSmall = p5.deckSmall === true;
+        place.treesOff = Array.isArray(p5.treesOff) ? p5.treesOff.map(Number).filter(function(v){ return isFinite(v); }).slice(0, 20) : [];
         var of5 = p5.bld && p5.bld.ofire; place.bld.ofire = of5 && of5.c && isFinite(of5.c[0]) && isFinite(of5.c[1]) ? {c:[Number(of5.c[0]), Number(of5.c[1])], rot:plQuarter(of5.rot)} : {c:null, rot:of5 ? plQuarter(of5.rot) : 0};
         place.fence = p5.fence !== false; place.fenceH = clamp(num(p5.fenceH, 1), 0.6, 2); place.hedgeFront = p5.hedgeFront === true;
         place.trees = Array.isArray(p5.trees) ? p5.trees.filter(function(t){ return t && FT_SP[t.sp] && FT_SZ[t.sz] != null && t.c && isFinite(t.c[0]) && isFinite(t.c[1]); }).slice(0, 40).map(function(t, i){ return {id:typeof t.id === 'string' ? t.id.slice(0, 24) : 'u' + i, sp:t.sp, sz:t.sz, c:[Number(t.c[0]), Number(t.c[1])]}; }) : copyOf(TREES0);
@@ -6256,7 +6272,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     var PL = function(x, z){ return F0 + s * Math.max(0, HF.A(x, z) - Ar); };
     // the surveyed trees inside the plot (not the ones the garage stands on): round each the planned ground comes down to
     // the present ground at TREE_R0 from the trunk
-    var TRK = (DATA.special || []).filter(function(t){ return edgeMin(t.x, t.z) > -3 && !(GAR && GAR.F && Math.abs(GAR.F.U(t.x, t.z)) < GAR.F.d / 2 + 0.6 && Math.abs(GAR.F.V(t.x, t.z)) < GAR.F.w / 2 + 0.6); });
+    var TRK = (DATA.special || []).filter(function(t){ return edgeMin(t.x, t.z) > -3 && !spOff(t.id) && !(GAR && GAR.F && Math.abs(GAR.F.U(t.x, t.z)) < GAR.F.d / 2 + 0.6 && Math.abs(GAR.F.V(t.x, t.z)) < GAR.F.w / 2 + 0.6); });
     var treeW = function(x, z, dh){
       var k = 1;
       for (var q = 0; q < TRK.length; q++) {
@@ -7096,7 +7112,13 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   }
   function treeOf(k){ var id = String(k).slice(3); return (place.trees || []).filter(function(t){ return t.id === id; })[0] || null; }
   function isTree(k){ return typeof k === 'string' && k.slice(0, 3) === 'tr:' && !!treeOf(k); }
-  function layerOf(k){ return typeof k === 'string' && k.slice(0, 3) === 'tr:' ? 'ptrees' : LAYER_OF[k]; }
+  // the plot's own big trees (the aspens and the pine), 'sp:' and the tree's number: each can be taken away and brought
+  // back (place.treesOff); a stump marks a tree that is away
+  function spOf(k){ if (typeof k !== 'string' || k.slice(0, 3) !== 'sp:') return null; var id = Number(k.slice(3)); return (DATA.special || []).filter(function(t){ return t.id === id; })[0] || null; }
+  function isSp(k){ return !!spOf(k); }
+  function spOff(id){ return (place.treesOff || []).indexOf(id) >= 0; }
+  var SP_PICK = new THREE.MeshBasicMaterial({visible:false}), SP_STUMP = new THREE.MeshLambertMaterial({color:0x5b4a3a}), SP_STUMPT = new THREE.MeshLambertMaterial({color:0xcdb892});
+  function layerOf(k){ return typeof k === 'string' && (k.slice(0, 3) === 'tr:' || k.slice(0, 3) === 'sp:') ? 'ptrees' : LAYER_OF[k]; }
   function ftTpl(T){ return ftTemplate(T.sp, FT_SZ[T.sz], Math.floor(ftHash(T.id, 1) * 3)); }
   function ftAt(T){ return HF0.P(T.c[0], T.c[1]); }
   function ftCircle(p, rr, n){ var o = []; for (var i = 0; i < (n || 12); i++) { var a = i / (n || 12) * Math.PI * 2; o.push([p[0] + Math.cos(a) * rr, p[1] + Math.sin(a) * rr]); } return o; }
@@ -7125,10 +7147,18 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
       FT_PLAN.push({x:p[0], z:p[1], r:tpl.R});
     });
     // wood chips round the foot of the plot's big trees too
-    var bm0 = new THREE.Group(); root.add(bm0);
     (DATA.special || []).forEach(function(t, i){
       if (edgeMin(t.x, t.z) < -0.8) return;
-      bm0.add(ftMulch([t.x, t.z], treeMulchR(t), (i * 0.37) % 1));
+      // the chips and the foot of the trunk take the click that selects the tree; a tree taken away leaves a low stump
+      var sg = new THREE.Group(); sg.userData.pick = 'sp:' + t.id; root.add(sg);
+      if (spOff(t.id)) {
+        var g0 = gAt(t.x, t.z), rs = t.s === 'haapa' ? (t.id === 95 ? 0.36 : 0.26) : 0.3;
+        var st = new THREE.Mesh(new THREE.CylinderGeometry(rs, rs * 1.25, 0.3, 18), SP_STUMP); st.position.set(t.x, Y(g0 + 0.13), t.z); sg.add(st);
+        var tp = new THREE.Mesh(new THREE.CircleGeometry(rs, 18), SP_STUMPT); tp.rotation.x = -Math.PI / 2; tp.position.set(t.x, Y(g0 + 0.282), t.z); sg.add(tp);
+      } else {
+        sg.add(ftMulch([t.x, t.z], treeMulchR(t), (i * 0.37) % 1));
+        var hs = H(t.x, t.z), ft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 2.2, 10), SP_PICK); ft.position.set(t.x, Y((hs == null ? gAt(t.x, t.z) : hs) + 1.1), t.z); sg.add(ft);
+      }
     });
     ftGroup = root; reg('ptrees', root); root.visible = !!state.ptrees && !preSolo;
   }
@@ -7153,6 +7183,18 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   }
   // the trees' rows on the Piha tab
   function ftListUI(){
+    var sbx = document.getElementById('sp-list');
+    if (sbx) {
+      while (sbx.firstChild) sbx.removeChild(sbx.firstChild);
+      (DATA.special || []).forEach(function(T){
+        if (edgeMin(T.x, T.z) < -0.8) return;
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'drill';
+        var t1 = document.createElement('span'); t1.className = 'dl-t'; t1.textContent = SP_LBL[T.id] || (T.s === 'haapa' ? 'Haapa' : 'Mänty');
+        var t2 = document.createElement('span'); t2.className = 'dl-v'; t2.textContent = spOff(T.id) ? 'pois' : 'n. ' + fn(T.h, 0) + ' m';
+        var t3 = document.createElement('span'); t3.className = 'dl-c'; t3.setAttribute('aria-hidden', 'true'); t3.textContent = '›';
+        b.appendChild(t1); b.appendChild(t2); b.appendChild(t3); b.addEventListener('click', function(){ pickRow('sp:' + T.id); }); sbx.appendChild(b);
+      });
+    }
     var box = document.getElementById('tree-list'); if (!box) return;
     while (box.firstChild) box.removeChild(box.firstChild);
     (place.trees || []).forEach(function(T){
@@ -7707,6 +7749,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     cutU.uPlanOn.value = state.yard ? 1 : 0;
     TREECLR.forEach(function(rc){
       var hide = showPlan && rc.cl;
+      if (rc.special && spOff(rc.id)) hide = true;
       if (rc.tg) rc.tg.clr = hide;
       if (rc.grp) { if (hide) rc.grp.visible = false; return; }
       if (rc.hid === hide) return;
@@ -7742,7 +7785,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
       Object.keys(houseGroups).forEach(function(k){ houseGroups[k].visible = preSolo === 'house' && k === houseSel; });
       if (farMesh) farMesh.visible = false; if (xfMesh) xfMesh.visible = false;
     }
-    if (sel && sel.obj && (!state[{gar:'garage', gh:'gh', house:'house', tub:'house', deck:'house'}[sel.obj]] || (preSolo && !(preSolo === 'gar' ? sel.obj === 'gar' : sel.obj === 'house')))) selClear();
+    if (sel && sel.obj && (!state[layerOf(sel.obj)] || (preSolo && !(preSolo === 'gar' ? sel.obj === 'gar' : sel.obj === 'house')))) selClear();
   }
 
   var fDims = document.getElementById('f-dims'), fGround = document.getElementById('f-ground'), fLift = document.getElementById('f-lift'), fWest = document.getElementById('f-west'), fNote = document.getElementById('f-note');
@@ -8624,8 +8667,8 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   var PC = DATA.plot.corners, SEG_NE = [[PC[0], PC[1]]], SEG_SW = [[PC[3], PC[4]]];
   var bFloorIn = document.getElementById('bld-floor'), bFloorV = document.getElementById('f-bfloor');
   var LAYER_OF = {house:'house', gar:'garage', gh:'gh', tub:'house', deck:'house', ofire:'house'}, NAME_OF = {house:'Ideal 132', gh:'Kasvihuone 3 × 5 m', tub:'Palju Ø 1,95 m', deck:'Terassi ja pergola', ofire:'Ulkotuli'};
-  function bldName(k){ if (isTree(k)) { var Tn = treeOf(k); return FT_SP[Tn.sp].name + ', ' + FT_SZN[FT_SZ[Tn.sz]]; } if (k === 'gar') return 'Autotalli ' + garDim(garT().d) + ' × ' + garDim(garT().w) + ' m'; if (k === 'house') return HM[houseSel].name; if (k === 'tub') return place.bld.tub.type === 'spa' ? 'Poreallas 2,2 × 2,2 m' : 'Palju Ø 1,95 m'; return NAME_OF[k]; }
-  function floorOf(k){ if (isTree(k)) { var pT = ftAt(treeOf(k)); return gAt(pT[0], pT[1]); } if (k === 'deck') { var P2d = DATA.houses[houseSel].plan2d; return P2d && P2d.deckZ; } if (k === 'ofire') return OFIRE && OFIRE.z; return k === 'house' ? DATA.houses[houseSel].floor : k === 'gar' ? (GAR && GAR.Fz) : k === 'tub' ? (TUB && TUB.rim) : (GH && GH.Fz); }
+  function bldName(k){ if (isSp(k)) return SP_LBL[spOf(k).id] || (spOf(k).s === 'haapa' ? 'Haapa' : 'Mänty'); if (isTree(k)) { var Tn = treeOf(k); return FT_SP[Tn.sp].name + ', ' + FT_SZN[FT_SZ[Tn.sz]]; } if (k === 'gar') return 'Autotalli ' + garDim(garT().d) + ' × ' + garDim(garT().w) + ' m'; if (k === 'house') return HM[houseSel].name; if (k === 'tub') return place.bld.tub.type === 'spa' ? 'Poreallas 2,2 × 2,2 m' : 'Palju Ø 1,95 m'; return NAME_OF[k]; }
+  function floorOf(k){ if (isSp(k)) { var qS = spOf(k); return gAt(qS.x, qS.z); } if (isTree(k)) { var pT = ftAt(treeOf(k)); return gAt(pT[0], pT[1]); } if (k === 'deck') { var P2d = DATA.houses[houseSel].plan2d; return P2d && P2d.deckZ; } if (k === 'ofire') return OFIRE && OFIRE.z; return k === 'house' ? DATA.houses[houseSel].floor : k === 'gar' ? (GAR && GAR.Fz) : k === 'tub' ? (TUB && TUB.rim) : (GH && GH.Fz); }
   function gapsText(C){ var ne = polyGap(C, SEG_NE).d, sw = polyGap(C, SEG_SW).d; return {t:'rajoihin ' + fn(ne, 1) + ' / ' + fn(sw, 1) + ' m', warn:Math.min(ne, sw) < 4}; }
   // footprint of a building in a given state (without building it), for keeping it inside the plot
   function footOf(k, Q){
@@ -8683,6 +8726,13 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     var isT = isTree(k), sMain = document.getElementById('sel-main'), sTr = document.getElementById('sel-tree'), sDel = document.getElementById('sel-del');
     if (sMain) sMain.hidden = isT; if (sTr) sTr.hidden = !isT; if (sDel) sDel.hidden = !isT;
     var sRs = document.getElementById('sel-reset'); if (sRs) sRs.hidden = isT;
+    // one of the plot's big trees: only whether it stands or is away
+    var isS = isSp(k), sSp = document.getElementById('sel-sp'); if (sSp) sSp.hidden = !isS;
+    if (isS) {
+      if (sMain) sMain.hidden = true;
+      ['sel-rot', 'sel-mir', 'sel-reset'].forEach(function(id){ var b = document.getElementById(id); if (b) b.hidden = true; });
+      var spOn = !spOff(spOf(k).id); document.querySelectorAll('[data-spon]').forEach(function(b){ b.setAttribute('aria-pressed', String((b.dataset.spon === '1') === spOn)); });
+    }
     if (isT) {
       ['sel-rot', 'sel-mir'].forEach(function(id){ var b = document.getElementById(id); if (b) b.hidden = true; });
       var Tt = treeOf(k);
@@ -8702,8 +8752,8 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     if (k === 'gar' || k === 'gh') { clearTimeout(regradeT); regradeT = setTimeout(regradeNow, 250); }
     if (sec.on) secBuild();
   }
-  function bldRotate(){ var k = sel.obj; if (!k || k === 'deck' || isTree(k)) return; place.bld[k].rot = (place.bld[k].rot + (k === 'gar' && !place.bld.gar.al ? 0.5 : 1)) % 4; fitInside(k); bldCommit(k); }
-  function bldMirror(){ var k = sel.obj; if (!k || k === 'tub' || k === 'ofire' || isTree(k)) return;
+  function bldRotate(){ var k = sel.obj; if (!k || k === 'deck' || isTree(k) || isSp(k)) return; place.bld[k].rot = (place.bld[k].rot + (k === 'gar' && !place.bld.gar.al ? 0.5 : 1)) % 4; fitInside(k); bldCommit(k); }
+  function bldMirror(){ var k = sel.obj; if (!k || k === 'tub' || k === 'ofire' || isTree(k) || isSp(k)) return;
     // the terrace's mirror image: the pergola, its greenhouse and the screen wall change ends, the tub with them
     if (k === 'deck') {
       var Tb = place.bld.tub, lbm = planMap(DATA.houses[houseSel], P132).lb;
@@ -8774,7 +8824,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   }); });
   syncPlanUI();
   bindBtn('sel-reset', function(){
-    var k = sel.obj; if (!k || isTree(k)) return;
+    var k = sel.obj; if (!k || isTree(k) || isSp(k)) return;
     // the default place, turn, mirror image and level for every thing; its kind (the roof, the tub's) stays as chosen
     if (k === 'deck') { place.deckDz = 0; if (place.pergSide === 'far') { bldMirror(); return; } regradeNow(); savePlace(); syncPlaceUI(); return; }
     var Q = place.bld[k], dz0 = Q.dz;
@@ -8807,7 +8857,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   if (bFloorIn) {
     bFloorIn.min = DZ_MIN; bFloorIn.max = DZ_MAX;
     bFloorIn.addEventListener('input', function(){
-      var k = sel.obj; if (!k || isTree(k)) return;
+      var k = sel.obj; if (!k || isTree(k) || isSp(k)) return;
       if (k === 'deck') { place.deckDz = Number(bFloorIn.value); syncPlaceUI(); clearTimeout(regradeT); regradeT = setTimeout(function(){ regradeNow(); savePlace(); syncPlaceUI(); }, 250); return; }
       if (k === 'tub') { place.bld.tub.dz = Number(bFloorIn.value); syncPlaceUI(); if (!tubT) tubT = setTimeout(function(){ tubT = 0; if (TUB && TUB.redo) TUB.redo(); syncPlaceUI(); }, 40); return; }
       place.bld[k].dz = Number(bFloorIn.value);
@@ -8993,9 +9043,10 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     });
     return best;
   }
-  function footNow(k){ if (isTree(k)) { var Tf = treeOf(k); return ftCircle(ftAt(Tf), FT_MULCH[FT_SZ[Tf.sz]], 10); } if (k === 'deck') { var P2d = DATA.houses[houseSel].plan2d; return P2d && P2d.deckSel; } return k === 'house' ? DATA.houses[houseSel].corners : k === 'gar' ? (GAR && GAR.foot) : k === 'tub' ? (TUB && TUB.foot) : k === 'ofire' ? (OFIRE && OFIRE.foot) : (GH && GH.foot); }
+  function footNow(k){ if (isSp(k)) { var qF = spOf(k); return ftCircle([qF.x, qF.z], spOff(qF.id) ? 0.6 : treeMulchR(qF), 12); } if (isTree(k)) { var Tf = treeOf(k); return ftCircle(ftAt(Tf), FT_MULCH[FT_SZ[Tf.sz]], 10); } if (k === 'deck') { var P2d = DATA.houses[houseSel].plan2d; return P2d && P2d.deckSel; } return k === 'house' ? DATA.houses[houseSel].corners : k === 'gar' ? (GAR && GAR.foot) : k === 'tub' ? (TUB && TUB.foot) : k === 'ofire' ? (OFIRE && OFIRE.foot) : (GH && GH.foot); }
   function selFoot(k){
     var C = footNow(k); if (!C) return null;
+    if (isSp(k)) { var qT = spOf(k), gT = gAt(qT.x, qT.z), offT = spOff(qT.id); return {C:ftCircle([qT.x, qT.z], offT ? 0.7 : treeMulchR(qT) + 0.15, 16), z0:gT - 0.05, z1:gT + (offT ? 0.6 : qT.h)}; }
     if (isTree(k)) { var Ts = treeOf(k), ts = ftTpl(Ts), pS = ftAt(Ts), gS = gAt(pS[0], pS[1]); return {C:ftCircle(pS, ts.R + 0.15, 16), z0:gS - 0.05, z1:gS + ts.h + 0.15}; }
     var c = mean4(C), m = 0.3, CC = C.map(function(p){ var dx = p[0] - c[0], dz = p[1] - c[1], l = Math.hypot(dx, dz) || 1; return [p[0] + dx / l * m, p[1] + dz / l * m]; });
     if (k === 'gar') return {C:CC, z0:GAR.Fz - 0.15, z1:GAR.top + 0.1};
@@ -9013,6 +9064,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     selBox.geometry.dispose(); selBox.geometry = new THREE.BufferGeometry().setFromPoints(pts); selBox.position.set(0, 0, 0); selBox.visible = true;
     selName.textContent = bldName(sel.obj);
     var gp = sel.obj === 'house' ? gapsText(DATA.houses[houseSel].corners) : null;
+    if (isSp(sel.obj)) { var Tq = spOf(sel.obj); selInfo.textContent = 'korkeus n. ' + fn(Tq.h, 0) + ' m · ' + (spOff(Tq.id) ? 'poistettu, kanto jää merkiksi' : 'paikka dronekuvista'); selInfo.classList.remove('warn'); selBar.hidden = false; return; }
     if (isTree(sel.obj)) { var Ti = treeOf(sel.obj), ti = ftTpl(Ti); selInfo.textContent = 'korkeus n. ' + fn(ti.h, 1) + ' m · latvus Ø ' + fn(2 * ti.R, 1) + ' m · hake Ø ' + fn(2 * FT_MULCH[FT_SZ[Ti.sz]], 1) + ' m'; selInfo.classList.remove('warn'); selBar.hidden = false; return; }
     if (sel.obj === 'deck') { selInfo.textContent = 'korko ' + fz(floorOf('deck'), 2) + ' · ' + fz((place.deckDz || 0) - 0.047, 2) + ' m talon lattiasta'; selInfo.classList.remove('warn'); selBar.hidden = false; return; }
     if (sel.obj === 'ofire') { selInfo.textContent = OFIRE && OFIRE.onDeck ? 'terassilla · siirrä vetämällä' : 'maassa · siirrä vetämällä'; selInfo.classList.remove('warn'); selBar.hidden = false; return; }
@@ -9033,6 +9085,11 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   // a tree's kind and size, and removing it
   document.querySelectorAll('[data-tsp]').forEach(function(b){ b.addEventListener('click', function(){ var T = isTree(sel.obj) && treeOf(sel.obj); if (!T || T.sp === b.dataset.tsp) return; T.sp = b.dataset.tsp; bldCommit(sel.obj); }); });
   document.querySelectorAll('[data-tsz]').forEach(function(b){ b.addEventListener('click', function(){ var T = isTree(sel.obj) && treeOf(sel.obj); if (!T || T.sz === b.dataset.tsz) return; T.sz = b.dataset.tsz; bldCommit(sel.obj); }); });
+  document.querySelectorAll('[data-spon]').forEach(function(b){ b.addEventListener('click', function(){
+    var T = spOf(sel.obj); if (!T) return; var on = b.dataset.spon === '1'; if (on === !spOff(T.id)) return;
+    place.treesOff = (place.treesOff || []).filter(function(i){ return i !== T.id; }); if (!on) place.treesOff.push(T.id);
+    regradeNow(); applyLayers(); savePlace(); syncPlaceUI();
+  }); });
   bindBtn('sel-del', function(){ var T = isTree(sel.obj) && treeOf(sel.obj); if (!T) return; place.trees = place.trees.filter(function(t){ return t !== T; }); selClear(); buildFruitTrees(); savePlace(); ftListUI(); });
   // adding a tree from the Piha tab, at the size chosen there
   document.querySelectorAll('[data-newsz]').forEach(function(b){ b.addEventListener('click', function(){ FT_NEW.sz = b.dataset.newsz; ftListUI(); }); });
@@ -9052,7 +9109,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   }
   view.addEventListener('pointerdown', function(e){
     if (!sel.obj || fp.on || sec.on || aed.on || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    var pk = pickObj(e.clientX, e.clientY); if (!pk || pk.k !== sel.obj || sel.obj === 'deck') return;
+    var pk = pickObj(e.clientX, e.clientY); if (!pk || pk.k !== sel.obj || sel.obj === 'deck' || isSp(sel.obj)) return;
     var lev = floorOf(sel.obj), p0 = rayToY(e.clientX, e.clientY, Y(lev)); if (!p0) return;
     e.stopPropagation(); e.preventDefault();
     try { view.setPointerCapture(e.pointerId); } catch (err) {}
@@ -9610,7 +9667,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   // the hedge and the terrace's; the ground and everything on it are built again
   function applyPlace(p5){
     if (!p5 || !p5.bld) return;
-    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:10, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:10, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
     try { readPlace(p5, P); } catch (e) { return; }
     Object.keys(P).forEach(function(k){ place[k] = P[k]; }); delete place.m4;
     var mk = DATA.houses[place.bld.house.model] ? place.bld.house.model : '132'; place.bld.house.model = mk;

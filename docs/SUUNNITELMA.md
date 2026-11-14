@@ -6,8 +6,9 @@ Tavoite: talo, piha ja tontti näyttävät uskottavilta mutta värikkäiltä, ja
 ## Päätökset (14.11.2026)
 
 - Uusi moottori: three.js 0.186.1, WebGPU ja automaattinen WebGL2-varatie. Sama versio ja rakenne kuin Oura-projektissa.
-- Uusi moottori rakennetaan `next/`-kansioon vanhan rinnalle (https://laippari.github.io/talo/next/). Vanha sivu toimii
-  koko ajan, ja se korvataan vasta, kun uusi on vähintään yhtä hyvä.
+- Uusi moottori on 14.11.2026 alkaen pääsivu (`index.html` ja `src/`). Edellinen moottori (r128) on sellaisenaan
+  varalla kansiossa `vanha/` (https://laippari.github.io/talo/vanha/), eikä siihen tehdä muutoksia. `next/` ohjaa
+  pääsivulle.
 - Kohdelaitteet: iPhone 17 Pro ja MacBook Pro. Vanhempia laitteita ei viritetä erikseen.
 - Kuvien tallennus pysyy ennallaan. Erillistä valokuvatilaa ei tehdä.
 - Naapuritaloja ei tarkenneta, koska niiden ulkonäköä ei tiedetä. Lähimmät voidaan sävyttää tummiksi.
@@ -23,15 +24,15 @@ Tavoite: talo, piha ja tontti näyttävät uskottavilta mutta värikkäiltä, ja
 ## Vaiheet ja tilanne
 
 - [x] **0. Pohjatyö.** Repo jaettu sivuksi, koodiksi, dataksi ja mediaksi. Yksitiedostoversio kootaan työkalulla.
-- [ ] **1. Moottorin vaihto (`next/`).** Valmis yhtä kohtaa lukuun ottamatta.
+- [x] **1. Moottorin vaihto.** Valmis, uusi moottori on pääsivu.
   - [x] Sovellus käy uudella piirtäjällä (WebGPU ja WebGL2-varatie `?webgl`), kuva vastaa vanhaa moottoria.
-  - [x] Omat varjostimet solmuina (`next/fx.js`): taivas, maaston leikkaus ja suunnitelman maski, tiemaalaukset, pihan
+  - [x] Omat varjostimet solmuina (`src/fx.js`): taivas, maaston leikkaus ja suunnitelman maski, tiemaalaukset, pihan
     pintarakenne, harmaasävy, lehtien valaistus, laudoitus ja terassilaudat, sisävalot, lasi, tuli ja ulkovalojen hehkut.
   - [x] Värinhallinta: sovelluksen värit ovat näytön arvoja, piirtäjä laskee lineaarisessa valossa.
-  - [x] Testattu: mallinvaihto, valinta, kierto, peilaus, tasot, julkisivu, pohjat, terassin koko, simulaatio, kellonaika,
-    puhelinkoko.
-  - [ ] **Esteet pois kameran edestä** (puiden ja naapuritalojen piilotus) puuttuu vielä. `FX.treeHide` ja `FX.obHide`
-    ovat tyhjiä.
+  - [x] Esteet pois kameran edestä: puut pudotetaan kokonaisina kärkivaiheessa (puun tyvi ja korkeus
+    instanssiattribuuttina `tb`), naapurien rakennukset ja pylväät leikataan pois.
+  - [x] Vain tontti ja leikkaus: tontti leikataan varjostimessa tarkasti rajaa pitkin (`plotIn`), ei leikkaustasoilla
+    (piirtäjän yleiset leikkaustasot eivät toimi uudessa kirjastossa).
 - [ ] **2. Valo.** Aloitettu.
   - [x] Auringon varjot tontilla ja noin 10 m sen ympärillä: yksi varjokartta, 4096 px tietokoneella ja 2048 px
     puhelimessa. Varjot haalistuvat auringon laskiessa. `?varjot=0` ottaa ne pois.
@@ -45,6 +46,7 @@ Tavoite: talo, piha ja tontti näyttävät uskottavilta mutta värikkäiltä, ja
   - [ ] Ympäröivä varjostus (nurkat, räystäänaluset, terassin alus).
   - [ ] Talon materiaalit fysikaalisiksi (peltikatto, lasin heijastus, laudoitus).
   - [ ] Iltavalojen hehku ja sisävalojen varjot.
+  - [x] Yö on pimeä: kun aurinko on yli kuusi astetta horisontin alla, valaisemattomat pinnat näkyvät vain heikosti.
   - [ ] Suorituskyky mitattava oikealla iPhonella ja MacBookilla (ruudunpäivitys varjojen kanssa).
 - [ ] **3. Kasvillisuus tontilla.** Isojen puiden ja hedelmäpuiden lehvästö (pienemmät lehdet, läpikuultavuus, tuuli),
   oikea ruoho kameran lähellä, pensasaita lehtipintaiseksi, kaukaiset puut kevyiksi.
@@ -52,18 +54,29 @@ Tavoite: talo, piha ja tontti näyttävät uskottavilta mutta värikkäiltä, ja
   reuna, kiveykset.
 - [ ] **5. Ympäristö.** Maan pinta tontin ulkopuolella, tiet, järvi, pilvet ja kaukoutu. Lähimmät naapuritalot ovat jo
   tummia.
-- [ ] **6. Viimeistely ja vaihto.** Reunanpehmennys, suorituskyky iPhonella, `next/` korvaa vanhan sivun.
+- [ ] **6. Viimeistely.** Reunanpehmennys ja suorituskyvyn säätö iPhonella. `vanha/` poistetaan, kun uutta on käytetty
+  jonkin aikaa ongelmitta.
 
-## Uuden moottorin rakenne (`next/`)
+## Käyttöliittymä ja malli (14.11.2026)
+
+- Reunan painikkeet: tasot (alapaneeli), esteet pois kameran edestä (liuku), näkymät, tekstit, perusnäkymä.
+- Perustukset on taso. Vain tontti on kytkin Ympäristö-välilehdellä. Ohjetekstit, pintavaihtoehdot ja listat on poistettu.
+- Vain tontti näyttää tontin lohkona: seinissä täyttö, pintamaa ja kairausten maakerrokset, pohja tasolla +25.
+- Leikkaus on tontin pituinen sivukuva talon keskilinjalta: maakerrokset, kairaukset, perustus, paalut ja korot.
+- Talon ja autotallin korot ovat erilliset: kumpikin lasketaan pihan perussuunnitelmasta (`GP.TB`), ja oma hienosäätö
+  nostaa tai laskee maata rakennuksen ympärillä pehmeästi häipyen.
+- Oletukset: tekstit pois, puujulkisivu, alkuperäinen pohja peilikuvana, korot 0.
+- Valinnoista on poistettu Lehtikuusi 125, Kaarna 152 ja Pikku-Jussi. Niiden koodi on tallessa.
+
+## Rakenne
 
 | Tiedosto | Tehtävä |
 | --- | --- |
-| `index.html` | Sama sivu kuin juuressa, lataa three.js:n moduulina (importmap). |
-| `boot.js` | Käynnistys: piirtäjä, laatutaso, varjojen oletukset, sävykäyrä, värien muunnokset, datan haku. |
-| `fx.js` | Mallin omat tehosteet solmuina (TSL). |
-| `main.js` | Sovellus. Sama koodi kuin `src/main.js`, tehosteet kutsutaan `FX`:n kautta. |
-
-Muutokset tehdään toistaiseksi molempiin `main.js`-tiedostoihin, kunnes `next/` korvaa vanhan.
+| `index.html` | Sivun rakenne ja tyylit, lataa three.js:n moduulina (importmap). |
+| `src/boot.js` | Käynnistys: piirtäjä, laatutaso, varjojen oletukset, sävykäyrä, värien muunnokset, datan haku. |
+| `src/fx.js` | Mallin omat tehosteet solmuina (TSL). |
+| `src/main.js` | Sovellus: malli ja käyttöliittymä. |
+| `vanha/` | Edellinen moottori sellaisenaan. |
 
 Huomioita työstä:
 
@@ -71,6 +84,9 @@ Huomioita työstä:
 - Kaikilla tekstikylteillä (Sprite) on kirjastossa yksi yhteinen geometria, jota ryhmien siivous ei saa tuhota.
 - Omalla varjostimella piirretyt materiaalit (taivas, lasi, tuli, hehkut) on merkitty `userData.own`, eikä niitä
   yhdistetä muihin kappaleisiin.
+- `THREE.LineLoop` ei toimi uudessa piirtäjässä: suljettu viiva tehdään `THREE.Line`-viivana, jonka alkupiste toistuu.
+- Valojen arvot päivittyvät piirtäjän omassa kellossa (kerran ruudussa). Testissä, jossa ruudut ajetaan käsin, kello
+  pitää siirtää itse (`renderer._nodes.nodeFrame.update()`), muuten valot näyttävät jäävän vanhoihin arvoihin.
 
 ## Periaatteet
 

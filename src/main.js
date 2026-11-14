@@ -3,9 +3,6 @@
 // puut, ilmakuvat) ja assets/ (video). index.html lataa datan ja käynnistää tämän tiedoston sen jälkeen.
 (function(){
   var RAMP_DEF = [[32.6,'#5f8e80'],[36,'#4a8070'],[39.5,'#3d7866'],[40.5,'#6c9e66'],[41.5,'#b2bf6b'],[42.5,'#d7b364'],[43.5,'#b98a59'],[44.3,'#936a4b'],[50,'#8c7a63'],[58,'#9a9286'],[68.5,'#b5afa4']];
-  var n = RAMP_DEF.length - 1, pct = function(i){ return (i / n * 100).toFixed(2) + '%'; };
-  document.getElementById('ramp').style.background = 'linear-gradient(90deg,' + RAMP_DEF.map(function(r, i){ return r[1] + ' ' + pct(i); }).join(',') + ')';
-  document.getElementById('ticks').innerHTML = [[0,'+33'],[3,'+40,5'],[5,'+42,5'],[7,'+44'],[8,'+50'],[10,'+68']].map(function(t){ return '<span style="left:' + pct(t[0]) + '">' + t[1] + '</span>'; }).join('');
   window.__RAMP = RAMP_DEF;
   try { if (window.matchMedia('(pointer: coarse)').matches) document.documentElement.classList.add('touch'); } catch (e) {}
 })();
@@ -84,7 +81,7 @@
   var layers = {};
   var reg = function(name, obj){ (layers[name] = layers[name] || []).push(obj); world.add(obj); return obj; };
 
-  var state = {fnd:'off', animals:true, cut:false, labels:1, hedge:true, ptrees:true, ortho:true, gray:false, bldg:true, trees:true, contours:true, plot:true, house:true, roads:true, points:true, util:true, soil:false, water:false, fill:true, garage:true, gh:true, roof:true, yard:true};
+  var state = {fnd:'off', animals:true, cut:false, labels:0, hedge:true, ptrees:true, ortho:true, gray:false, bldg:true, trees:true, contours:true, plot:true, house:true, roads:true, points:true, util:true, soil:false, water:false, fill:true, garage:true, gh:true, roof:true, yard:true};
   var pre = {cur:null, back:null, busy:false}, preNoRoof = false, preSolo = null;   // the ready view chosen (Näkymät) and what to return to
   var plan = {on:false, c:[0, 0], s:12, up:'lake', bg:true, show:{dims:true, floor:true, bores:true, trees:true, contours:false, util:false, lights:true}};
   var houseSel = '132';
@@ -268,7 +265,23 @@
   function pitAware(mat){ return FX.pitAware(mat, TUBU); }
   var cutU = FX.uniforms({uCut:0, uMask:maskTex, uBox:new THREE.Vector4(bx0, bz0, bx1 - bx0, bz1 - bz0), uRoadOn:1, uRoadK:1, uRoad:roadTex, uRoadBox:new THREE.Vector4(rx0, rz0, rx1 - rx0, rz1 - rz0),
               uRoadN:roadTexN, uRoadBoxN:new THREE.Vector4(-RN, -RN, 2 * RN, 2 * RN), uPlanOn:0, uPlanMask:maskTex, uPlanBox:new THREE.Vector4(0, 0, 1, 1)});
-  function cutAware(mat){ return FX.cutAware(mat, cutU, TUBU); }
+  // Vain tontti cuts along the plot's boundary exactly; what else may reach over it (roads, pipes, lines) is cut against
+  // the plot grown by 25 cm, so what runs along the boundary stays whole
+  var PLOTC = DATA.plot.corners, PLOTG = (function(){
+    var P = PLOTC, n = P.length, ar = 0, L = [], out = [];
+    for (var i = 0; i < n; i++) { var a = P[i], b = P[(i + 1) % n]; ar += a[0] * b[1] - b[0] * a[1]; }
+    var sg = ar > 0 ? 1 : -1, g = 0.25;
+    for (var j = 0; j < n; j++) { var p = P[j], q = P[(j + 1) % n], dx = q[0] - p[0], dz = q[1] - p[1], l = Math.hypot(dx, dz), nx = sg * dz / l, nz = -sg * dx / l; L.push([p[0] + nx * g, p[1] + nz * g, dx, dz]); }
+    for (var k = 0; k < n; k++) {
+      var A = L[(k + n - 1) % n], B = L[k], den = A[2] * B[3] - A[3] * B[2];
+      if (Math.abs(den) < 1e-9) { out.push([B[0], B[1]]); continue; }
+      var t = ((B[0] - A[0]) * B[3] - (B[1] - A[1]) * B[2]) / den; out.push([A[0] + A[2] * t, A[1] + A[3] * t]);
+    }
+    return out;
+  })();
+  function cutAware(mat){ return FX.cutAware(mat, cutU, TUBU, PLOTC); }
+  function plotOnly(mat){ return FX.plotOnly(mat, cutU, PLOTG); }
+  function plotOnlyExact(mat){ return FX.plotOnly(mat, cutU, PLOTC); }
   // fine grain laid over the yard texture in the shader, at a scale the yard texture cannot hold: the aggregate of the
   // asphalt (R, about 5 mm, a tile of 0.5 m) and the stones of the gravel (G, 1 to 3 cm, a tile of 1 m); the mipmaps
   // fade it out far away. Both channels average to the middle, so the colour stays where it was
@@ -293,7 +306,7 @@
   })();
   var detTex = new THREE.CanvasTexture(detCv); detTex.wrapS = detTex.wrapT = THREE.RepeatWrapping; detTex.anisotropy = 8;
   // the yard texture shows the orthophoto outside the plot, so the street through it gets the same road paint
-  function roadAware(mat){ return FX.roadAware(mat, cutU, TUBU, detTex, ykTex); }
+  function roadAware(mat){ return FX.roadAware(mat, cutU, TUBU, detTex, ykTex, PLOTC); }
   var detailMat = grayAware(cutAware(new THREE.MeshLambertMaterial({vertexColors:true})), 'detail');
   if (outerNeedsShader) cutAware(outerMat);
   grayAware(outerMat, 'outer');
@@ -382,33 +395,85 @@
     grayAware(xfMat, 'xfar'); xfMesh = new THREE.Mesh(xg, xfMat); xfMesh.castShadow = xfMesh.receiveShadow = false; world.add(xfMesh);
   }
 
-  // cut wall, rim and bottom
-  var BASE = DATA.cut.base;
-  var stripe = document.createElement('canvas'); stripe.width = 8; stripe.height = 64;
-  var sg = stripe.getContext('2d'); sg.fillStyle = '#7b6649'; sg.fillRect(0, 0, 8, 64); sg.fillStyle = '#5a4a34'; sg.fillRect(0, 0, 8, 3);
-  var stripeTex = new THREE.CanvasTexture(stripe); stripeTex.wrapS = stripeTex.wrapT = THREE.RepeatWrapping;
-  var wallP = [], wallUV = [], wallI = [], rim = [], acc = 0;
-  CUT.forEach(function(p, k){
-    if (k) acc += Math.hypot(p[0] - CUT[k-1][0], p[1] - CUT[k-1][1]);
-    var h = H(p[0], p[1]);
-    wallP.push(p[0], Y(h), p[1], p[0], Y(BASE), p[1]);
-    wallUV.push(acc / 4, h - BASE, acc / 4, 0);
-    rim.push(new THREE.Vector3(p[0], Y(h) + 0.03, p[1]));
-    if (k) { var q = k * 2; wallI.push(q - 2, q - 1, q, q, q - 1, q + 1); }
+  // ---------- Vain tontti: the plot as a block cut along its boundaries ----------
+  // The walls go down from the surface as it is shown (the planned yard, or the present ground when the yard and the
+  // fills are off) to BASE, below the tips of the piles, and show the soil in layers: the fill, the topsoil and the layers
+  // of the borings carried between the six boreholes by distance, down to where the borings stopped (the ten end levels
+  // of 2026 and 2013). Built when first needed and again when the ground changes
+  var BASE = 25;
+  var SOIL = {Pm:0x4a3a2b, SaSi:0xb7a47c, SiSa:0x9aa3a8, Sa:0x7d93ab, Mr:0x8b7659}, SOIL_FILL = 0xd9bf82, SOIL_HARD = 0x4f4a42;
+  var SOIL_KEYS = ['Pm', 'SaSi', 'SiSa', 'Sa', 'Mr'], SOIL_NAME = {Pm:'Pintamaa', SaSi:'Savinen siltti', SiSa:'Silttinen savi', Sa:'Savi', Mr:'Moreeni'};
+  var SOIL_B = DATA.boreholes.map(function(b){
+    var d = {Pm:b.layers[0][1]}, last = d.Pm;
+    ['SaSi', 'SiSa', 'Sa', 'Mr'].forEach(function(k){ var L = b.layers.filter(function(l){ return l[0] === k; })[0]; if (L) last = L[2]; d[k] = last; });
+    return {p:b.p, d:SOIL_KEYS.map(function(k){ return d[k]; })};
   });
-  var wallGeo = new THREE.BufferGeometry();
-  wallGeo.setAttribute('position', new THREE.Float32BufferAttribute(wallP, 3));
-  wallGeo.setAttribute('uv', new THREE.Float32BufferAttribute(wallUV, 2));
-  wallGeo.setIndex(wallI); wallGeo.computeVertexNormals();
-  var cutWallMat = new THREE.MeshLambertMaterial({map:stripeTex, side:THREE.DoubleSide});
-  reg('cut', new THREE.Mesh(wallGeo, cutWallMat));
-  reg('cut', new THREE.Line(new THREE.BufferGeometry().setFromPoints(rim), new THREE.LineBasicMaterial({color:0x3b2f22})));
-  var bshape = new THREE.Shape(CUT.map(function(p){ return new THREE.Vector2(p[0], p[1]); }));
-  var bgeo = new THREE.ShapeGeometry(bshape); bgeo.rotateX(Math.PI / 2); bgeo.translate(0, Y(BASE), 0);
-  var cutBottomMat = new THREE.MeshLambertMaterial({color:0x5a4a34, side:THREE.DoubleSide});
-  reg('cut', new THREE.Mesh(bgeo, cutBottomMat));
-  var west = CUT.reduce(function(m, p){ return p[0] < m[0] ? p : m; }, CUT[0]), westTop = H(west[0], west[1]);
-  for (var lv = Math.ceil(BASE / 2) * 2; lv < westTop - 0.3; lv += 2) label(fz(lv, 0), [west[0] - 0.4, Y(lv) + 0.35, west[1]], 'lv', 'cut');
+  var HARD_P = DATA.boreholes.map(function(b){ return {p:b.p, z:b.taso != null ? b.taso : b.mp - b.syv}; }).concat(DATA.uma.map(function(u){ return {p:u.p, z:u.taso}; }));
+  // the bottoms of the five layers at a point, as depths under the present ground
+  function soilAt(x, z){
+    var w = 0, o = [0, 0, 0, 0, 0];
+    for (var i = 0; i < SOIL_B.length; i++) { var b = SOIL_B[i], k = 1 / ((x - b.p[0]) * (x - b.p[0]) + (z - b.p[1]) * (z - b.p[1]) + 9); k *= k; w += k; for (var j = 0; j < 5; j++) o[j] += b.d[j] * k; }
+    for (var q = 0; q < 5; q++) o[q] /= w;
+    return o;
+  }
+  // the level where the borings stopped (stone, boulder, dense layer or rock), between the ten points
+  function hardAt(x, z){
+    var w = 0, o = 0;
+    for (var i = 0; i < HARD_P.length; i++) { var b = HARD_P[i], k = 1 / ((x - b.p[0]) * (x - b.p[0]) + (z - b.p[1]) * (z - b.p[1]) + 9); k *= k; w += k; o += b.z * k; }
+    return o / w;
+  }
+  // the levels of a soil column at a point: the surface, the present ground under a fill, the layers' bottoms, the hard
+  // bottom and the base, each no higher than the one above it
+  function soilColumn(x, z, top){
+    var e = H(x, z); if (e == null) e = Hall(x, z); if (e == null) e = top;
+    var d = soilAt(x, z), hard = hardAt(x, z), L = [top, Math.min(top, e)];
+    for (var j = 0; j < 4; j++) L.push(e - d[j]);
+    L.push(Math.min(hard, e - d[3] - 0.2)); L.push(BASE);
+    for (var k = 1; k < L.length; k++) L[k] = Math.max(BASE, Math.min(L[k], L[k - 1]));
+    return L;
+  }
+  var SOIL_BANDS = [SOIL_FILL, SOIL.Pm, SOIL.SaSi, SOIL.SiSa, SOIL.Sa, SOIL.Mr, SOIL_HARD];
+  var cutWallMat = new THREE.MeshLambertMaterial({vertexColors:true, side:THREE.DoubleSide});
+  var cutBottomMat = new THREE.MeshLambertMaterial({color:SOIL_HARD, side:THREE.DoubleSide});
+  var cutLineMat = new THREE.LineBasicMaterial({color:0x2a2119, transparent:true, opacity:0.45}), cutRimMat = new THREE.LineBasicMaterial({color:0x2a2119});
+  var cutGroup = new THREE.Group(), cutDirty = true, cutPlan = null; reg('cut', cutGroup);
+  function cutBuild(){
+    while (cutGroup.children.length) { var o = cutGroup.children.pop(); if (o.geometry) o.geometry.dispose(); }
+    cutDirty = false; cutPlan = planOn();
+    var P = PLOTC, n = P.length, ar = 0;
+    for (var i = 0; i < n; i++) { var a0 = P[i], b0 = P[(i + 1) % n]; ar += a0[0] * b0[1] - b0[0] * a0[1]; }
+    var sg = ar > 0 ? 1 : -1, pos = [], nor = [], col = [], lines = [], rim = [], cc = new THREE.Color();
+    var surf = function(x, z){ var h = H(x, z); if (h == null) h = Hall(x, z); if (h == null) h = ZREF; return cutPlan ? gAt(x, z) : h; };
+    for (var e = 0; e < n; e++) {
+      var a = P[e], b = P[(e + 1) % n], dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz), m = Math.max(1, Math.ceil(len / 0.25)), nx = sg * dz / len, nz = -sg * dx / len, prev = null;
+      for (var k = 0; k <= m; k++) {
+        // a hair inside the boundary, where the surface is the plot's own
+        var t = k / m, x = a[0] + dx * t, z = a[1] + dz * t, L = soilColumn(x, z, surf(x - nx * 0.02, z - nz * 0.02));
+        if (prev) {
+          for (var q = 0; q < 7; q++) {
+            if (prev.L[q] - prev.L[q + 1] < 1e-4 && L[q] - L[q + 1] < 1e-4) continue;
+            cc.copy(THREE.screenColor(SOIL_BANDS[q]));
+            pos.push(prev.x, Y(prev.L[q]), prev.z, prev.x, Y(prev.L[q + 1]), prev.z, x, Y(L[q]), z, x, Y(L[q]), z, prev.x, Y(prev.L[q + 1]), prev.z, x, Y(L[q + 1]), z);
+            for (var v = 0; v < 6; v++) { nor.push(nx, 0, nz); col.push(cc.r, cc.g, cc.b); }
+            if (q > 0) lines.push(prev.x + nx * 0.01, Y(prev.L[q]), prev.z + nz * 0.01, x + nx * 0.01, Y(L[q]), z + nz * 0.01);
+          }
+          rim.push(prev.x, Y(prev.L[0]) + 0.02, prev.z, x, Y(L[0]) + 0.02, z, prev.x, Y(BASE), prev.z, x, Y(BASE), z);
+        } else rim.push(x, Y(L[0]), z, x, Y(BASE), z);
+        prev = {x:x, z:z, L:L};
+      }
+    }
+    var g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    var wall = new THREE.Mesh(g, cutWallMat); wall.castShadow = false; cutGroup.add(wall);
+    var lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3)); cutGroup.add(new THREE.LineSegments(lg, cutLineMat));
+    var rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(rim, 3)); cutGroup.add(new THREE.LineSegments(rg, cutRimMat));
+    var bgeo = new THREE.ShapeGeometry(new THREE.Shape(P.map(function(p){ return new THREE.Vector2(p[0], p[1]); }))); bgeo.rotateX(Math.PI / 2); bgeo.translate(0, Y(BASE), 0);
+    var bm = new THREE.Mesh(bgeo, cutBottomMat); bm.castShadow = false; cutGroup.add(bm);
+  }
+  (function(){
+    var west = PLOTC.reduce(function(m, p){ return p[0] < m[0] ? p : m; }, PLOTC[0]), westTop = H(west[0], west[1]) || 40;
+    for (var lv = Math.ceil(BASE / 5) * 5; lv < westTop - 0.3; lv += 5) label(fz(lv, 0), [west[0] - 0.4, Y(lv) + 0.35, west[1]], 'lv', 'cut');
+  })();
 
   // contours from the unified surface
   var cMajor = new THREE.LineBasicMaterial({color:0x4a321d, transparent:true, opacity:0.95});
@@ -897,7 +962,7 @@
   // trees in front of the camera can be hidden (Näkymä: Esteet pois kameran edestä): a tree whose trunk comes within the
   // set distance of the camera, short of the point looked at, is dropped in the vertex shader, so it costs nothing
   var TREE_U = FX.uniforms({uTreeHide:0, uTreeFwd:new THREE.Vector3(0, 0, -1), uTreeLt:1e6, uTreeH:16, uTreeCam:new THREE.Vector3()});
-  function treeHide(mat){ FX.treeHide(mat, TREE_U, DATA.plot.corners); }
+  function treeHide(mat){ FX.treeHide(mat, TREE_U, DATA.plot.corners, cutU); }
   // the other obstacles off the plot (the neighbours' buildings, poles) are cut away where they come within the same
   // distance in front of the camera, short of the point looked at; not in Katsele ympärille, where one may stand
   // inside a building
@@ -1042,7 +1107,7 @@
     [[B, new THREE.SphereGeometry(1, 8, 6)], [N, cone]].forEach(function(e){
       if (!e[0].length) return;
       var im = new THREE.InstancedMesh(e[1], mat, e[0].length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), ps = new THREE.Vector3(), sc = new THREE.Vector3();
-      im.frustumCulled = false; im.castShadow = true; im.receiveShadow = false; im.raycast = function(){};
+      im.frustumCulled = false; im.castShadow = true; im.receiveShadow = false; im.raycast = function(){}; im.userData.shProxy = true;
       e[0].forEach(function(t, i){
         if (t.broad) { ps.set(t.x, Y(t.c), t.z); sc.set(t.r, t.hv, t.r); }
         else { var b = t.g + 0.22 * (t.top - t.g); ps.set(t.x, Y(b), t.z); sc.set(t.r, t.top - b, t.r); }
@@ -1084,7 +1149,7 @@
   var garDim = function(v){ return String(Math.round(v * 10) / 10).replace('.', ','); };
   var PLACE_KEY = 'ah1-place-v5', MONO_SLOPE = 0.14, DZ_MIN = -1, DZ_MAX = 2;
   var BLD0 = {
-    house:{c:[-0.45, 0.89], rot:0, mir:false, roof:'gable', dz:0, model:'132'},
+    house:{c:[-0.45, 0.89], rot:0, mir:true, roof:'gable', dz:0, model:'132'},
     gar:{type:'gs', c:[12.94, -3.5], rot:0, mir:false, roof:'mono', dz:0},
     gh:{c:[-31.77, 5.08], rot:0, mir:false, roof:'gable', dz:0},
     tub:{c:[1.65, 1.6], rot:1, mir:false, roof:'gable', dz:0, type:'palju'},
@@ -1103,21 +1168,21 @@
   var FT_SZ = {s:0, m:1, l:2}, FT_SZN = ['pieni', 'keskikokoinen', 'iso'], FT_MULCH = [0.55, 0.7, 0.9];
   var clamp = function(v, a, b){ return Math.max(a, Math.min(b, v)); };
   var copyOf = function(o){ return JSON.parse(JSON.stringify(o)); };
-  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:10, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:11, fire:'veronika', plan:'a', facade:'wood', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
   // checked readers of a stored place (this browser's, or a saved view's)
   var plNum = function(v, d){ v = Number(v); return isFinite(v) ? v : d; }, plQuarter = function(v){ return ((Math.round(plNum(v, 0)) % 4) + 4) % 4; };
   var plHalf = function(v){ return ((Math.round(plNum(v, 0) * 2) / 2 % 4) + 4) % 4; };
   var plBld = function(q, d){ q = q || {}; var c = q.c || []; return {c:[plNum(c[0], d.c[0]), plNum(c[1], d.c[1])], rot:plQuarter(q.rot), mir:!!q.mir, roof:q.roof === 'mono' || q.roof === 'gable' || q.roof === 'low' ? q.roof : d.roof, dz:clamp(plNum(q.dz, 0), DZ_MIN, DZ_MAX)}; };
   var plPoly = function(a){ return Array.isArray(a) && a.length >= 3 && a.every(function(v){ return Array.isArray(v) && isFinite(v[0]) && isFinite(v[1]); }) ? a.map(function(v){ return [Number(v[0]), Number(v[1])]; }) : null; };
   // a place of version 5 or later into P
-  function readPlace(p5, P){
+  function readPlace(p5, P, own){
     var num = plNum, bld = plBld, half = plHalf, poly = plPoly, place = P;
-        place.bld.house = bld(p5.bld.house, BLD0.house); place.bld.house.model = p5.bld.house && typeof p5.bld.house.model === 'string' ? p5.bld.house.model : '132'; place.bld.gh = bld(p5.bld.gh, BLD0.gh); place.bld.tub = bld(p5.bld.tub, BLD0.tub); place.bld.tub.type = p5.bld.tub && p5.bld.tub.type === 'spa' ? 'spa' : 'palju';
+        place.bld.house = bld(p5.bld.house, BLD0.house); place.bld.house.model = '132'; place.bld.gh = bld(p5.bld.gh, BLD0.gh); place.bld.tub = bld(p5.bld.tub, BLD0.tub); place.bld.tub.type = p5.bld.tub && p5.bld.tub.type === 'spa' ? 'spa' : 'palju';
         var g5 = bld(p5.bld.gar, BLD0.gar); g5.type = p5.bld.gar && GAR_T[p5.bld.gar.type] ? p5.bld.gar.type : 'gs'; g5.rot = half(p5.bld.gar && p5.bld.gar.rot); g5.al = !!(p5.bld.gar && p5.bld.gar.al); if (g5.al) g5.rot = Math.round(g5.rot) % 4;
         // before version 6 the tub's stove stood out from the house; now towards the neighbour, beside the pergola's low edge
         if (!(p5.v >= 6)) place.bld.tub.rot = 1; if (Math.abs(g5.c[0] - 12.94) < 0.01 && Math.abs(g5.c[1] + 4.0) < 0.01) g5.c = BLD0.gar.c.slice(); place.bld.gar = g5;
-        place.asph = poly(p5.asph); place.hedge = clamp(num(p5.hedge, 2), 0.5, 3); place.fire = p5.fire === 'pj' || p5.fire === 'veronika' ? p5.fire : 'wilma'; if (!(p5.v >= 9) && place.fire === 'wilma') place.fire = 'veronika'; place.plan = p5.plan === 'b' ? 'b' : 'a'; place.facade = p5.facade === 'wood' ? 'wood' : 'dark'; place.deckDz = clamp(num(p5.deckDz, 0), -0.4, 0.3); place.screen = p5.screen !== false; place.glaze = p5.glaze === 'open' ? 'open' : 'closed'; place.pergSide = p5.pergSide === 'far' ? 'far' : 'near'; place.deckSmall = p5.deckSmall === true;
-        place.treesOff = Array.isArray(p5.treesOff) ? p5.treesOff.map(Number).filter(function(v){ return isFinite(v); }).slice(0, 20) : [];
+        place.asph = poly(p5.asph); place.hedge = clamp(num(p5.hedge, 2), 0.5, 3); place.fire = p5.v >= 9 && p5.fire === 'wilma' ? 'wilma' : 'veronika'; place.plan = p5.plan === 'b' ? 'b' : 'a'; place.facade = p5.facade === 'dark' ? 'dark' : 'wood'; place.deckDz = clamp(num(p5.deckDz, 0), -0.4, 0.3); place.screen = p5.screen !== false; place.glaze = p5.glaze === 'open' ? 'open' : 'closed'; place.pergSide = p5.pergSide === 'far' ? 'far' : 'near'; place.deckSmall = p5.deckSmall === true;
+        place.treesOff = [];
         var of5 = p5.bld && p5.bld.ofire; place.bld.ofire = of5 && of5.c && isFinite(of5.c[0]) && isFinite(of5.c[1]) ? {c:[Number(of5.c[0]), Number(of5.c[1])], rot:plQuarter(of5.rot)} : {c:null, rot:of5 ? plQuarter(of5.rot) : 0};
         place.fence = p5.fence !== false; place.fenceH = clamp(num(p5.fenceH, 1), 0.6, 2); place.hedgeFront = p5.hedgeFront === true;
         place.trees = Array.isArray(p5.trees) ? p5.trees.filter(function(t){ return t && FT_SP[t.sp] && FT_SZ[t.sz] != null && t.c && isFinite(t.c[0]) && isFinite(t.c[1]); }).slice(0, 40).map(function(t, i){ return {id:typeof t.id === 'string' ? t.id.slice(0, 24) : 'u' + i, sp:t.sp, sz:t.sz, c:[Number(t.c[0]), Number(t.c[1])]}; }) : copyOf(TREES0);
@@ -1127,12 +1192,16 @@
         // 0.45 m towards the lake from the old drawing's house as it was centred); a house left where it stood by default moves
         if (!(p5.v >= 8) && Math.abs(place.bld.house.c[0]) < 0.01 && Math.abs(place.bld.house.c[1]) < 0.01) place.bld.house.c = BLD0.house.c.slice();
         if (!(p5.v >= 10) && place.asph) place.aDetach = true;
+        // version 11: the defaults are the wooden facade, the original plan as a mirror image and no fine-tuning of the
+        // levels (the house and the garage now have levels of their own); this browser's earlier place takes them once,
+        // a saved view keeps what it was saved with
+        if (own && !(p5.v >= 11)) { place.facade = 'wood'; place.plan = 'a'; place.bld.house.mir = true; place.bld.house.dz = 0; place.bld.gar.dz = 0; }
   }
   (function(){
     var num = plNum, quarter = plQuarter, half = plHalf, bld = plBld, poly = plPoly;
     try {
       var p5 = JSON.parse(localStorage.getItem(PLACE_KEY) || 'null');
-      if (p5 && p5.bld) { readPlace(p5, place); return; }
+      if (p5 && p5.bld) { readPlace(p5, place, true); return; }
       // earlier versions: the house shifted along (s, towards the lake) and across (t, towards the south-west) the plot
       var p4 = JSON.parse(localStorage.getItem('ah1-place-v4') || 'null') || JSON.parse(localStorage.getItem('ah1-place-v3') || 'null');
       if (!p4) return;
@@ -1391,17 +1460,16 @@
                  [762, 676, 882, 814], [762, 828, 882, 988], [1348, 722, 1620, 988], [1348, 617, 1620, 713], [1122, 676, 1338, 988]];
     return B;
   })();
-  // The Wilma AIR in a niche 0.6 m deep. Plan A: in the middle of MH3 and MH2, over the wall between them (shortened to
-  // the niche's back), so that beside each room's door 0.62 m of the corridor wall is left between the door and the
-  // niche: an alcove 0.6 m deep in each room, flush with the niche, where a 60 x 60 cm cupboard or wardrobe fits. Plan B:
-  // in MH2 between the WC wall and MH2's door. Seen facing the niche the stove stands on the left, 60 mm from the side
-  // wall, a log store fills the other side, and the black steel flue rises straight from the top of the stove through
-  // the ceiling and the roof (buildIdeal132). For each plan: the walls it takes away (x1, y1, x2), the walls instead,
-  // the niche's inner faces across (xa, xb) and its back face (yb), in plan px
-  P132A.niche = {seg:[[665, 672, 950], [803, 672, 803]],
-                 walls:[[665, 672, 725.3, 672, 7], [725.3, 668.5, 725.3, 730.24, 7], [721.8, 726.74, 893.2, 726.74, 7], [889.7, 668.5, 889.7, 730.24, 7], [889.7, 672, 950, 672, 7], [803, 730.24, 803, 989, 10]],
-                 xa:728.8, xb:886.2, yb:723.24};
-  P132B.niche = {seg:[[758, 672, 1033]], walls:[[758, 672, 889.5, 672, 7], [886, 726.74, 1033, 726.74, 7], [1029.5, 668.5, 1029.5, 730.24, 7]], xa:889.5, xb:1026, yb:723.24};
+  // The stove in a niche 0.4 m deep, let into the wall of one bedroom only. Plan A: in MH2's wall, from the wall between
+  // MH3 and MH2 (the niche's one side) to MH2's door, so MH3 keeps its whole wall and both rooms' doors stay in the
+  // corridor wall's line. Plan B: in MH2 between the WC wall and MH2's door. Seen facing the niche the stove stands on
+  // the left, 60 mm from the side wall, a log store fills the other side, and the black steel flue rises straight from
+  // the top of the stove through the ceiling and the roof (buildIdeal132). For each plan: the walls it takes away
+  // (x1, y1, x2), the walls instead, the niche's inner faces across (xa, xb) and its back face (yb), in plan px
+  P132A.niche = {seg:[[665, 672, 950]],
+                 walls:[[665, 672, 808, 672, 7], [808, 708.5, 950, 708.5, 7], [946.5, 668.5, 946.5, 712, 7]],
+                 xa:808, xb:943, yb:705};
+  P132B.niche = {seg:[[758, 672, 1033]], walls:[[758, 672, 889.5, 672, 7], [886, 708.5, 1033, 708.5, 7], [1029.5, 668.5, 1029.5, 712, 7]], xa:889.5, xb:1026, yb:705};
   // small canvas textures: the sauna panelling, the washroom tiles and the stove
   var rnd32 = (function(){ var s = 7; return function(){ s = (s * 16807) % 2147483647; return s / 2147483647; }; })();
   function cvTex(w, h, draw, rx, ry){
@@ -2674,7 +2742,8 @@
   var PERG = {w:4.5, d:5.4, g:3.6, mod:0.9, raf:0.6}, TERR_D = 3.0, TUB_R = 0.975, TUB = null, OFIRE = null, DECK_STEP = 2 * 0.157, DECK_RISE = 0.225;
   // the terrace's depth and the greenhouse's: the small terrace is 1 m shorter and has no greenhouse
   function pergD(){ return place.deckSmall ? PERG.d - 1 : PERG.d; }
-  function pergG(){ return place.deckSmall ? 0 : PERG.g; }
+  // the small terrace is the big one a metre shorter both in the deck and in the greenhouse that carries the pergola on
+  function pergG(){ return place.deckSmall ? PERG.g - 1 : PERG.g; }
   function tubWorld(c){ var pm = planMap(DATA.houses[houseSel], P132); return pm.pt(P132.x0 + c[0] / pm.sb, P132.y0 - c[1] / pm.sa); }
   function tubLocal(w){
     var HH = DATA.houses[houseSel], pm = planMap(HH, P132), N = HH.corners[0], A = (w[0] - N[0]) * pm.a[0] + (w[1] - N[1]) * pm.a[1], B = (w[0] - N[0]) * pm.b[0] + (w[1] - N[1]) * pm.b[1];
@@ -2818,11 +2887,12 @@
     // the pergola's part of the outer side, the seinäke: the facade's boards outside the posts and inside them too, so the
     // frame is hidden between them, from the deck to the beam; it ends flush with the far face of the post at the
     // greenhouse
-    var SWI = 0.155, SWE = PD + 0.05;
+    // (the small terrace: the wall runs on behind the greenhouse too, to the far end)
+    var SWI = 0.155, SWE = place.deckSmall ? PE : PD + 0.05;
     G2.add(new THREE.Mesh(prism([Lp(0, 0), Lp(0.025, 0), Lp(0.025, SWE), Lp(0, SWE)], Y(D - 0.03), Y(zTopG(0.0125))), BOARD_DS));
     G2.add(new THREE.Mesh(prism([Lp(0.13, 0.003), Lp(SWI, 0.003), Lp(SWI, SWE), Lp(0.13, SWE)], Y(D - 0.005), Y(zTopG(0.14))), BOARD_DS));
     var GV = function(x, y, z){ var q = Lp(x, y); return new THREE.Vector3(q[0], Y(z), q[1]); }, gq2 = [];
-    if (GL > 0) gq2.push([GV(0.1, PD, D + 0.004), GV(0.1, PE, D + 0.004), GV(0.1, PE, zTopG(0.1)), GV(0.1, PD, zTopG(0.1))]);
+    if (GL > 0 && !place.deckSmall) gq2.push([GV(0.1, PD, D + 0.004), GV(0.1, PE, D + 0.004), GV(0.1, PE, zTopG(0.1)), GV(0.1, PD, zTopG(0.1))]);
     gq2.push([GV(0, PE - 0.08, D + 0.004), GV(PW, PE - 0.08, D + 0.004), GV(PW, PE - 0.08, zTopG(PW)), GV(0, PE - 0.08, zTopG(0))]);
     var gm2 = quadsMesh(gq2, M132.glass); gm2.renderOrder = 5; G2.add(gm2);
     var FG = {P:function(u, v){ return Lp(PW / 2 + u, PD + GL / 2 + v); }}, pl2 = new THREE.Group();
@@ -3694,7 +3764,7 @@
         var leftPlus = !(nfZ * (nqx[0] - nq0[0]) - nfX * (nqx[1] - nq0[1]) > 0), nW = 0.42;
         wilX = leftPlus ? NI.xb - (0.06 + sw2) / pm.sb : NI.xa + (0.06 + sw2) / pm.sb; wilY = NI.yb;
         var nlx = leftPlus ? NI.xa + (0.04 + nW / 2) / pm.sb : NI.xb - (0.04 + nW / 2) / pm.sb;
-        buildLogPile(g, F, pm.pt(nlx, NI.yb), pm.pt(nlx, NI.yb - 1), nW, 0.58, 1.0);
+        buildLogPile(g, F, pm.pt(nlx, NI.yb), pm.pt(nlx, NI.yb - 1), nW, Math.min(0.58, (NI.yb - 668.5) * pm.sa - 0.02), 1.0);
       }
       (vero ? buildVeronika : buildFireplace)(g, pm, F, function(u, w){ return pm.pt(wilX + u / pm.sb, wilY - w / pm.sa); });
       // the two armchairs by the living room windows, turned to the stove
@@ -4368,7 +4438,7 @@
     var tc = [F.P(-Zn, -Zn), F.P(la + Zn, -Zn), F.P(la + Zn, lb + Zn), F.P(-Zn, lb + Zn)].map(function(p){ return [p[0], Y(fndTip(p[0], p[1])), p[1]]; });
     var tg = new THREE.BufferGeometry(); tg.setAttribute('position', new THREE.Float32BufferAttribute([].concat.apply([], tc), 3)); tg.setIndex([0, 1, 2, 0, 2, 3]);
     fndGroup.add(new THREE.Mesh(tg, fndM.tip));
-    fndGroup.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(tc.map(function(p){ return new THREE.Vector3(p[0], p[1], p[2]); })), fndM.tipL));
+    fndGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(tc.concat([tc[0]]).map(function(p){ return new THREE.Vector3(p[0], p[1], p[2]); })), fndM.tipL));
     // a few labels on the road side
     var pF = F.P(la + Zn, lb / 2), pP = F.P(la - FND.pile.inA, lb - FND.pile.inA), pT = F.P(la + Zn, lb + Zn);
     fndLbl.push(label('Paalulaatta · sokkeli ' + fz(S0, 3), [pF[0], Y(S0) + 0.5, pF[1]], 'k', 'fnd'));
@@ -4468,10 +4538,13 @@
   // plus the fine-tuning
   function wallsMax(C){ var pts = C.slice(); for (var i = 0; i < C.length; i++) { var a = C[i], b = C[(i + 1) % C.length]; pts.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]); } return Math.max.apply(null, pts.map(function(p){ return gAt(p[0], p[1]); })); }
   var houseG0 = null;
+  // the highest ground of the base plan at the walls. The base plan is the yard without the buildings' own levels
+  // (GP.TB): each building's floor is counted from it, so raising the house does not lift the garage or the other way
+  function wallsMaxB(C){ var pts = C.slice(); for (var i = 0; i < C.length; i++) { var a = C[i], b = C[(i + 1) % C.length]; pts.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]); } return Math.max.apply(null, pts.map(function(p){ return gBase(p[0], p[1]); })); }
+  function houseFloorNow(HH){ if (houseG0 == null) houseG0 = wallsMaxB(DATA.houses['132'].corners0); return HH.floor0 + wallsMaxB(HH.corners) - houseG0 + place.bld.house.dz; }
   function houseFloors(){
     if (!GP) return;
-    if (houseG0 == null) houseG0 = wallsMax(DATA.houses['132'].corners0);
-    Object.keys(DATA.houses).forEach(function(k){ var HH = DATA.houses[k]; HH.floor = Math.round((HH.floor0 + wallsMax(HH.corners) - houseG0 + place.bld.house.dz) * 1000) / 1000; HH.sokkeli = HH.floor - 0.097; });
+    Object.keys(DATA.houses).forEach(function(k){ var HH = DATA.houses[k]; HH.floor = Math.round(houseFloorNow(HH) * 1000) / 1000; HH.sokkeli = HH.floor - 0.097; });
   }
   function gAt(x, z){ var h = H(x, z); if (h == null) h = Hall(x, z); if (h == null) h = ZREF; return GP ? h + fillT(x, z) : h; }
   function quadsMesh(quads, mat){
@@ -4911,13 +4984,18 @@
     return bil(GP.T0 || GP.T, GP.nx, GP.nz, fc, fr);
   }
   function gAt0(x, z){ var h = H(x, z); if (h == null) h = Hall(x, z); if (h == null) h = ZREF; return GP ? h + fillT0(x, z) : h; }
+  function gBase(x, z){
+    var h = H(x, z); if (h == null) h = Hall(x, z); if (h == null) h = ZREF; if (!GP) return h;
+    var fc = (x - GP.x0) / GP.sp, fr = (z - GP.z0) / GP.sp;
+    return fc < 0 || fr < 0 || fc > GP.nx - 1 || fr > GP.nz - 1 ? h : h + bil(GP.TB || GP.T0 || GP.T, GP.nx, GP.nz, fc, fr);
+  }
   var PLINTH = 0.40;
   function garFloor(){
     var G = place.bld.gar, F = objFrame(HF0.P(G.c[0], G.c[1]), garRot(G), garT().w, garT().d), hd = F.d / 2 + 0.3, hw = F.w / 2 + 0.3, gs = [];
-    // the planned ground 0.3 m out from the walls every 0.25 m all round, so a rise between the corners counts too
+    // the base plan's ground 0.3 m out from the walls every 0.25 m all round, so a rise between the corners counts too
     [[-hd, -hw, hd, -hw], [hd, -hw, hd, hw], [hd, hw, -hd, hw], [-hd, hw, -hd, -hw]].forEach(function(e){
       var L = Math.hypot(e[2] - e[0], e[3] - e[1]), n = Math.ceil(L / 0.25);
-      for (var i = 0; i < n; i++) { var p = F.P(e[0] + (e[2] - e[0]) * i / n, e[1] + (e[3] - e[1]) * i / n); gs.push(gAt0(p[0], p[1])); }
+      for (var i = 0; i < n; i++) { var p = F.P(e[0] + (e[2] - e[0]) * i / n, e[1] + (e[3] - e[1]) * i / n); gs.push(gBase(p[0], p[1])); }
     });
     // the plinth as high as the house's (0.40 m) above the highest of them, plus the fine-tuning
     var gmax = Math.max.apply(null, gs);
@@ -5095,14 +5173,27 @@
     asphGarC.key = key; asphGarC.out = best; return best;
   }
   function computeGround(){
-    var HF = HF0, ha = HF.ha, Ar = ha + 3, AS = asphRound(), dzH = place.bld.house.dz, F0 = F0B + dzH;
+    var HF = HF0, ha = HF.ha, Ar = ha + 3, AS = asphRound(), dzH = place.bld.house.dz, dzG = place.bld.gar.dz, F0 = F0B;
+    // The yard's base plan does not move with the buildings' fine-tuned levels. A building raised or lowered takes the
+    // ground round it along instead: its full change within a few metres of its walls, fading out further off along a
+    // rounded curve, the longer the bigger the change (about 1:3 at its steepest), so the yard and the asphalt between
+    // the house and the garage flow from one level to the other
+    var HCm = houseFrame(DATA.houses[houseSel].corners), Gm = place.bld.gar, GFm = objFrame(HF0.P(Gm.c[0], Gm.c[1]), garRot(Gm), garT().w, garT().d);
+    var sm5m = function(q){ q = clamp(q, 0, 1); return q * q * q * (q * (q * 6 - 15) + 10); };
+    var LH = Math.max(4, Math.abs(dzH) * 6), LG = Math.max(4, Math.abs(dzG) * 6);
+    var mound = function(x, z){
+      var m = 0;
+      if (dzH) m += dzH * (1 - sm5m((Math.hypot(Math.max(0, Math.abs(HCm.A(x, z)) - HCm.ha), Math.max(0, Math.abs(HCm.B(x, z)) - HCm.hb)) - 3) / LH));
+      if (dzG) m += dzG * (1 - sm5m((Math.hypot(Math.max(0, Math.abs(GFm.U(x, z)) - GFm.d / 2), Math.max(0, Math.abs(GFm.V(x, z)) - GFm.w / 2)) - 1.5) / LG));
+      return m;
+    };
     var rings = [];
     (DATA.special || []).forEach(function(t){ if (RING_IDS.indexOf(t.id) >= 0) rings.push({x:t.x, z:t.z, h:t.h, id:t.id, e:H(t.x, t.z)}); });
     // planned ground grid, 0.25 m, over the plot and a 6 m margin (the entrance crossing lies outside the plot)
     var xs = PLOT.map(function(p){ return p[0]; }), zs = PLOT.map(function(p){ return p[1]; });
     var sp = 0.25, gx0 = Math.floor(Math.min.apply(null, xs)) - 6, gz0 = Math.floor(Math.min.apply(null, zs)) - 6, gx1 = Math.ceil(Math.max.apply(null, xs)) + 6, gz1 = Math.ceil(Math.max.apply(null, zs)) + 6;
     var nx = Math.round((gx1 - gx0) / sp) + 1, nz = Math.round((gz1 - gz0) / sp) + 1, nn = nx * nz;
-    var E = new Float32Array(nn), T = new Float32Array(nn), IN = new Uint8Array(nn), INP = new Uint8Array(nn), CR = new Uint8Array(nn), DC = new Float32Array(nn);
+    var E = new Float32Array(nn), T = new Float32Array(nn), TB = new Float32Array(nn), IN = new Uint8Array(nn), INP = new Uint8Array(nn), CR = new Uint8Array(nn), DC = new Float32Array(nn);
     // the crossing: asphalt outside the plot, short of the road surface
     var nCross = 0;
     for (var j0 = 0; j0 < nz; j0++) for (var i0 = 0; i0 < nx; i0++) {
@@ -5156,26 +5247,29 @@
       var kk = j * nx + i, x = gx0 + i * sp, z = gz0 + j * sp, e = E[kk], D, w, dc = DC[kk], wc = dc < 2.5 ? (function(q){ return q * q * (3 - 2 * q); })(1 - dc / 2.5) : 0;
       if (INP[kk]) {
         var A = HF.A(x, z);
-        D = A >= -ha ? PL(x, z) : Math.max(e, lerpP(PA_BACK, -A - ha) + dzH * Math.max(0, 1 - (-A - ha) / 10));
-        w = clamp(edgeMin(x, z) / edgeWOf(D - e), 0, 1); w = Math.max(w * w * (3 - 2 * w), wc); if (w < 1 && inPoly(x, z, AS)) w = 1;
-        for (var q = 0; q < rings.length; q++) if (Math.hypot(x - rings[q].x, z - rings[q].z) < RING_IN) { D = e; break; }
+        var D0 = A >= -ha ? PL(x, z) : Math.max(e, lerpP(PA_BACK, -A - ha)), md = mound(x, z), inAS = inPoly(x, z, AS);
+        D = A >= -ha ? D0 + md : Math.max(e, D0 + md);
+        var edgeW = function(Dq){ var q = clamp(edgeMin(x, z) / edgeWOf(Dq - e), 0, 1); q = Math.max(q * q * (3 - 2 * q), wc); return q < 1 && inAS ? 1 : q; };
+        w = edgeW(D);
+        for (var q = 0; q < rings.length; q++) if (Math.hypot(x - rings[q].x, z - rings[q].z) < RING_IN) { D = e; D0 = e; break; }
         w *= treeW(x, z, D - e);
+        TB[kk] = md ? edgeW(D0) * treeW(x, z, D0 - e) * (D0 - e) : w * (D - e);
       } else if (CR[kk]) { D = PX(x, z); w = 1; }
       else if (wc > 0 && !inPoly(x, z, RP)) { D = Math.max(e, PX(x, z) - Math.max(0, dc - 0.3) / 3); w = wc; }
       else continue;
       IN[kk] = 1;
-      var tv = w * (D - e); T[kk] = tv;
+      var tv = w * (D - e); T[kk] = tv; if (!INP[kk]) TB[kk] = tv;
       if (tv > 0) { vol += tv * sp * sp; if (tv > mx) { mx = tv; at = [x, z]; } } else cut -= tv * sp * sp;
     }
-    GP = {x0:gx0, z0:gz0, sp:sp, nx:nx, nz:nz, E:E, T:T, IN:IN};
-    GP.T0 = T.slice();
+    GP = {x0:gx0, z0:gz0, sp:sp, nx:nx, nz:nz, E:E, T:T, IN:IN, TB:TB};
+    GP.T0 = T.slice(); houseG0 = null;
     // the lawn behind the house meets the deck's step: at the deck's level less two rises round the deck and its step,
     // blending over 2 m into the plan; round the greenhouse it starts past its 20 cm wooden step, at the step's foot.
     // Both follow where the house and the greenhouse stand
     (function(){
       var HH = DATA.houses['132'], pm = planMap(HH, P132), o = pm.pt(P132.x0, P132.y0), ex = pm.pt(P132.x0 + 1 / pm.sb, P132.y0), ey = pm.pt(P132.x0, P132.y0 - 1 / pm.sa);
       var ux = [ex[0] - o[0], ex[1] - o[1]], uy = [ey[0] - o[0], ey[1] - o[1]], tx1 = pm.lb, PD = pergD(), S = DECK_STEP;
-      var fl = HH.floor0 + wallsMax(HH.corners) - wallsMax(HH.corners0) + place.bld.house.dz, lawn = fl - 0.097 + 0.05 + (place.deckDz || 0) - 2 * DECK_RISE;
+      var fl = houseFloorNow(HH), lawn = fl - 0.097 + 0.05 + (place.deckDz || 0) - 2 * DECK_RISE;
       var gq = ghFloor(), GF = gq.F, glawn = gq.Fz - 0.15, ghd = GH_D / 2 + 0.05, ghw = GH_W / 2 + 0.05;
       var ss = function(q){ q = clamp(q, 0, 1); return q * q * (3 - 2 * q); };
       // a rounder curve for the lawn falling away from the terrace and its greenhouse (smootherstep)
@@ -5234,13 +5328,20 @@
         if (Math.abs(HC4.A(x, z)) < HC4.ha + 0.7 && Math.abs(HC4.B(x, z)) < HC4.hb + 0.7) return true;
         return Math.abs(gq4.U(x, z)) < GH_D / 2 + 0.5 && Math.abs(gq4.V(x, z)) < GH_W / 2 + 0.5;
       };
-      for (var ps = 0; ps < 2; ps++) {
+      // which cells may be smoothed: not at the buildings or the crossing; the asphalt only when a building's own level
+      // makes the yard flow from one level to another (then more passes, so the folds round off)
+      var soft = Math.abs(dzH) + Math.abs(dzG), NP = 2 + Math.min(26, Math.round(soft * 18)), SMK = new Float32Array(nn);
+      for (var j4 = 1; j4 < nz - 1; j4++) for (var i4 = 1; i4 < nx - 1; i4++) {
+        var k4 = j4 * nx + i4; if (!IN[k4] || !IN[k4 - 1] || !IN[k4 + 1] || !IN[k4 - nx] || !IN[k4 + nx] || CR[k4]) continue;
+        var x4 = gx0 + i4 * sp, z4 = gz0 + j4 * sp; if (keep(x4, z4) || (soft < 0.05 && inPoly(x4, z4, AS))) continue;
+        SMK[k4] = clamp(edgeMin(x4, z4) / EDGE_W, 0, 1);
+      }
+      for (var ps = 0; ps < NP; ps++) {
         var Z = new Float32Array(nn); for (var q0 = 0; q0 < nn; q0++) Z[q0] = E[q0] + T[q0];
-        for (var j4 = 1; j4 < nz - 1; j4++) for (var i4 = 1; i4 < nx - 1; i4++) {
-          var k4 = j4 * nx + i4; if (!IN[k4] || !IN[k4 - 1] || !IN[k4 + 1] || !IN[k4 - nx] || !IN[k4 + nx] || CR[k4]) continue;
-          var x4 = gx0 + i4 * sp, z4 = gz0 + j4 * sp; if (keep(x4, z4) || inPoly(x4, z4, AS)) continue;
-          var zs = Z[k4] * 0.4 + (Z[k4 - 1] + Z[k4 + 1] + Z[k4 - nx] + Z[k4 + nx]) * 0.15, we4 = clamp(edgeMin(x4, z4) / EDGE_W, 0, 1);
-          T[k4] += (zs - Z[k4]) * we4;
+        for (var k5 = nx; k5 < nn - nx; k5++) {
+          if (!SMK[k5]) continue;
+          var zs = Z[k5] * 0.4 + (Z[k5 - 1] + Z[k5 + 1] + Z[k5 - nx] + Z[k5 + nx]) * 0.15;
+          T[k5] += (zs - Z[k5]) * SMK[k5];
         }
       }
     })();
@@ -5291,7 +5392,6 @@
       r.top = Math.max(pr, r.e) + RING_UP; r.bot = Math.min(botI, pr) - 0.25; r.depth = r.top - r.e;
     });
     YD = {s:s, Ar:Ar, PL:PL, HF:HF, ha:ha, hb:HF.hb, rings:rings, clipOK:clipOK, bbox:[gx0, gz0, gx1 - gx0, gz1 - gz0], AS:AS, cross:nCross, ER:ER, vol:vol, cut:cut, max:mx, maxAt:at};
-    houseG0 = null;
     updateAsphalt();
     var setT = function(id, v){ var el = document.getElementById(id); if (el) el.textContent = v; };
     setT('f-fillmax', fn(mx, 1) + ' m'); setT('f-fillvol', 'n. ' + fn(Math.round(vol / 10) * 10, 0) + ' m³'); setT('f-slope', fn(s * 100, 1) + ' %');
@@ -5335,7 +5435,7 @@
   var VERGE_W = 4.4;
   var pmcv = document.createElement('canvas'); pmcv.width = pmcv.height = 1024; var planMaskTex = FX.data(new THREE.CanvasTexture(pmcv)); planMaskTex.flipY = false; planMaskTex.generateMipmaps = false; planMaskTex.minFilter = THREE.LinearFilter;
   var yardMat = grayAware(roadAware(new THREE.MeshLambertMaterial({map:yardTex, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1})), 'yard');
-  var thickMat = grayAware(pitAware(new THREE.MeshLambertMaterial({vertexColors:true, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1})), 'thick');
+  var thickMat = grayAware(plotOnlyExact(pitAware(new THREE.MeshLambertMaterial({vertexColors:true, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1}))), 'thick');
   var blockMat = new THREE.MeshLambertMaterial({color:0xffffff});
   var fillIsoMat = new THREE.LineBasicMaterial({color:0x6b4f2a, transparent:true, opacity:0.7});
   var planMesh = null, groundObjs = [], fillLabel = null;
@@ -5543,7 +5643,7 @@
   var hedgeMesh = null, HEDGE_C = null, HEDGE_RUNS = [];
   // the board fence: its line 5 cm in from the boundary, 90 mm thick, the corners of the entrance side turned on a 1 m
   // radius, and 2.5 m round each corner along the sides
-  var FENCE = {IN:0.05, T:0.09, R:1.0, RET:2.5};
+  var FENCE = {IN:0.05, T:0.09, R:2.2, RET:2.5};
   function insetLine(i, off){ var e = PE[i]; return {p:[e.p[0] + e.n[0] * off, e.p[1] + e.n[1] * off], d:e.d}; }
   function lineX(l0, l1){ var det = l0.d[0] * -l1.d[1] - l0.d[1] * -l1.d[0], t = ((l1.p[0] - l0.p[0]) * -l1.d[1] - (l1.p[1] - l0.p[1]) * -l1.d[0]) / det; return [l0.p[0] + l0.d[0] * t, l0.p[1] + l0.d[1] * t]; }
   // the arc of radius R from line l0 into line l1 (both running round the ring), on the plot's side
@@ -5683,17 +5783,16 @@
     var runs0 = [], cur = [], curA = 0;
     pts.forEach(function(p, i){ if (gap(p[0], p[1])) { if (cur.length > 1) runs0.push({p:cur, a:curA, b:i - 1}); cur = []; } else { if (!cur.length) curA = i; cur.push(p); } });
     if (cur.length > 1) runs0.push({p:cur, a:curA, b:pts.length - 1});
-    // at the drive it turns in along it: a quarter circle of 1 m from 1 m before its end and then 1 m straight in, its
-    // lights from there on
+    // at the drive it turns in along it in a wide arc: 2.4 m of radius through 50 degrees, ending where the fence
+    // ended before; its lights from there on
     var asphNear = function(x, z){ return !!(YD && YD.AS && (inPoly(x, z, YD.AS) || polyNear(x, z, YD.AS)[0] < 0.45)); };
     var turnIn = function(R0, atEnd){
-      var P0 = atEnd ? R0.slice() : R0.slice().reverse(), m = P0.length, E = P0[m - 1], Rr = 1.0, Ls = 1.0;
+      var P0 = atEnd ? R0.slice() : R0.slice().reverse(), m = P0.length, E = P0[m - 1], Rr = 2.4, PH = 50 * Math.PI / 180, bk = Rr * Math.sin(PH);
       var tx = E[0] - P0[m - 2][0], tz = E[1] - P0[m - 2][1], tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
       var n = [-tz, tx]; if ((PLC[0] - E[0]) * n[0] + (PLC[1] - E[1]) * n[1] < 0) n = [tz, -tx];
-      var back = 0, j = m - 1; while (j > 0 && back + Math.hypot(P0[j][0] - P0[j - 1][0], P0[j][1] - P0[j - 1][1]) < Rr) { back += Math.hypot(P0[j][0] - P0[j - 1][0], P0[j][1] - P0[j - 1][1]); j--; }
-      var keep = P0.slice(0, j + 1), Es = [E[0] - tx * Rr, E[1] - tz * Rr], C = [Es[0] + n[0] * Rr, Es[1] + n[1] * Rr], add = [];
-      for (var q = 1; q <= 8; q++) { var th = q / 8 * Math.PI / 2; add.push([C[0] - n[0] * Rr * Math.cos(th) + tx * Rr * Math.sin(th), C[1] - n[1] * Rr * Math.cos(th) + tz * Rr * Math.sin(th)]); }
-      var Ee = add[add.length - 1]; for (var q2 = 1; q2 <= 4; q2++) add.push([Ee[0] + n[0] * Ls * q2 / 4, Ee[1] + n[1] * Ls * q2 / 4]);
+      var back = 0, j = m - 1; while (j > 0 && back + Math.hypot(P0[j][0] - P0[j - 1][0], P0[j][1] - P0[j - 1][1]) < bk) { back += Math.hypot(P0[j][0] - P0[j - 1][0], P0[j][1] - P0[j - 1][1]); j--; }
+      var keep = P0.slice(0, j + 1), Es = [E[0] - tx * bk, E[1] - tz * bk], C = [Es[0] + n[0] * Rr, Es[1] + n[1] * Rr], add = [];
+      for (var q = 1; q <= 10; q++) { var th = q / 10 * PH; add.push([C[0] - n[0] * Rr * Math.cos(th) + tx * Rr * Math.sin(th), C[1] - n[1] * Rr * Math.cos(th) + tz * Rr * Math.sin(th)]); }
       var cut = add.length; for (var q3 = 0; q3 < add.length; q3++) if (asphNear(add[q3][0], add[q3][1])) { cut = q3; break; }
       add = add.slice(0, cut); add.forEach(function(pq){ pq.ti = true; });
       var res = keep.concat(add); return atEnd ? res : res.reverse();
@@ -5976,7 +6075,12 @@
   // back (place.treesOff); a stump marks a tree that is away
   function spOf(k){ if (typeof k !== 'string' || k.slice(0, 3) !== 'sp:') return null; var id = Number(k.slice(3)); return (DATA.special || []).filter(function(t){ return t.id === id; })[0] || null; }
   function isSp(k){ return !!spOf(k); }
-  function spOff(id){ return (place.treesOff || []).indexOf(id) >= 0; }
+  function spOff(id){
+    var t = (DATA.special || []).filter(function(q){ return q.id === id; })[0]; if (!t || typeof HF0 === 'undefined' || !HF0) return false;
+    var G = place.bld.gar, F = objFrame(HF0.P(G.c[0], G.c[1]), garRot(G), garT().w, garT().d);
+    if (Math.abs(F.U(t.x, t.z)) < F.d / 2 + 0.6 && Math.abs(F.V(t.x, t.z)) < F.w / 2 + 0.6) return true;
+    var HC = houseFrame(DATA.houses[houseSel].corners); return Math.abs(HC.A(t.x, t.z)) < HC.ha + 0.6 && Math.abs(HC.B(t.x, t.z)) < HC.hb + 0.6;
+  }
   var SP_PICK = new THREE.MeshBasicMaterial({visible:false}), SP_STUMP = new THREE.MeshLambertMaterial({color:0x5b4a3a}), SP_STUMPT = new THREE.MeshLambertMaterial({color:0xcdb892});
   function layerOf(k){ return typeof k === 'string' && (k.slice(0, 3) === 'tr:' || k.slice(0, 3) === 'sp:') ? 'ptrees' : LAYER_OF[k]; }
   function ftTpl(T){ return ftTemplate(T.sp, FT_SZ[T.sz], Math.floor(ftHash(T.id, 1) * 3)); }
@@ -6009,16 +6113,8 @@
     // wood chips round the foot of the plot's big trees too
     (DATA.special || []).forEach(function(t, i){
       if (edgeMin(t.x, t.z) < -0.8) return;
-      // the chips and the foot of the trunk take the click that selects the tree; a tree taken away leaves a low stump
-      var sg = new THREE.Group(); sg.userData.pick = 'sp:' + t.id; root.add(sg);
-      if (spOff(t.id)) {
-        var g0 = gAt(t.x, t.z), rs = t.s === 'haapa' ? (t.id === 95 ? 0.36 : 0.26) : 0.3;
-        var st = new THREE.Mesh(new THREE.CylinderGeometry(rs, rs * 1.25, 0.3, 18), SP_STUMP); st.position.set(t.x, Y(g0 + 0.13), t.z); sg.add(st);
-        var tp = new THREE.Mesh(new THREE.CircleGeometry(rs, 18), SP_STUMPT); tp.rotation.x = -Math.PI / 2; tp.position.set(t.x, Y(g0 + 0.282), t.z); sg.add(tp);
-      } else {
-        sg.add(ftMulch([t.x, t.z], treeMulchR(t), (i * 0.37) % 1));
-        var hs = H(t.x, t.z), ft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.6, 2.2, 10), SP_PICK); ft.position.set(t.x, Y((hs == null ? gAt(t.x, t.z) : hs) + 1.1), t.z); sg.add(ft);
-      }
+      // the chips round the foot of the trunk; none where the garage or the house stands on the tree
+      if (!spOff(t.id)) root.add(ftMulch([t.x, t.z], treeMulchR(t), (i * 0.37) % 1));
     });
     ftGroup = root; reg('ptrees', root); root.visible = !!state.ptrees && !preSolo;
   }
@@ -6043,28 +6139,6 @@
   }
   // the trees' rows on the Piha tab
   function ftListUI(){
-    var sbx = document.getElementById('sp-list');
-    if (sbx) {
-      while (sbx.firstChild) sbx.removeChild(sbx.firstChild);
-      (DATA.special || []).forEach(function(T){
-        if (edgeMin(T.x, T.z) < -0.8) return;
-        var b = document.createElement('button'); b.type = 'button'; b.className = 'drill';
-        var t1 = document.createElement('span'); t1.className = 'dl-t'; t1.textContent = SP_LBL[T.id] || (T.s === 'haapa' ? 'Haapa' : 'Mänty');
-        var t2 = document.createElement('span'); t2.className = 'dl-v'; t2.textContent = spOff(T.id) ? 'pois' : 'n. ' + fn(T.h, 0) + ' m';
-        var t3 = document.createElement('span'); t3.className = 'dl-c'; t3.setAttribute('aria-hidden', 'true'); t3.textContent = '›';
-        b.appendChild(t1); b.appendChild(t2); b.appendChild(t3); b.addEventListener('click', function(){ pickRow('sp:' + T.id); }); sbx.appendChild(b);
-      });
-    }
-    var box = document.getElementById('tree-list'); if (!box) return;
-    while (box.firstChild) box.removeChild(box.firstChild);
-    (place.trees || []).forEach(function(T){
-      var b = document.createElement('button'); b.type = 'button'; b.className = 'drill';
-      var t1 = document.createElement('span'); t1.className = 'dl-t'; t1.textContent = FT_SP[T.sp].name;
-      var t2 = document.createElement('span'); t2.className = 'dl-v'; t2.textContent = FT_SZN[FT_SZ[T.sz]];
-      var t3 = document.createElement('span'); t3.className = 'dl-c'; t3.setAttribute('aria-hidden', 'true'); t3.textContent = '›';
-      b.appendChild(t1); b.appendChild(t2); b.appendChild(t3); b.addEventListener('click', function(){ pickRow('tr:' + T.id); }); box.appendChild(b);
-    });
-    box.hidden = !(place.trees || []).length;
     var nb = document.querySelector('[data-newsz="' + FT_NEW.sz + '"]'); document.querySelectorAll('[data-newsz]').forEach(function(x){ x.setAttribute('aria-pressed', String(x === nb)); });
   }
 
@@ -6438,7 +6512,6 @@
   }
 
   // soil
-  var SOIL = {Pm:0x4a3a2b, SaSi:0xb7a47c, SiSa:0x9aa3a8, Sa:0x7d93ab, Mr:0x8b7659};
   var soilMat = {};
   Object.keys(SOIL).forEach(function(k){ soilMat[k] = new THREE.MeshLambertMaterial({color:SOIL[k]}); });
   var endMat = new THREE.MeshLambertMaterial({color:0x2a2d2b});
@@ -6474,6 +6547,24 @@
     label('U' + u.nro + ' · 2013 · ' + fn(h, 1) + ' m', [u.p[0], Y(u.mp) + 0.9, u.p[1]], 'k u', 'soil');
     label('päättyi ' + fz(u.taso, 1), [u.p[0], Y(u.taso) - 0.4, u.p[1]], 'k u', 'soil');
   });
+  // the level where the borings stopped, carried between the ten points: a see-through surface under the plot with a
+  // 5 m grid on it, so the depth of the hard bottom can be read against the piles and the boreholes
+  (function(){
+    var xs = PLOTC.map(function(p){ return p[0]; }), zs = PLOTC.map(function(p){ return p[1]; }), st = 1.25;
+    var x0 = Math.floor(Math.min.apply(null, xs)) - 1, z0 = Math.floor(Math.min.apply(null, zs)) - 1, nx = Math.ceil((Math.max.apply(null, xs) + 1 - x0) / st) + 1, nz = Math.ceil((Math.max.apply(null, zs) + 1 - z0) / st) + 1;
+    var pos = [], idx = [], ln = [];
+    for (var j = 0; j < nz; j++) for (var i = 0; i < nx; i++) { var x = x0 + i * st, z = z0 + j * st; pos.push(x, Y(hardAt(x, z)), z); }
+    for (var j2 = 0; j2 < nz - 1; j2++) for (var i2 = 0; i2 < nx - 1; i2++) { var a = j2 * nx + i2; idx.push(a, a + nx, a + 1, a + 1, a + nx, a + nx + 1); }
+    for (var j3 = 0; j3 < nz; j3 += 4) for (var i3 = 0; i3 < nx - 1; i3++) { var q = (j3 * nx + i3) * 3; ln.push(pos[q], pos[q + 1] + 0.03, pos[q + 2], pos[q + 3], pos[q + 4] + 0.03, pos[q + 5]); }
+    for (var i4 = 0; i4 < nx; i4 += 4) for (var j4 = 0; j4 < nz - 1; j4++) { var q4 = (j4 * nx + i4) * 3, q5 = q4 + nx * 3; ln.push(pos[q4], pos[q4 + 1] + 0.03, pos[q4 + 2], pos[q5], pos[q5 + 1] + 0.03, pos[q5 + 2]); }
+    var on = FX.uniforms({uCut:1}), g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+    var mat = FX.plotOnly(new THREE.MeshBasicMaterial({color:0x8b7659, transparent:true, opacity:0.42, depthWrite:false, side:THREE.DoubleSide}), on, PLOTC);
+    var m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = false; m.renderOrder = 2; reg('soil', m);
+    var lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(ln, 3));
+    reg('soil', new THREE.LineSegments(lg, FX.plotOnly(new THREE.LineBasicMaterial({color:0x3f3426, transparent:true, opacity:0.55}), on, PLOTC)));
+    var c = PLOTC.reduce(function(a, p){ return [a[0] + p[0] / PLOTC.length, a[1] + p[1] / PLOTC.length]; }, [0, 0]);
+    label('Kairaukset päättyivät tälle tasolle', [c[0], Y(hardAt(c[0], c[1])) + 0.3, c[1]], 'k u', 'soil');
+  })();
   (function(){
     var tickMat = new THREE.MeshBasicMaterial({color:0x1d201e}), topMat = new THREE.MeshBasicMaterial({color:0xffffff}), m4 = new THREE.Matrix4();
     [[ticks1, new THREE.CylinderGeometry(0.335, 0.335, 0.025, 18), tickMat], [ticks5, new THREE.CylinderGeometry(0.35, 0.35, 0.08, 18), tickMat], [tops, new THREE.CylinderGeometry(0.42, 0.42, 0.04, 20), topMat]].forEach(function(s){
@@ -6505,13 +6596,31 @@
   }
   function todLabel(h){
     var hh = Math.floor(h + 1e-6), mm = Math.round((h - hh) * 60); if (mm === 60) { hh++; mm = 0; }
-    var w = h < 11 ? 'aamupäivä' : h < 17.5 ? 'päivä' : h < 21.5 ? 'ilta' : h < 23 ? 'myöhäisilta' : 'yö';
+    var w = h < 3.75 ? 'yö' : h < 7 ? 'aamu' : h < 11 ? 'aamupäivä' : h < 17.5 ? 'päivä' : h < 21.5 ? 'ilta' : h < 23.25 ? 'myöhäisilta' : 'yö';
     return 'klo ' + (hh % 24) + '.' + (mm < 10 ? '0' : '') + mm + ' · ' + w;
+  }
+  var nightK = 1, nightDone = 1;
+  function dimUnlit(){
+    if (nightK === nightDone && nightK === 1) return;
+    nightDone = nightK;
+    ['plot', 'util', 'utilOut', 'contours', 'contoursOut', 'points', 'pointsOut', 'roads', 'roadsOut', 'cut', 'soil', 'water'].forEach(function(k){
+      (layers[k] || []).forEach(function(o){ o.traverse(function(q){
+        var ms = q.material; if (!ms) return;
+        (Array.isArray(ms) ? ms : [ms]).forEach(function(m){
+          if (!m.color || m.userData.own || m.isMeshLambertMaterial || m.isMeshPhongMaterial || m.isMeshLambertNodeMaterial || m.isMeshPhongNodeMaterial) return;
+          if (!m.userData.c0) m.userData.c0 = m.color.clone();
+          m.color.copy(m.userData.c0).multiplyScalar(nightK);
+        });
+      }); });
+    });
   }
   var cA = new THREE.Color(), cB = new THREE.Color();
   function mixHex(a, b, t){ return cA.setHex(a).lerp(cB.setHex(b), t).getHex(); }
   function applyTime(){
     var s = sunAt(tod), el = s.el * 180 / Math.PI, dn = sstep(15, 40, el), nt = sstep(8, -4, el), K = LIGHT_K;
+    // the dead of night (the sun more than about six degrees down, from midnight to three): what no lamp lights is all
+    // but black, only its shape faintly there
+    var dk = sstep(-2.5, -6, el);
     var num = function(k){ return (K.eve[k] + (K.day[k] - K.eve[k]) * dn) * (1 - nt) + K.night[k] * nt; };
     var col = function(k){ return mixHex(mixHex(K.eve[k], K.day[k], dn), K.night[k], nt); };
     sunDir.set(Math.sin(s.az) * Math.cos(s.el), Math.sin(s.el), -Math.cos(s.az) * Math.cos(s.el)).normalize();
@@ -6521,14 +6630,16 @@
     // the shadows fade away as the sun sets
     if (SHADOW) sun.shadow.intensity = sstep(-3, 5, el);
     var sunC = el < 14 ? mixHex(0xff9a55, 0xffd8ab, sstep(0, 14, el)) : mixHex(0xffd8ab, 0xfff4e4, sstep(14, 35, el));
-    sun.intensity = LK * ((0.35 + 0.55 * sstep(-1, 25, el)) * (1 - nt) * (1 + (SH.sun - 1) * sstep(-3, 5, el)) + 0.1 * nt); sun.color.setHex(mixHex(sunC, 0xff8a4a, nt), LIN);
-    var hemiN = num('hemi'); hemi.intensity = LK * hemiN * (1 + (SH.hemi - 1) * sstep(-3, 5, el)); hemi.color.setHex(col('sky'), LIN); hemi.groundColor.setHex(col('gnd'), LIN);
+    sun.intensity = LK * ((0.35 + 0.55 * sstep(-1, 25, el)) * (1 - nt) * (1 + (SH.sun - 1) * sstep(-3, 5, el)) + 0.1 * nt * (1 - dk) + 0.012 * dk); sun.color.setHex(mixHex(mixHex(sunC, 0xff8a4a, nt), 0x9fb4e6, dk), LIN);
+    var hemiN = num('hemi') * (1 - 0.85 * dk); hemi.intensity = LK * hemiN * (1 + (SH.hemi - 1) * sstep(-3, 5, el)); hemi.color.setHex(col('sky'), LIN); hemi.groundColor.setHex(col('gnd'), LIN);
     // the ceiling faces down and would get only the brownish ground light: the light reflected from the floor and the
     // walls lifts it to the walls' tone, following the daylight
     M132.ceilP.emissive.setRGB(0.19, 0.19, 0.205, THREE.SRGBColorSpace).multiplyScalar(hemiN / 0.66 * CEIL_K); GLASSU.uGlassK.value = clamp(hemiN / 0.66, 0, 1.2);
-    skyMat.uniforms.dusk.value = nt; skyMat.uniforms.noon.value = dn; scene.fog.color.setHex(col('fog'));
+    skyMat.uniforms.dusk.value = nt; skyMat.uniforms.noon.value = dn; skyMat.uniforms.night.value = dk; scene.fog.color.setHex(mixHex(col('fog'), 0x05070b, dk));
     LT.spots = num('spots'); LT.fire = num('fire'); LT.ext = sstep(10, -2, el);
     shinySet(sstep(-1.5, 5, el));
+    // the drawn lines and marks (boundaries, pipes, contours, points) take no light, so they are dimmed with the night
+    nightK = 1 - 0.98 * dk; dimUnlit();
     if (todV) todV.textContent = todLabel(tod);
     if (todIn && document.activeElement !== todIn) todIn.value = tod;
     applyExtLights();
@@ -6549,7 +6660,7 @@
     HALO_B.color.setRGB(1.0, 0.72, 0.45, THREE.SRGBColorSpace).multiplyScalar(0.6 * kb);
     // the other models: their porch downlights with the wall lights, and in the evening a warm glow behind their windows
     if (MT) { MT.spot.color.copy(EXT_OFF).lerp(EXT_ON, Math.min(1, kw * 1.6)); var gw = on * Math.min(1, LV.all * 1.2); MT.glass.emissive.setRGB(0.62 * gw, 0.42 * gw, 0.2 * gw, THREE.SRGBColorSpace); }
-    document.querySelectorAll('[data-ext]').forEach(function(inp){ var k = inp.dataset.ext, o = document.getElementById('f-ext-' + k); if (document.activeElement !== inp) inp.value = EXT[k]; if (o) o.textContent = lvText(EXT[k]); });
+    document.querySelectorAll('[data-ext]').forEach(function(inp){ var k = inp.dataset.ext, v = k === 'all' ? Math.max(EXT.w, EXT.b) : EXT[k], o = document.getElementById('f-ext-' + k); if (document.activeElement !== inp) inp.value = v; if (o) o.textContent = lvText(v); });
   }
   function applyLights(){
     Object.keys(LV_MAT).forEach(function(k){ var m = LV_MAT[k]; M132[m[0]].color.copy(LAMP_OFF).lerp(m[1], Math.min(1, LV[k] * LV.all * 1.5)); });
@@ -6582,25 +6693,38 @@
   }
   if (todIn) todIn.addEventListener('input', function(){ tod = Number(todIn.value); applyTime(); saveUI(); });
   document.querySelectorAll('[data-lv]').forEach(function(inp){ inp.addEventListener('input', function(){ LV[inp.dataset.lv] = Number(inp.value); applyLights(); saveUI(); }); });
-  document.querySelectorAll('[data-ext]').forEach(function(inp){ inp.addEventListener('input', function(){ EXT[inp.dataset.ext] = Number(inp.value); applyExtLights(); saveUI(); }); });
+  document.querySelectorAll('[data-ext]').forEach(function(inp){ inp.addEventListener('input', function(){ var v = Number(inp.value); if (inp.dataset.ext === 'all') EXT.w = EXT.b = v; else EXT[inp.dataset.ext] = v; applyExtLights(); saveUI(); }); });
 
   // ---------- state ----------
   var ZERO_M4 = new THREE.Matrix4().makeScale(0, 0, 0);
   // the roofs of the garage and the greenhouse follow the Katto layer and Pohja ylhäältä like the house's
   function roofShow(g){ if (g) g.traverse(function(o){ if (o.userData.roof) o.visible = state.roof && !preNoRoof; }); }
+  // the plot alone: Vain tontti, and the section, which is that block seen from the side
+  function cutOn(){ return state.cut || (typeof sec === 'object' && !!sec && sec.on); }
+  // what may reach over the boundary is drawn only inside the plot while the plot is shown alone
+  var CUT_SKIP = {cut:1, soil:1, water:1, house:1, garage:1, gh:1, ptrees:1, hedge:1, groundplan:1, trees:1, treesOut:1, env:1};
+  function cutPatch(){
+    Object.keys(layers).forEach(function(k){
+      if (CUT_SKIP[k] || /Out$/.test(k)) return;
+      layers[k].forEach(function(o){ o.traverse(function(q){ if (q.isSprite || !q.material) return; (Array.isArray(q.material) ? q.material : [q.material]).forEach(plotOnly); }); });
+    });
+  }
   function applyLayers(){
-    var fx = fndLast = fndX();
-    TUBU.uTubOn.value = TUB && state.house && !preSolo && !fx ? 1 : 0;
+    var fx = fndLast = fndX(), cut = cutOn(), side = cut && !!sec && sec.on && sec.mode === 'side';
+    TUBU.uTubOn.value = TUB && state.house && !preSolo ? 1 : 0;
     TUBU.uPitOn.value = fx ? 1 : 0;
     if (fx && fndDirty) fndBuild();
     fndGroup.visible = fx;
     GRAYU.uGray.value = state.gray || preSolo ? 1 : 0;
     Object.keys(layers).forEach(function(k){
       var OUT = {contoursOut:'contours', roadsOut:'roads', pointsOut:'points', utilOut:'util', bldgOut:'bldg', treesOut:'trees'};
-      var on = OUT[k] ? state[OUT[k]] && !state.cut : k === 'env' ? !state.cut : !!state[k];
+      var on = OUT[k] ? state[OUT[k]] && !cut : k === 'env' ? !cut : k === 'cut' ? cut : !!state[k];
       layers[k].forEach(function(o){ o.visible = on; });
     });
-    if (fx) { ['trees', 'ptrees', 'hedge'].forEach(function(k){ (layers[k] || []).forEach(function(o){ o.visible = false; }); }); (layers.soil || []).forEach(function(o){ o.visible = true; }); }
+    // with the plot alone the trees round it are away, and so are their shadows
+    if (cut) (layers.trees || []).forEach(function(o){ if (o.userData.shProxy) o.visible = false; });
+    // the section from the side: nothing stands in front of the buildings, and the boreholes are drawn on the section
+    if (side) ['hedge', 'trees', 'ptrees', 'soil', 'water', 'points', 'util', 'contours', 'plot'].forEach(function(k){ (layers[k] || []).forEach(function(o){ o.visible = false; }); });
     var showPlan = state.fill || state.yard;
     (layers.groundplan || []).forEach(function(o){ o.visible = showPlan; });
     (layers.walls || []).forEach(function(o){ o.visible = showPlan; });
@@ -6622,20 +6746,21 @@
       if (rc.tg && rc.tg.sh) { rc.tg.sh[0].setMatrixAt(rc.tg.sh[1], hide ? ZERO_M4 : rc.tg.sh[2]); rc.tg.sh[0].instanceMatrix.needsUpdate = true; }
       if (rc.trunks) { rc.trunks.setMatrixAt(rc.i, hide ? ZERO_M4 : rc.mt); rc.trunks.instanceMatrix.needsUpdate = true; }
     });
-    Object.keys(houseGroups).forEach(function(k){ houseGroups[k].visible = state.house && k === houseSel && !fx; houseGroups[k].traverse(function(o){ if (o.userData.roof || o.userData.terr) o.visible = (!o.userData.roof || (state.roof && !preNoRoof)) && (!o.userData.terr || !preSolo); }); });
+    Object.keys(houseGroups).forEach(function(k){ houseGroups[k].visible = state.house && k === houseSel; houseGroups[k].traverse(function(o){ if (o.userData.roof || o.userData.terr) o.visible = (!o.userData.roof || (state.roof && !preNoRoof)) && (!o.userData.terr || !preSolo); }); });
     roofShow(garGroup); roofShow(ghGroup);
-    outer.visible = !state.cut; if (farMesh) farMesh.visible = !state.cut; if (xfMesh) xfMesh.visible = !state.cut;
+    outer.visible = !cut; if (farMesh) farMesh.visible = !cut; if (xfMesh) xfMesh.visible = !cut;
+    if (cut) { if (cutDirty || cutPlan !== planOn()) cutBuild(); cutPatch(); }
     cutU.uRoadOn.value = state.roads ? 1 : 0;
     [[outerMat, orthoTex], [detailMat, orthoTex]].concat(farMat ? [[farMat, farTex]] : []).concat(xfMat ? [[xfMat, xfTex]] : []).forEach(function(mt){
       var m = mt[0], want = state.ortho ? mt[1] : null;
       if (m.map !== want) { m.map = want; m.vertexColors = !state.ortho; m.needsUpdate = true; }
     });
-    cutU.uCut.value = state.cut ? 1 : 0;
+    cutU.uCut.value = cut ? 1 : 0;
     var xray = state.soil || state.water || fx;
     [[outerMat, 0.2], [detailMat, 0.3], [cutWallMat, 0.25], [cutBottomMat, 0.2]].concat(farMat ? [[farMat, 0.2]] : []).concat(xfMat ? [[xfMat, 0.2]] : []).concat([[yardMat, 0.3], [thickMat, 0.3]]).forEach(function(m){
       m[0].transparent = xray; m[0].opacity = xray ? Math.min(1, m[1] * 4 * (1 - soilOp)) : 1; m[0].depthWrite = !xray; m[0].needsUpdate = true;
     });
-    controls.maxPolarAngle = xray || state.cut ? Math.PI * 0.72 : Math.PI * 0.49;
+    controls.maxPolarAngle = xray || cut ? Math.PI * 0.72 : Math.PI * 0.49;
     if (plan.on) {
       ['trees', 'treesOut', 'ptrees'].forEach(function(k){ (layers[k] || []).forEach(function(o){ o.visible = false; }); });
       Object.keys(houseGroups).forEach(function(k){ houseGroups[k].traverse(function(o){ if (o.userData.roof) o.visible = false; }); });
@@ -6746,35 +6871,32 @@
   if (camIn) camIn.addEventListener('input', function(){ camSpeed = Number(camIn.value); applyCamSpeed(); if (camV) camV.textContent = camLabel(camSpeed); saveUI(); });
   var treeIn = document.getElementById('tree-hide'), treeV = document.getElementById('f-treehide'), treeHideD = 0;
   function treeLabel(v){ return v > 0 ? fn(v, 0) + ' m' : 'ei'; }
-  if (treeIn) treeIn.addEventListener('input', function(){ treeHideD = Number(treeIn.value); if (treeV) treeV.textContent = treeLabel(treeHideD); saveUI(); });
+  function treeUI(){ if (treeIn) treeIn.value = treeHideD; if (treeV) treeV.textContent = treeLabel(treeHideD); var b = document.getElementById('cam-ob'); if (b) b.setAttribute('aria-pressed', String(treeHideD > 0)); }
+  if (treeIn) treeIn.addEventListener('input', function(){ treeHideD = Number(treeIn.value); treeUI(); saveUI(); });
 
   document.querySelectorAll('[data-layer]').forEach(function(btn){
     btn.addEventListener('click', function(){
       var k = btn.dataset.layer, wasXray = state.soil || state.water;
+      if (k === 'fnd') { state.fnd = state.fnd === 'x' ? 'off' : 'x'; syncLayerUI(); applyLayers(); syncFndUI(); saveUI(); return; }
       state[k] = !state[k];
       if (k === 'points' && !state.points) resetHud();
       syncLayerUI(); applyLayers(); saveUI();
-      if ((k === 'soil' || k === 'water') && state[k] && !wasXray) flyTo(VIEWS.soil);
     });
   });
-  document.querySelectorAll('[data-terrain]').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      var cut = btn.dataset.terrain === 'cut';
-      if (cut === state.cut) return;
-      preDrop(); if (cut) { fpExit(); secExit(); }
-      state.cut = cut;
-      syncLayerUI(); applyLayers(); saveUI(); flyTo(cut ? VIEWS.cut : VIEWS.oblique);
-    });
-  });
+  // Vain tontti: the plot alone as a block cut along its boundaries
+  function cutSet(cut){
+    cut = !!cut; if (cut === state.cut) return;
+    preDrop(); if (cut) fpExit();
+    state.cut = cut; syncLayerUI(); applyLayers(); saveUI();
+  }
+  (function(){ var b = document.getElementById('cut-tg'); if (b) b.addEventListener('click', function(){ if (sec.on) return; cutSet(!state.cut); }); })();
   var GROUPS = {plan:['house', 'roof', 'garage', 'yard', 'fill'], env:['plot', 'bldg', 'trees', 'roads'], tech:['util', 'points', 'soil', 'water']};
   function syncLayerUI(){
-    document.querySelectorAll('[data-layer]').forEach(function(b){ b.setAttribute('aria-pressed', String(!!state[b.dataset.layer])); });
+    document.querySelectorAll('[data-layer]').forEach(function(b){ var k = b.dataset.layer; b.setAttribute('aria-pressed', String(k === 'fnd' ? state.fnd === 'x' : !!state[k])); });
     document.querySelectorAll('[data-group]').forEach(function(b){ b.setAttribute('aria-pressed', String(GROUPS[b.dataset.group].every(function(k){ return state[k]; }))); });
-    document.querySelectorAll('[data-look]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.look === (state.gray ? 'gray' : state.ortho ? 'ortho' : 'hyp'))); });
-    document.querySelectorAll('[data-terrain]').forEach(function(b){ b.setAttribute('aria-pressed', String((b.dataset.terrain === 'cut') === state.cut)); });
+    var ctg = document.getElementById('cut-tg'); if (ctg) ctg.setAttribute('aria-pressed', String(!!state.cut));
     document.querySelectorAll('[data-labels]').forEach(function(b){ b.setAttribute('aria-pressed', String(Number(b.dataset.labels) === state.labels)); });
     var lbB = document.getElementById('cam-labels'); if (lbB) { lbB.setAttribute('aria-pressed', String(!!state.labels)); lbB.title = state.labels ? 'Piilota tekstit (T)' : 'Näytä tekstit (T)'; }
-    var rb = document.getElementById('rampbox'); if (rb) rb.hidden = state.ortho || state.gray;
     var ab = document.querySelector('[data-alllayers]'); if (ab) ab.setAttribute('aria-pressed', String(LAYER_KEYS.some(function(k){ return state[k]; })));
   }
   // the switch in the Tasot heading turns every layer off, and back on as they were
@@ -6802,19 +6924,13 @@
   function labToggle(){ if (state.labels) { labMemo = state.labels; state.labels = 0; } else state.labels = labMemo || 1; syncLayerUI(); saveUI(); }
   (function(){ var b = document.getElementById('cam-labels'); if (b) b.addEventListener('click', labToggle); })();
   window.addEventListener('keydown', function(e){ var tg = e.target; if (tg && /^(INPUT|SELECT|TEXTAREA)$/.test(tg.tagName)) return; if (e.metaKey || e.ctrlKey || e.altKey) return; if (e.key === 't' || e.key === 'T') labToggle(); });
-  document.querySelectorAll('[data-look]').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      state.ortho = btn.dataset.look === 'ortho'; state.gray = btn.dataset.look === 'gray';
-      syncLayerUI(); applyLayers(); saveUI();
-    });
-  });
   document.querySelectorAll('[data-view]').forEach(function(btn){
     btn.addEventListener('click', function(){
       var v = btn.dataset.view;
       if (v === 'pov') { fpEnter(); return; }
       if (v === 'sec') { secEnter(); return; }
       preDrop(); fpExit(); secExit();
-      if (state.cut && (v === 'env' || v === 'lake' || v === 'shore' || v === 'wide' || v === 'lakeward')) document.querySelector('[data-terrain="full"]').click();
+      if (state.cut && (v === 'env' || v === 'lake' || v === 'shore' || v === 'wide' || v === 'lakeward')) cutSet(false);
       flyTo(v === 'shore' ? v : VIEWS[v]);
     });
   });
@@ -6864,7 +6980,7 @@
     var o = ray.ray.origin, dv = ray.ray.direction, ex = world.scale.y, found = null, prevT = 0, prevS = null;
     var above = function(t){
       var px = o.x + dv.x * t, pz = o.z + dv.z * t;
-      if (state.cut && !inPoly(px, pz, CUT)) return null;
+      if (cutOn() && !inPoly(px, pz, PLOTC)) return null;
       var h = Hsurf(px, pz); return h == null ? null : (o.y + dv.y * t) - (h - ZREF) * ex;
     };
     for (var t = 0.5; t < 14000; t += Math.max(0.25, t * 0.004)) {
@@ -6944,10 +7060,10 @@
     if (L.layer === 'fnd') return fndX() && !(fp.on && fpIn);
     if (!state.labels || plan.on || (fp.on && fpIn) || preSolo) return false;
     if (L.layer === 'env') return !state.cut && (state.roads || L.el.classList.contains('lake'));
-    if (L.layer === 'vp') return !state.cut && !sec.on && !fp.on;
-    if (L.layer === 'streets') return state.roads && !state.cut;
-    if (OUTL[L.layer]) return state[OUTL[L.layer]] && !state.cut;
-    if (L.layer === 'cut') return state.cut;
+    if (L.layer === 'vp') return !cutOn() && !fp.on;
+    if (L.layer === 'streets') return state.roads && !cutOn();
+    if (OUTL[L.layer]) return state[OUTL[L.layer]] && !cutOn();
+    if (L.layer === 'cut') return cutOn();
     return !L.layer || !!state[L.layer];
   }
   function updateLabels(cam){
@@ -6955,8 +7071,9 @@
     var cand = [];
     LABELS.forEach(function(L){
       if (!labelOn(L) || (state.labels < 2 && !L.key) || (L.when && !L.when()) || (L.detail && far)) { L.el.hidden = true; return; }
-      if (sec.on && sec.mode === 'side' && !(L.el.classList.contains('h') || L.el.classList.contains('lake'))) { L.el.hidden = true; return; }
-      if (sec.on) { var sv = L.v.x * AX.rx + L.v.z * AX.rz; if (sv < secS[0] - 0.5 || sv > secS[1] + 0.5) { L.el.hidden = true; return; } }
+      // the section from the side has its own texts; with the plot alone only what is on it is named
+      if (sec.on && sec.mode === 'side') { L.el.hidden = true; return; }
+      if (cutOn() && L.layer !== 'cut' && !inPoly(L.v.x, L.v.z, PLOTG)) { L.el.hidden = true; return; }
       tmp.copy(L.v); world.localToWorld(tmp); tmp.project(cam);
       if (tmp.z > 1 || Math.abs(tmp.x) > 1.05 || Math.abs(tmp.y) > 1.05) { L.el.hidden = true; return; }
       cand.push([L, (tmp.x * 0.5 + 0.5) * w, (-tmp.y * 0.5 + 0.5) * h]);
@@ -7135,13 +7252,12 @@
   }
 
 
-  // ---------- side section along the plot (cut a slab parallel to the long boundaries) ----------
-  var secBar = document.getElementById('secbar'), secRead = document.getElementById('sec-read'), secMsg = document.getElementById('sec-msg'), secAx = document.getElementById('secax'), secAxW = document.getElementById('secaxw');
-  var secMIn = document.getElementById('sec-m'), secMv = document.getElementById('sec-mv');
-  var sec = {on:false, side:'R', m:5, mode:'side', cu:40, cy:0, hv:70, vx:1, sight:null, cur:null};
-  var secS = [0, 0];
+  // ---------- the section: the plot as a block (Vain tontti) seen straight from the side, along its long boundaries.
+  // Over the picture the section itself is drawn on the house's centre line: the soil in layers, the present and the
+  // planned ground, the fills, the foundation with every pile, the boreholes and the levels ----------
+  var secBar = document.getElementById('secbar'), secAx = document.getElementById('secax'), secAxW = document.getElementById('secaxw');
+  var sec = {on:false, side:'R', mode:'side', cu:0, cy:0, hv:70, vx:1, cur:null, cl:[], u0:-30, u1:40, was:null};
   var ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 12000);
-  var clipA = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0), clipB = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
   var AX = (function(){
     var C = DATA.plot.corners, n = C.length, E = [];
     for (var i = 0; i < n; i++) { var a = C[i], b = C[(i + 1) % n]; E.push({a:a, b:b, L:Math.hypot(b[0] - a[0], b[1] - a[1])}); }
@@ -7151,137 +7267,43 @@
     var ul = Math.hypot(ux, uz); ux /= ul; uz /= ul;
     var rx = -uz, rz = ux, s0 = Infinity, s1 = -Infinity;
     C.forEach(function(c){ var sv = c[0] * rx + c[1] * rz; s0 = Math.min(s0, sv); s1 = Math.max(s1, sv); });
-    var t = toTM(0, 0), t2 = toTM(ux, uz), az = (Math.atan2(t2[0] - t[0], t2[1] - t[1]) * 180 / Math.PI + 360) % 360;
-    return {ux:ux, uz:uz, rx:rx, rz:rz, s0:s0, s1:s1, az:az};
+    return {ux:ux, uz:uz, rx:rx, rz:rz, s0:s0, s1:s1};
   })();
-  var secGroup = new THREE.Group(); secGroup.visible = false; world.add(secGroup);
-  var soilWallMat = new THREE.MeshBasicMaterial({map:stripeTex, side:THREE.DoubleSide});
-  var waterWallMat = new THREE.MeshBasicMaterial({color:0x8fbadb, side:THREE.DoubleSide});
-  var fillWallMat = new THREE.MeshBasicMaterial({color:0xd9bf82, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1});
-  var secRimMat = new THREE.LineBasicMaterial({color:0x2a2119});
-  var SEC_BASE = 22, SU0 = -140, SU1 = 3000;
   function secB(){ var c = DATA.houses[houseSel].center; return {x:c[0], z:c[1], s:c[0] * AX.rx + c[1] * AX.rz}; }
   function secPt(u, sv){ var B = secB(); return [B.x + AX.ux * u + AX.rx * (sv - B.s), B.z + AX.uz * u + AX.rz * (sv - B.s)]; }
+  // the ground on the house's centre line from one end of the plot to the other, every 25 cm: the present ground, the
+  // fill or cut on it and the soil layers under it
   function secBuild(){
-    while (secGroup.children.length) { var o = secGroup.children.pop(); if (o.geometry) o.geometry.dispose(); }
-    secS = [AX.s0 - sec.m, AX.s1 + sec.m];
-    clipA.normal.set(AX.rx, 0, AX.rz); clipA.constant = -secS[0];
-    clipB.normal.set(-AX.rx, 0, -AX.rz); clipB.constant = secS[1];
-    var US = []; for (var u = SU0; u < 300; u += 0.5) US.push(u); for (var u2 = 300; u2 <= SU1; u2 += 5) US.push(u2);
-    [secS[0] + 0.03, secS[1] - 0.03].forEach(function(sv){
-      var pos = [], uv = [], soil = [], wat = [], rim = [], prevW = null, fpos = [], fidx = [], prevT = 0;
-      US.forEach(function(u, k){
-        var p = secPt(u, sv), h = Hall(p[0], p[1]); if (h == null) h = LAKE;
-        var w = h <= 32.62, tf = planOn() ? fillT(p[0], p[1]) : 0;
-        pos.push(p[0], Y(h + Math.min(0, tf)), p[1], p[0], Y(SEC_BASE), p[1]); uv.push(u / 4, h - SEC_BASE, u / 4, 0);
-        fpos.push(p[0], Y(h + Math.max(0, tf)), p[1], p[0], Y(h), p[1]);
-        rim.push(new THREE.Vector3(p[0], Y(h + tf) + 0.02, p[1]));
-        if (k) { var q = k * 2; (w && prevW ? wat : soil).push(q - 2, q - 1, q, q, q - 1, q + 1); if (tf > 0.01 || prevT > 0.01) fidx.push(q - 2, q - 1, q, q, q - 1, q + 1); }
-        prevW = w; prevT = tf;
-      });
-      if (fidx.length) { var fgm = new THREE.BufferGeometry(); fgm.setAttribute('position', new THREE.Float32BufferAttribute(fpos, 3)); fgm.setIndex(fidx); secGroup.add(new THREE.Mesh(fgm, fillWallMat)); }
-      [[soil, soilWallMat], [wat, waterWallMat]].forEach(function(pm){
-        if (!pm[0].length) return;
-        var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(pm[0]);
-        secGroup.add(new THREE.Mesh(g, pm[1]));
-      });
-      secGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(rim), secRimMat));
-    });
-    // existing and planned ground along the house centre line (inside the plot)
-    var Bc = secB(); sec.cl = [];
-    for (var uc = -50; uc <= 70; uc += 0.5) {
+    var Bc = secB(); sec.cl = []; sec.u0 = Infinity; sec.u1 = -Infinity;
+    for (var uc = -90; uc <= 90; uc += 0.25) {
       var xc = Bc.x + AX.ux * uc, zc = Bc.z + AX.uz * uc;
       if (!inPoly(xc, zc, DATA.plot.corners)) continue;
-      var ec = H(xc, zc); if (ec != null) sec.cl.push([uc, ec, fillT(xc, zc)]);
+      var ec = H(xc, zc); if (ec == null) continue;
+      var tf = planOn() ? fillT(xc, zc) : 0;
+      sec.cl.push({u:uc, e:ec, t:tf, L:soilColumn(xc, zc, ec + tf)}); sec.u0 = Math.min(sec.u0, uc); sec.u1 = Math.max(sec.u1, uc);
     }
-    secSight();
-    secRead.textContent = 'Suunta ' + Math.round(AX.az) + '° · leveys ' + fn(secS[1] - secS[0], 0) + ' m';
-  }
-  // sight line along the house centre line towards the lake (trees treated as solid)
-  function secSight(){
-    var HH = DATA.houses[houseSel], B = secB(), uF = -Infinity;
-    HH.corners.forEach(function(c){ uF = Math.max(uF, (c[0] - B.x) * AX.ux + (c[1] - B.z) * AX.uz); });
-    var ue = uF - 0.3, ze = HH.floor + 1.7;
-    var near = TREEG.filter(function(t){ if (t.clr) return false; var dd = Math.abs((t.x - B.x) * AX.rx + (t.z - B.z) * AX.rz); return dd < t.r && (t.x - B.x) * AX.ux + (t.z - B.z) * AX.uz > uF - 4; });
-    near.forEach(function(t){ t.u = (t.x - B.x) * AX.ux + (t.z - B.z) * AX.uz; });
-    var blds = BLD.filter(function(b){ var lo = Infinity, hi = -Infinity; b.P.forEach(function(p){ var dd = (p[0] - B.x) * AX.rx + (p[1] - B.z) * AX.rz; lo = Math.min(lo, dd); hi = Math.max(hi, dd); }); return lo < 0 && hi > 0; });
-    var obs = [], best = -Infinity, bi = -1, water = null;
-    for (var u = uF + 0.5; u < SU1; u += u < 300 ? 0.5 : 5) {
-      var x = B.x + AX.ux * u, z = B.z + AX.uz * u, g = Hall(x, z); if (g == null) break;
-      if (planOn()) g += fillT(x, z);
-      var top = g, what = 'maasto';
-      if (u > 880) { var gs = Hsurf(x, z); if (gs != null && gs - g > 2) { top = gs; what = 'metsä'; } }
-      for (var i = 0; i < blds.length; i++) if (inPoly(x, z, blds[i].P)) { var bt = blds[i].top(x, z) + ZREF; if (bt > top) { top = bt; what = 'rakennus'; } }
-      for (var j = 0; j < near.length; j++) {
-        var t = near[j]; if (Math.abs(t.u - u) > t.r) continue;
-        var d = Math.hypot(x - t.x, z - t.z); if (d >= t.r) continue;
-        var tt = t.broad ? t.c + t.hv * Math.sqrt(1 - (d / t.r) * (d / t.r)) : t.top - d / t.r * (t.top - t.g) * 0.78;
-        if (tt > top) { top = tt; what = 'puu'; }
-      }
-      var isW = g <= 32.62 && what === 'maasto';
-      if (isW && water == null && (LAKE - ze) / (u - ue) >= best) water = u;
-      var ang = (top - ze) / (u - ue);
-      obs.push([u, top, isW]);
-      if (ang > best) { best = ang; bi = obs.length - 1; }
-    }
-    // lowest eye level from which the lake surface shows along this line (first 400 m of water)
-    var need = null, shore = null;
-    for (var a = 0; a < obs.length; a++) {
-      if (!obs[a][2]) continue;
-      if (shore == null) shore = obs[a][0];
-      if (obs[a][0] > shore + 400) break;
-      var uw = obs[a][0], req = -Infinity;
-      for (var b = 0; b < a; b++) { var uo = obs[b][0]; req = Math.max(req, (obs[b][1] * (uw - ue) - LAKE * (uo - ue)) / (uw - uo)); }
-      if (need == null || req < need) need = req;
-    }
-    var bo = bi >= 0 ? obs[bi] : null, kind = null;
-    if (bo) {
-      var x2 = B.x + AX.ux * bo[0], z2 = B.z + AX.uz * bo[0];
-      kind = bo[1] > Hall(x2, z2) + 0.3 ? null : 'maasto';
-      for (var i2 = 0; i2 < blds.length && !kind; i2++) if (inPoly(x2, z2, blds[i2].P)) kind = 'rakennus';
-      if (!kind) kind = bo[0] > 880 ? 'metsä' : 'puu';
-    }
-    sec.sight = {ue:ue, ze:ze, best:best, bo:bo, kind:kind, water:water, need:need, shore:shore};
-    var what = {maasto:'maasto', rakennus:'rakennus', puu:'puu', 'metsä':'metsä'}[kind] || 'este';
-    var msg;
-    if (water != null) msg = 'Talon keskilinjalla järven pinta näkyy silmäkorkeudelta ' + fz(ze, 2) + ' noin ' + fn(water - ue, 0) + ' m päästä alkaen.';
-    else msg = 'Talon keskilinjalla järven pinta ei näy silmäkorkeudelta ' + fz(ze, 2) + ' (puut umpinaisina). Näkölinjan katkaisee ' + what + ' ' + fn(bo[0] - ue, 0) + ' m päässä, korko ' + fz(bo[1], 1) + '.';
-    if (water == null && need != null && isFinite(need)) msg += ' Pinta näkyisi, jos silmät olisivat ' + fz(need, 1) + ', eli ' + fn(need - HH.floor, 1) + ' m lattian yläpuolella.';
-    secMsg.textContent = msg;
+    if (!sec.cl.length) { sec.u0 = -30; sec.u1 = 40; }
   }
   function secCam(){
     var w = view.clientWidth, h = view.clientHeight, a = w / h, hh = sec.hv / 2;
     ortho.left = -hh * a * sec.vx; ortho.right = hh * a * sec.vx; ortho.top = hh; ortho.bottom = -hh; ortho.updateProjectionMatrix();
-    var d = sec.side === 'R' ? -1 : 1, sm = (secS[0] + secS[1]) / 2, p = secPt(sec.cu, sm);
+    var d = sec.side === 'R' ? -1 : 1, sm = (AX.s0 + AX.s1) / 2, p = secPt(sec.cu, sm);
     ortho.position.set(p[0] - d * AX.rx * 4000, sec.cy, p[1] - d * AX.rz * 4000);
     ortho.up.set(0, 1, 0); ortho.lookAt(p[0], sec.cy, p[1]);
   }
-  function secFrame(which){
-    var B = secB(), HH = DATA.houses[houseSel], u0, u1;
-    if (which === 'fnd') {
-      var lo2 = Infinity, hi2 = -Infinity, ex2 = world.scale.y;
-      HH.corners.forEach(function(c){ var uu = (c[0] - B.x) * AX.ux + (c[1] - B.z) * AX.uz; lo2 = Math.min(lo2, uu); hi2 = Math.max(hi2, uu); });
-      var wm = hi2 - lo2 + 2 * FND.zone + 1.5, kk = Math.min(90, (view.clientWidth - 560) / wm);
-      if (kk < 24) kk = view.clientWidth / (wm + 1);
-      secVx(1); sec.hv = Math.max(view.clientHeight / kk, 6.5 * ex2);
-      sec.cu = (lo2 + hi2) / 2;
-      sec.cy = Y(HH.floor - 0.097 - Math.min(4, sec.hv * 0.12)) * ex2;
-      document.querySelectorAll('[data-secframe]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.secframe === which)); });
-      return;
+  // the whole length of the plot, from under the piles' tips to over the ridge; on a narrow screen the house and its
+  // foundation instead, the rest a pinch away
+  function secFrame(){
+    var B = secB(), HH = DATA.houses[houseSel], ex = world.scale.y, w = view.clientWidth, h = view.clientHeight;
+    var zLo = FND.tipSW - 2.5, zHi = (HH.top || HH.floor + 6) + 2.5, u0 = sec.u0 - 3, u1 = sec.u1 + 3;
+    if (w / (u1 - u0) < 9) {
+      var lo = Infinity, hi = -Infinity;
+      HH.corners.forEach(function(c){ var uu = (c[0] - B.x) * AX.ux + (c[1] - B.z) * AX.uz; lo = Math.min(lo, uu); hi = Math.max(hi, uu); });
+      u0 = lo - 7; u1 = hi + 7;
     }
-    if (which === 'near') { u0 = -35; u1 = 95; }
-    else { u0 = -40; u1 = Math.max(160, (sec.sight && sec.sight.shore != null ? sec.sight.shore : 200) + 60); }
-    var lo = Infinity, hi = -Infinity;
-    for (var u = u0; u <= u1; u += (u1 - u0) / 200) { var p = secPt(u, B.s), g = Hall(p[0], p[1]); if (g != null) { lo = Math.min(lo, g); hi = Math.max(hi, g); } }
-    hi = Math.max(hi, HH.floor + 6);
-    var a = view.clientWidth / view.clientHeight, ex = world.scale.y;
-    secVx(1);
-    sec.cu = (u0 + u1) / 2;
-    var fitW = (u1 - u0) / (a * sec.vx); if (which === 'near') fitW = Math.min(fitW, 75);
-    sec.hv = Math.max(fitW, (hi - lo + 14) * ex);
-    var vis = sec.hv * a * sec.vx; if (vis < u1 - u0) sec.cu = (which === 'near' ? -24 : -12) + vis / 2;
-    sec.cy = (Y(lo - 5) + sec.hv / ex / 2) * ex;
-    document.querySelectorAll('[data-secframe]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.secframe === which)); });
+    sec.vx = 1; sec.cu = (u0 + u1) / 2;
+    sec.hv = Math.max((u1 - u0) / (w / h), (zHi - zLo) * ex);
+    sec.cy = Y((zLo + zHi) / 2) * ex;
   }
   function secVx(){ sec.vx = 1; }
   function secMode(m){
@@ -7291,33 +7313,30 @@
     view.classList.toggle('secview', m === 'side');
     controls.enabled = m !== 'side';
     if (m === '3d') {
-      var d = sec.side === 'R' ? 1 : -1, sm = (secS[0] + secS[1]) / 2, p = secPt(sec.cu, sm), ex = world.scale.y;
-      var tgt = new THREE.Vector3(p[0], sec.cy, p[1]);
-      camera.position.set(p[0] + d * AX.rx * 120 - AX.ux * 60, sec.cy + 55 * ex, p[1] + d * AX.rz * 120 - AX.uz * 60);
+      var d = sec.side === 'R' ? 1 : -1, sm = (AX.s0 + AX.s1) / 2, p = secPt((sec.u0 + sec.u1) / 2, sm), ex = world.scale.y;
+      var tgt = new THREE.Vector3(p[0], Y(36) * ex, p[1]);
+      camera.position.set(p[0] + d * AX.rx * 78 - AX.ux * 26, Y(62) * ex, p[1] + d * AX.rz * 78 - AX.uz * 26);
       controls.target.copy(tgt); controls.minDistance = ORBIT_MIN; controls.maxPolarAngle = Math.PI * 0.72; controls.update(); tween = null;
     }
+    applyLayers();
   }
   function secEnter(){
-    preDrop(); fpExit(); planExit(); selClear(); aedExit();
-    if (state.cut) document.querySelector('[data-terrain="full"]').click();
+    preDrop(); fpExit(); planExit(); selClear(); aedExit(); if (mOpen) sheetTo('closed');
     setWorldExag(1);
-    sec.on = true; tween = null; secGroup.visible = true; secBar.hidden = false;
-    renderer.clippingPlanes = [clipA, clipB];
-    secBuild(); secFrame('near'); secMode('side');
+    sec.was = {p:camera.position.clone(), t:controls.target.clone()};
+    sec.on = true; tween = null; secBar.hidden = false;
+    secBuild(); secFrame(); secMode('side');
     document.querySelectorAll('[data-secside]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.secside === sec.side)); });
     syncMode();
   }
   function secExit(){
     if (!sec.on) return;
-    sec.on = false; secGroup.visible = false; secBar.hidden = true; secAxW.hidden = true; renderer.clippingPlanes = []; view.classList.remove('secview');
-    if (sec.mode === 'side') {
-      var d = sec.side === 'R' ? 1 : -1, sm = (secS[0] + secS[1]) / 2, p = secPt(sec.cu, sm);
-      controls.target.set(p[0], sec.cy, p[1]);
-      camera.position.set(p[0] + d * AX.rx * 90, sec.cy + 45, p[1] + d * AX.rz * 90);
-    }
+    sec.on = false; secBar.hidden = true; secAxW.hidden = true; view.classList.remove('secview');
+    // back to where the view was before the section
+    if (sec.was) { camera.position.copy(sec.was.p); controls.target.copy(sec.was.t); sec.was = null; }
     controls.enabled = true; controls.minDistance = ORBIT_MIN; controls.maxPolarAngle = Math.PI * 0.49; controls.update();
     setWorldExag(exagOrbit); exagUI(exagOrbit);
-    resetHud(); syncMode();
+    resetHud(); applyLayers(); syncMode();
   }
   function secToScreen(u, yW){
     var w = view.clientWidth, h = view.clientHeight, k = h / sec.hv, du = sec.side === 'R' ? 1 : -1;
@@ -7347,34 +7366,46 @@
       secAx.appendChild(svgEl('line', {x1:x, y1:h - 22, x2:x, y2:h - 14, class:'k'}));
       secAx.appendChild(svgEl('text', {x:x, y:h - 4, class:'t', 'text-anchor':'middle'}, u === 0 ? 'talo' : (u > 0 ? '' : '−') + fn(Math.abs(u), 0) + ' m'));
     }
-    var lines = [[HH.floor, 'Lattia ' + fz(HH.floor, 2), 'fl'], [HH.floor + 1.7, 'Silmät ' + fz(HH.floor + 1.7, 2), 'ey'], [LAKE, 'Hiidenvesi ' + fz(LAKE, 1), 'lk']];
-    lines.forEach(function(L){
-      var y = secToScreen(0, Y(L[0]) * ex)[1]; if (y < 0 || y > h) return;
-      secAx.appendChild(svgEl('line', {x1:44, y1:y, x2:w, y2:y, class:L[2]}));
-      secAx.appendChild(svgEl('text', {x:w - 8, y:y - 5, class:'t ' + L[2], 'text-anchor':'end'}, L[1]));
-    });
-    if (sec.cl && sec.cl.length > 1) {
-      var toS = function(u, z){ var v = secToScreen(u, Y(z) * ex); return v[0].toFixed(1) + ',' + v[1].toFixed(1); };
-      var exl = sec.cl.map(function(c){ return toS(c[0], c[1]); }).join(' ');
-      if (planOn()) {
-        var top = sec.cl.map(function(c){ return toS(c[0], c[1] + Math.max(0, c[2])); }), bot = sec.cl.slice().reverse().map(function(c){ return toS(c[0], c[1]); });
-        secAx.appendChild(svgEl('polygon', {points:top.concat(bot).join(' '), class:'fz'}));
-        var ctop = sec.cl.map(function(c){ return toS(c[0], c[1]); }), cbot = sec.cl.slice().reverse().map(function(c){ return toS(c[0], c[1] + Math.min(0, c[2])); });
-        secAx.appendChild(svgEl('polygon', {points:ctop.concat(cbot).join(' '), class:'fc'}));
-        secAx.appendChild(svgEl('polyline', {points:sec.cl.map(function(c){ return toS(c[0], c[1] + c[2]); }).join(' '), class:'fp'}));
+    var toS = function(u, z){ var v = secToScreen(u, Y(z) * ex); return v[0].toFixed(1) + ',' + v[1].toFixed(1); };
+    var CL = sec.cl, exl = '';
+    if (CL.length > 1) {
+      // the soil in layers under the surface (the planned one, where the ground is cut)
+      var rev = CL.slice().reverse();
+      for (var q = 1; q < 7; q++) {
+        var cls = 'so so-' + (q < 6 ? SOIL_KEYS[q - 1] : 'hard');
+        secAx.appendChild(svgEl('polygon', {points:CL.map(function(c){ return toS(c.u, c.L[q]); }).concat(rev.map(function(c){ return toS(c.u, c.L[q + 1]); })).join(' '), class:cls}));
       }
-      secAx.appendChild(svgEl('polyline', {points:exl, class:'fe'}));
+      if (planOn()) secAx.appendChild(svgEl('polygon', {points:CL.map(function(c){ return toS(c.u, c.e + Math.max(0, c.t)); }).concat(rev.map(function(c){ return toS(c.u, c.e); })).join(' '), class:'fz'}));
+      for (var q2 = 2; q2 < 7; q2++) secAx.appendChild(svgEl('polyline', {points:CL.map(function(c){ return toS(c.u, c.L[q2]); }).join(' '), class:'so-l'}));
+      // the names of the layers at the end of the plot towards the lake, where each is thick enough to hold one
+      var en = CL[Math.max(0, CL.length - 9)], xe = secToScreen(en.u, 0)[0], nR = sec.side === 'R';
+      [['Pintamaa', 1], ['Savinen siltti', 2], ['Silttinen savi', 3], ['Savi', 4], ['Moreeni', 5], ['Kairaukset päättyivät', 6]].forEach(function(nm){
+        var y0 = secToScreen(0, Y(en.L[nm[1]]) * ex)[1], y1 = secToScreen(0, Y(en.L[nm[1] + 1]) * ex)[1];
+        if (y1 - y0 < 13) return;
+        secAx.appendChild(svgEl('text', {x:(xe + (nR ? -6 : 6)).toFixed(1), y:(Math.min((y0 + y1) / 2, y0 + 22) + 4).toFixed(1), class:'t so-t', 'text-anchor':nR ? 'end' : 'start'}, nm[0]));
+      });
+      exl = CL.map(function(c){ return toS(c.u, c.e); }).join(' ');
+      if (planOn()) secAx.appendChild(svgEl('polyline', {points:CL.map(function(c){ return toS(c.u, c.e + c.t); }).join(' '), class:'fp'}));
+    }
+    var yF = secToScreen(0, Y(HH.floor) * ex)[1];
+    if (yF > 0 && yF < h) {
+      secAx.appendChild(svgEl('line', {x1:44, y1:yF, x2:w, y2:yF, class:'fl'}));
+      secAx.appendChild(svgEl('text', {x:52, y:yF - 5, class:'t fl'}, 'Lattia ' + fz(HH.floor, 2)));
     }
     var HB = secB(), ua = Infinity, ub = -Infinity;
     HH.corners.forEach(function(c){ var uu = (c[0] - HB.x) * AX.ux + (c[1] - HB.z) * AX.uz; ua = Math.min(ua, uu); ub = Math.max(ub, uu); });
+    secBores(HB, ex, k, 0);
+    if (state.house) {
     var wt = HH.wallTopNow || HH.floor + WALL, rt = HH.top || wt, um = (ua + ub) / 2, eo = HH.eaveOver || 0;
     var hpts = HH.roofType === 'mono' ? [[ua, HH.sokkeli - 0.4], [ua, wt], [ua - eo, wt - eo * MONO_SLOPE], [ub + eo, HH.hiTop + eo * MONO_SLOPE], [ub, HH.hiTop], [ub, HH.sokkeli - 0.4]] : [[ua, HH.sokkeli - 0.4], [ua, wt], [ua - eo, wt - eo * 0.5], [um, rt], [ub + eo, wt - eo * 0.5], [ub, wt], [ub, HH.sokkeli - 0.4]];
     var hp = hpts.map(function(q){ var v = secToScreen(q[0], Y(q[1]) * ex); return v[0].toFixed(1) + ',' + v[1].toFixed(1); }).join(' ');
     secAx.appendChild(svgEl('polygon', {points:hp, class:'hs'}));
     fndSec(HB, ex, k);
+    }
     if (exl) secAx.appendChild(svgEl('polyline', {points:exl, class:'fe'}));
+    secBores(HB, ex, k, 1);
     // garage and greenhouse as outlines (the convex hull of their corners seen from the side)
-    [[GAR, state.garage, 'pg'], [GH, state.gh, 'pg']].forEach(function(o){
+    [[GAR, state.garage, 'pg', 'Talli'], [GH, state.gh, 'pg', 'Kasvihuone']].forEach(function(o){
       var S = o[0]; if (!S || !o[1] || !S.sil) return;
       var pts = S.sil.map(function(q){ return [(q[0] - HB.x) * AX.ux + (q[1] - HB.z) * AX.uz, q[2]]; }).sort(function(p, q){ return p[0] - q[0] || p[1] - q[1]; });
       var cross = function(o2, a, b){ return (a[0] - o2[0]) * (b[1] - o2[1]) - (a[1] - o2[1]) * (b[0] - o2[0]); }, lo = [], hi = [];
@@ -7382,27 +7413,46 @@
       pts.slice().reverse().forEach(function(p){ while (hi.length >= 2 && cross(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); });
       var hull = lo.slice(0, -1).concat(hi.slice(0, -1));
       secAx.appendChild(svgEl('polygon', {points:hull.map(function(q){ var v = secToScreen(q[0], Y(q[1]) * ex); return v[0].toFixed(1) + ',' + v[1].toFixed(1); }).join(' '), class:o[2]}));
+      var um = (pts[0][0] + pts[pts.length - 1][0]) / 2, tp = secToScreen(um, Y(Math.max.apply(null, pts.map(function(q){ return q[1]; }))) * ex);
+      if (k > 5) secAx.appendChild(svgEl('text', {x:tp[0].toFixed(1), y:(tp[1] - 6).toFixed(1), class:'t pgt', 'text-anchor':'middle'}, o[3] + ' ' + fz(S.Fz, 2)));
     });
-    var S2 = sec.sight;
-    if (S2 && S2.bo) {
-      var e0 = secToScreen(S2.ue, Y(S2.ze) * ex), uEnd = S2.best < 0 ? Math.min(SU1, S2.ue + (LAKE - S2.ze) / S2.best) : SU1, zEnd = S2.ze + S2.best * (uEnd - S2.ue);
-      var e1 = secToScreen(uEnd, Y(zEnd) * ex), ob = secToScreen(S2.bo[0], Y(S2.bo[1]) * ex);
-      secAx.appendChild(svgEl('line', {x1:e0[0], y1:e0[1], x2:ob[0], y2:ob[1], class:'sl'}));
-      secAx.appendChild(svgEl('line', {x1:ob[0], y1:ob[1], x2:e1[0], y2:e1[1], class:'sl dash'}));
-      secAx.appendChild(svgEl('circle', {cx:ob[0], cy:ob[1], r:4, class:'ob'}));
-      secAx.appendChild(svgEl('circle', {cx:e0[0], cy:e0[1], r:4, class:'eye'}));
-    }
     if (sec.cur) {
-      var q = secFromScreen(sec.cur[0] + view.getBoundingClientRect().left, sec.cur[1] + view.getBoundingClientRect().top), zz = q[1] / ex + ZREF, pB = secPt(q[0], secB().s), gq = Hall(pB[0], pB[1]);
+      var q = secFromScreen(sec.cur[0] + view.getBoundingClientRect().left, sec.cur[1] + view.getBoundingClientRect().top), zz = q[1] / ex + ZREF, pB = secPt(q[0], secB().s), gq = inPoly(pB[0], pB[1], DATA.plot.corners) ? gAt(pB[0], pB[1]) : null;
       secAx.appendChild(svgEl('line', {x1:sec.cur[0], y1:0, x2:sec.cur[0], y2:h, class:'k'}));
       secAx.appendChild(svgEl('line', {x1:44, y1:sec.cur[1], x2:w, y2:sec.cur[1], class:'k'}));
       var tx = sec.cur[0] + 10, anc = tx > w - 230 ? 'end' : 'start'; if (anc === 'end') tx = sec.cur[0] - 10;
       secAx.appendChild(svgEl('text', {x:tx, y:sec.cur[1] - 22, class:'t', 'text-anchor':anc}, fz(zz, 2) + ' · ' + (q[0] >= 0 ? fn(q[0], 1) + ' m järvelle päin' : fn(-q[0], 1) + ' m tielle päin')));
-      if (gq != null) secAx.appendChild(svgEl('text', {x:tx, y:sec.cur[1] - 8, class:'t', 'text-anchor':anc}, 'maanpinta keskilinjalla ' + fz(gq, 2)));
+      if (gq != null) secAx.appendChild(svgEl('text', {x:tx, y:sec.cur[1] - 8, class:'t', 'text-anchor':anc}, 'maanpinta ' + fz(gq, 2)));
     }
     var dirs = sec.side === 'R' ? ['tie', 'järvi'] : ['järvi', 'tie'];
     secAx.appendChild(svgEl('text', {x:52, y:h - 32, class:'t dir'}, '← ' + dirs[0]));
     secAx.appendChild(svgEl('text', {x:w - 8, y:h - 32, class:'t dir', 'text-anchor':'end'}, dirs[1] + ' →'));
+  }
+  // the boreholes as columns at their places along the section: the layers in their colours, a mark every metre, the
+  // number on top and the level where the boring stopped under it; the soundings of 2013 as plain rods
+  function secBores(HB, ex, k, texts){
+    var wB = clamp(0.55 * k, 7, 26), box = function(x, y0, y1, cls){ secAx.appendChild(svgEl('rect', {x:(x - wB / 2).toFixed(1), y:y0.toFixed(1), width:wB.toFixed(1), height:Math.max(0.5, y1 - y0).toFixed(1), class:cls})); };
+    var U = function(p){ return (p[0] - HB.x) * AX.ux + (p[1] - HB.z) * AX.uz; }, px = -1e9, lift = 0;
+    DATA.boreholes.slice().sort(function(a, b){ return U(a.p) - U(b.p); }).forEach(function(b){
+      var x = secToScreen(U(b.p), 0)[0], Ys = function(d){ return secToScreen(0, Y(b.mp - d) * ex)[1]; }, ye = Ys(b.syv);
+      if (texts) {
+        // numbers that would fall on each other step up
+        lift = Math.abs(x - px) < 15 ? lift + 13 : 0; px = x;
+        secAx.appendChild(svgEl('text', {x:x.toFixed(1), y:(Ys(0) - 5 - lift).toFixed(1), class:'t bh-n', 'text-anchor':'middle'}, b.nro));
+        if (k > 6) secAx.appendChild(svgEl('text', {x:x.toFixed(1), y:(ye + wB * 0.7 + 12).toFixed(1), class:'t', 'text-anchor':'middle'}, fz(b.taso != null ? b.taso : b.mp - b.syv, 1)));
+        return;
+      }
+      [['Pm', 0, b.layers[0][1]]].concat(b.layers).forEach(function(L){ box(x, Ys(L[1]), Ys(Math.min(L[2], b.syv)), 'bh so-' + L[0]); });
+      secAx.appendChild(svgEl('rect', {x:(x - wB / 2).toFixed(1), y:Ys(0).toFixed(1), width:wB.toFixed(1), height:(ye - Ys(0)).toFixed(1), class:'bh-o'}));
+      if (k > 9) for (var d = 1; d < b.syv; d++) { var yt = Ys(d); secAx.appendChild(svgEl('line', {x1:(x - wB / 2).toFixed(1), y1:yt.toFixed(1), x2:(x - wB / 2 + (d % 5 ? wB * 0.35 : wB)).toFixed(1), y2:yt.toFixed(1), class:'bh-t'})); }
+      secAx.appendChild(svgEl('polygon', {points:[(x - wB / 2).toFixed(1) + ',' + ye.toFixed(1), (x + wB / 2).toFixed(1) + ',' + ye.toFixed(1), x.toFixed(1) + ',' + (ye + wB * 0.7).toFixed(1)].join(' '), class:'bh-e'}));
+    });
+    DATA.uma.forEach(function(q){
+      var a = secToScreen(U(q.p), Y(q.mp) * ex), b2 = secToScreen(U(q.p), Y(q.taso) * ex);
+      if (texts) { if (k > 9) secAx.appendChild(svgEl('text', {x:b2[0].toFixed(1), y:(b2[1] + 13).toFixed(1), class:'t', 'text-anchor':'middle'}, 'U' + q.nro + ' ' + fz(q.taso, 1))); return; }
+      secAx.appendChild(svgEl('line', {x1:a[0].toFixed(1), y1:a[1].toFixed(1), x2:b2[0].toFixed(1), y2:b2[1].toFixed(1), class:'bh-u'}));
+      secAx.appendChild(svgEl('line', {x1:(b2[0] - 5).toFixed(1), y1:b2[1].toFixed(1), x2:(b2[0] + 5).toFixed(1), y2:b2[1].toFixed(1), class:'bh-u'}));
+    });
   }
   // the foundation in the section on the house's centre line, as in DEN's detail M1 and Maavakio's principle drawing:
   // every pile seen from the side, the levels where they stop and, near enough, the layers named at the side
@@ -7511,14 +7561,8 @@
   }, {passive:false});
   document.getElementById('sec-exit').addEventListener('click', secExit);
   document.querySelectorAll('[data-layer="fill"]').forEach(function(b){ b.addEventListener('click', function(){ if (sec.on) secBuild(); }); });
-  document.getElementById('sec-more').addEventListener('click', function(){ var o = secBar.classList.toggle('open'); this.setAttribute('aria-expanded', String(o)); });
   document.querySelectorAll('[data-secside]').forEach(function(b){ b.addEventListener('click', function(){ sec.side = b.dataset.secside; document.querySelectorAll('[data-secside]').forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); }); if (sec.mode === '3d') secMode('3d'); }); });
-  document.querySelectorAll('[data-secframe]').forEach(function(b){ b.addEventListener('click', function(){ if (sec.mode !== 'side') secMode('side'); secFrame(b.dataset.secframe); }); });
   document.querySelectorAll('[data-secmode]').forEach(function(b){ b.addEventListener('click', function(){ secMode(b.dataset.secmode); }); });
-  document.querySelectorAll('[data-secvx]').forEach(function(b){ b.addEventListener('click', function(){
-    secVx();
-  }); });
-  secMIn.addEventListener('input', function(){ sec.m = Number(secMIn.value); secMv.textContent = '±' + sec.m + ' m'; if (sec.on) secBuild(); });
   document.addEventListener('keydown', function(e){ if (sec.on && e.key === 'Escape') secExit(); });
 
   // ---------- buildings: one set of controls for the selected house, garage or greenhouse ----------
@@ -7673,13 +7717,13 @@
     psUI();
     var dsUI = function(){
       document.querySelectorAll('[data-decksz]').forEach(function(b){ b.setAttribute('aria-pressed', String((b.dataset.decksz === 'small') === !!place.deckSmall)); });
-      var f = document.getElementById('f-perg'); if (f) f.textContent = place.deckSmall ? '4,5 × 4,4 m, ei kasvihuonetta' : '4,5 × 5,4 m + kasvihuone 3,6 m';
+      var f = document.getElementById('f-perg'); if (f) f.textContent = place.deckSmall ? '4,5 × 4,4 m + kasvihuone 2,6 m' : '4,5 × 5,4 m + kasvihuone 3,6 m';
     };
     document.querySelectorAll('[data-decksz]').forEach(function(b){ b.addEventListener('click', function(){ var v = b.dataset.decksz === 'small'; if (!!place.deckSmall === v) return; place.deckSmall = v; dsUI(); regradeNow(); savePlace(); syncPlaceUI(); }); });
     dsUI();
   })();
   document.querySelectorAll('[data-fire]').forEach(function(b){ b.addEventListener('click', function(){
-    var v = b.dataset.fire === 'pj' || b.dataset.fire === 'veronika' ? b.dataset.fire : 'wilma'; if (place.fire === v) return; place.fire = v; syncFireUI();
+    var v = b.dataset.fire === 'wilma' ? 'wilma' : 'veronika'; if (place.fire === v) return; place.fire = v; syncFireUI();
     buildHouses(); applyLayers(); savePlace(); syncPlaceUI(); if (sec.on) secBuild();
   }); });
   syncFireUI();
@@ -7718,7 +7762,7 @@
   }
   document.querySelectorAll('[data-hmodel]').forEach(function(b){ b.addEventListener('click', function(){ setHouseModel(b.dataset.hmodel); }); });
   syncModelUI();
-  function regradeNow(){ clearTimeout(regradeT); regradeT = 0; computeGround(); buildGround(); buildHedge(); commitPlace(); roadMaskNear(); fndDirty = true; fndStale = true; if (fndX()) fndBuild(); }
+  function regradeNow(){ clearTimeout(regradeT); regradeT = 0; computeGround(); buildGround(); buildHedge(); commitPlace(); roadMaskNear(); fndDirty = true; fndStale = true; if (fndX()) fndBuild(); cutDirty = true; if (cutOn()) { cutBuild(); cutPatch(); } }
   if (bFloorIn) {
     bFloorIn.min = DZ_MIN; bFloorIn.max = DZ_MAX;
     bFloorIn.addEventListener('input', function(){
@@ -7950,11 +7994,6 @@
   // a tree's kind and size, and removing it
   document.querySelectorAll('[data-tsp]').forEach(function(b){ b.addEventListener('click', function(){ var T = isTree(sel.obj) && treeOf(sel.obj); if (!T || T.sp === b.dataset.tsp) return; T.sp = b.dataset.tsp; bldCommit(sel.obj); }); });
   document.querySelectorAll('[data-tsz]').forEach(function(b){ b.addEventListener('click', function(){ var T = isTree(sel.obj) && treeOf(sel.obj); if (!T || T.sz === b.dataset.tsz) return; T.sz = b.dataset.tsz; bldCommit(sel.obj); }); });
-  document.querySelectorAll('[data-spon]').forEach(function(b){ b.addEventListener('click', function(){
-    var T = spOf(sel.obj); if (!T) return; var on = b.dataset.spon === '1'; if (on === !spOff(T.id)) return;
-    place.treesOff = (place.treesOff || []).filter(function(i){ return i !== T.id; }); if (!on) place.treesOff.push(T.id);
-    regradeNow(); applyLayers(); savePlace(); syncPlaceUI();
-  }); });
   bindBtn('sel-del', function(){ var T = isTree(sel.obj) && treeOf(sel.obj); if (!T) return; place.trees = place.trees.filter(function(t){ return t !== T; }); selClear(); buildFruitTrees(); savePlace(); ftListUI(); });
   // adding a tree from the Piha tab, at the size chosen there
   document.querySelectorAll('[data-newsz]').forEach(function(b){ b.addEventListener('click', function(){ FT_NEW.sz = b.dataset.newsz; ftListUI(); }); });
@@ -8062,7 +8101,10 @@
   }
   // ---------- editing the asphalt outline: drag a corner, click a corner to remove it, a + sign adds one; taken over the
   // boundary to the road it makes the entrance and opens the hedge ----------
-  var aed = {on:false, drag:null, els:[]}, aedBar = document.getElementById('aedbar'), handlesEl = document.getElementById('handles');
+  var aed = {on:false, drag:null, els:[], undo:[], cam:null}, aedBar = document.getElementById('aedbar'), handlesEl = document.getElementById('handles');
+  // every change can be taken back (Kumoa): the outline as it was before each drag, new corner, removal or reset
+  function aedPush(){ aed.undo.push(place.asph.map(function(v){ return v.slice(); })); if (aed.undo.length > 60) aed.undo.shift(); aedUndoUI(); }
+  function aedUndoUI(){ var b = document.getElementById('aed-undo'); if (b) b.disabled = !aed.undo.length; }
   function aedClear(){ while (handlesEl.firstChild) handlesEl.removeChild(handlesEl.firstChild); aed.els = []; }
   function aedBuild(){
     aedClear();
@@ -8072,7 +8114,7 @@
       aed.els.push({el:el, i:i, mid:false});
       var m = document.createElement('div'); m.className = 'hm'; m.title = 'Lisää kulma'; handlesEl.appendChild(m);
       m.addEventListener('pointerdown', function(e){
-        var a = place.asph[i], b = place.asph[(i + 1) % place.asph.length];
+        var a = place.asph[i], b = place.asph[(i + 1) % place.asph.length]; aedPush();
         place.asph.splice(i + 1, 0, [Math.round((a[0] + b[0]) * 5) / 10, Math.round((a[1] + b[1]) * 5) / 10]); aedBuild(); aedStart(e, i + 1, true);
       });
       aed.els.push({el:m, i:i, mid:true});
@@ -8088,6 +8130,7 @@
   handlesEl.addEventListener('pointermove', function(e){
     var d = aed.drag; if (!d || e.pointerId !== d.id) return;
     if (!d.moved && Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 4) return;
+    if (!d.moved && !d.fresh) aedPush();
     d.moved = true;
     var v = asphAB()[d.i], q = HF0.P(v[0], v[1]), p = groundAtScreen(e.clientX, e.clientY, gAt(q[0], q[1])); if (!p) return;
     place.asph[d.i] = [Math.round(HF0.A(p[0], p[1]) * 10) / 10, Math.round(HF0.B(p[0], p[1]) * 10) / 10];
@@ -8097,7 +8140,7 @@
     var d = aed.drag; if (!d || e.pointerId !== d.id) return;
     d.el.classList.remove('on'); aed.drag = null;
     if (!d.moved && !d.fresh && performance.now() - d.t0 < 700) {
-      if (place.asph.length > 3) { place.asph.splice(d.i, 1); aedBuild(); asphaltShapes(); asphCommit(); }
+      if (place.asph.length > 3) { aedPush(); place.asph.splice(d.i, 1); aedBuild(); asphaltShapes(); asphCommit(); }
       return;
     }
     if (d.moved) asphCommit();
@@ -8121,17 +8164,26 @@
   function aedEnter(){
     preDrop(); fpExit(); secExit(); selClear(); showLayer('yard');
     if (!place.asph) place.asph = ASPH0.map(function(v){ return v.slice(); });
-    aed.on = true; aedBar.hidden = false; aedBuild();
+    aed.on = true; aedBar.hidden = false; aed.undo = []; aedUndoUI(); aedBuild();
     var b = document.getElementById('asph-edit'); if (b) b.setAttribute('aria-pressed', 'true');
+    if (typeof mOpen !== 'undefined' && mOpen) sheetTo('closed');
+    // the view goes high over the asphalt, where every corner is easy to reach, and comes back when the editing ends
+    if (!plan.on) {
+      var A = asphAB().map(function(v){ return HF0.P(v[0], v[1]); }), c = mean4(A), r = Math.max.apply(null, A.map(function(q){ return Math.hypot(q[0] - c[0], q[1] - c[1]); })), sy = world.scale.y || 1, y0 = Y(gAt(c[0], c[1])) * sy;
+      aed.cam = {p:[camera.position.x, camera.position.y, camera.position.z], t:[controls.target.x, controls.target.y, controls.target.z], fixed:true};
+      flyTo({p:[c[0] + HF0.a[0] * r * 0.45, y0 + r * 2.0 + 8, c[1] + HF0.a[1] * r * 0.45], t:[c[0], y0, c[1]], fixed:true});
+    }
   }
   function aedExit(){
     if (!aed.on) return;
     aed.on = false; aed.drag = null; aedBar.hidden = true; aedClear(); savePlace();
+    if (aed.cam && !plan.on && !sec.on && !fp.on) flyTo(aed.cam); aed.cam = null;
     var b = document.getElementById('asph-edit'); if (b) b.setAttribute('aria-pressed', 'false');
   }
-  function asphReset(){ place.asph = aed.on ? ASPH0.map(function(v){ return v.slice(); }) : null; if (aed.on) aedBuild(); asphaltShapes(); asphCommit(); }
+  function asphReset(){ if (aed.on && place.asph) aedPush(); place.asph = aed.on ? ASPH0.map(function(v){ return v.slice(); }) : null; if (aed.on) aedBuild(); asphaltShapes(); asphCommit(); }
   bindBtn('asph-edit', function(){ if (aed.on) aedExit(); else aedEnter(); });
   bindBtn('asph-reset', asphReset); bindBtn('aed-reset', asphReset); bindBtn('aed-done', aedExit);
+  bindBtn('aed-undo', function(){ if (!aed.on || !aed.undo.length) return; place.asph = aed.undo.pop(); aedUndoUI(); aedBuild(); asphaltShapes(); asphCommit(); });
   // ---------- site plan (Tekninen): the plot straight from above without perspective, with a drawing on top ----------
   // The 3D model shows under the drawing without roofs and trees, or a plain sheet. Drag moves, the wheel or a pinch
   // zooms; buildings can still be selected and moved, and their distances to the boundaries follow. Saved as a PNG
@@ -8168,13 +8220,13 @@
   }
   function techUI(){
     var po = document.getElementById('plan-open'); if (po) { po.setAttribute('aria-pressed', String(plan.on)); po.textContent = plan.on ? 'Sulje asemakuva' : 'Avaa asemakuva ylhäältä'; }
-    var so = document.getElementById('sec-open'); if (so) { so.setAttribute('aria-pressed', String(sec.on)); so.textContent = sec.on ? 'Sulje leikkaus' : 'Avaa leikkaus järvelle päin'; }
+    var so = document.getElementById('sec-open'); if (so) { so.setAttribute('aria-pressed', String(sec.on)); so.textContent = sec.on ? 'Sulje leikkaus' : 'Avaa leikkaus'; }
     document.querySelectorAll('[data-planup]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.planup === plan.up)); });
     document.querySelectorAll('[data-plan]').forEach(function(b){ var k = b.dataset.plan; b.setAttribute('aria-pressed', String(k === 'bg' ? plan.bg : !!plan.show[k])); });
   }
   function planEnter(){
     if (plan.on) return;
-    preDrop(); fpExit(); secExit(); aedExit(); runStop(); resetHud();
+    preDrop(); fpExit(); secExit(); aedExit(); runStop(); resetHud(); if (mOpen) sheetTo('closed');
     plan.on = true; tween = null; controls.enabled = false; planFit(); applyLayers();
     if (planBar) planBar.hidden = false; if (planCv) planCv.hidden = false;
     view.classList.add('planview'); syncMode();
@@ -8212,24 +8264,24 @@
     g.fillStyle = paper ? '#fbfbf9' : 'rgba(255,255,255,0.3)'; g.fillRect(0, 0, W, H);
     // contours
     if (plan.show.contours) {
-      g.strokeStyle = '#8a6a48';
+      g.strokeStyle = '#6e4f2e';
       [DATA.contoursU.inner, DATA.contoursU.outer].forEach(function(list){ list.forEach(function(cn){
-        var major = Math.abs(cn.z - Math.round(cn.z)) < 0.01; g.lineWidth = major ? 1.1 : 0.55; g.globalAlpha = major ? 0.85 : 0.5; pathP(cn.pts, false); g.stroke();
+        var major = Math.abs(cn.z - Math.round(cn.z)) < 0.01; g.lineWidth = major ? 2.2 : 1.3; g.globalAlpha = major ? 0.95 : 0.7; pathP(cn.pts, false); g.stroke();
       }); });
       g.globalAlpha = 1;
       DATA.contourLabels.forEach(function(l){ if (!vis(l.p, 20)) return; var q = S(l.p); ptxt('+' + parseFloat(l.t).toFixed(1).replace('.', ','), q[0], q[1], {c:'#6b4f33', px:10}); });
     }
     // road edges and kerbs from the survey (on the plain sheet)
-    if (paper) { g.strokeStyle = '#626764'; g.lineWidth = 1; DATA.breaklines.forEach(function(b){ pathP(b.pts, b.closed); g.stroke(); }); }
+    if (paper) { g.strokeStyle = '#626764'; g.lineWidth = 1.5; DATA.breaklines.forEach(function(b){ pathP(b.pts, b.closed); g.stroke(); }); }
     // neighbouring plots and buildings
-    g.setLineDash([7, 4]); g.strokeStyle = PL_BND; g.globalAlpha = 0.6; g.lineWidth = 1.2;
+    g.setLineDash([7, 4]); g.strokeStyle = PL_BND; g.globalAlpha = 0.7; g.lineWidth = 1.8;
     (DATA.neighbours || []).forEach(function(nb){ pathP(nb.ring, true); g.stroke(); });
     g.setLineDash([]); g.globalAlpha = 1;
     (DATA.neighbours || []).forEach(function(nb){ if (nb.lab && vis(nb.lab, 60)) { var q = S(nb.lab); ptxt(nb.id, q[0], q[1], {c:PL_BND, px:10.5}); } });
-    g.lineWidth = 1; g.strokeStyle = '#6d6862'; g.fillStyle = paper ? '#dcd7cf' : 'rgba(225,220,212,0.6)';
+    g.lineWidth = 1.5; g.strokeStyle = '#6d6862'; g.fillStyle = paper ? '#dcd7cf' : 'rgba(225,220,212,0.6)';
     BLD.forEach(function(b){ if (!b.P.some(function(p){ return vis(p, 60); })) return; pathP(b.P, true); g.fill(); g.stroke(); });
     // asphalt and hedge
-    if (state.yard && YD && YD.AS) { pathP(YD.AS, true); g.fillStyle = paper ? 'rgba(90,94,98,0.16)' : 'rgba(60,64,68,0.14)'; g.fill(); g.strokeStyle = '#4d5156'; g.lineWidth = 1.2; g.stroke(); }
+    if (state.yard && YD && YD.AS) { pathP(YD.AS, true); g.fillStyle = paper ? 'rgba(90,94,98,0.16)' : 'rgba(60,64,68,0.14)'; g.fill(); g.strokeStyle = '#4d5156'; g.lineWidth = 1.8; g.stroke(); }
     if (state.hedge && HEDGE_RUNS.length) {
       g.strokeStyle = 'rgba(52,96,48,0.5)'; g.lineWidth = Math.max(1.5, 0.8 * s); g.lineCap = 'butt';
       HEDGE_RUNS.forEach(function(rn){ pathP(rn, false); g.stroke(); });
@@ -8242,7 +8294,7 @@
     }
     // trees: crown and trunk
     if (plan.show.trees) {
-      g.lineWidth = 1; g.strokeStyle = 'rgba(48,92,44,0.75)'; g.fillStyle = paper ? 'rgba(92,140,72,0.16)' : 'rgba(92,140,72,0.1)';
+      g.lineWidth = 2.2; g.strokeStyle = 'rgba(40,84,36,0.9)'; g.fillStyle = paper ? 'rgba(92,140,72,0.18)' : 'rgba(92,140,72,0.12)';
       TREEG.forEach(function(t){ if (t.clr || !vis([t.x, t.z], t.r * s + 4)) return; var q = S([t.x, t.z]); g.beginPath(); g.arc(q[0], q[1], Math.max(2, t.r * s), 0, 6.2832); g.fill(); g.stroke(); });
       g.fillStyle = 'rgba(48,92,44,0.9)';
       TREEG.forEach(function(t){ if (t.clr || !vis([t.x, t.z], 4)) return; var q = S([t.x, t.z]); g.beginPath(); g.arc(q[0], q[1], 1.6, 0, 6.2832); g.fill(); });
@@ -8268,18 +8320,18 @@
     if (state.house) {
       var sh = function(p){ return [p[0] + hd[0], p[1] + hd[1]]; };
       if (plan.show.floor && P2) {
-        if (P2.deck) { pathP(P2.deck.map(sh), true); g.fillStyle = paper ? '#efe7d8' : 'rgba(255,248,235,0.55)'; g.fill(); g.strokeStyle = '#7a6a52'; g.lineWidth = 1; g.stroke(); }
+        if (P2.deck) { pathP(P2.deck.map(sh), true); g.fillStyle = paper ? '#efe7d8' : 'rgba(255,248,235,0.55)'; g.fill(); g.strokeStyle = '#7a6a52'; g.lineWidth = 1.5; g.stroke(); }
         if (P2.perg) {
           if (P2.kitchen) { pathP(P2.kitchen.map(sh), true); g.fillStyle = '#c8ab84'; g.fill(); g.strokeStyle = '#6c4d35'; g.lineWidth = 1; g.stroke(); }
           if (P2.ghouse) { pathP(P2.ghouse.map(sh), true); g.fillStyle = 'rgba(214,232,226,0.6)'; g.fill(); g.strokeStyle = '#6c4d35'; g.lineWidth = 1.2; g.stroke(); }
           g.setLineDash([6, 4]); pathP(P2.perg.map(sh), true); g.strokeStyle = '#6c4d35'; g.lineWidth = 1.4; g.stroke(); g.setLineDash([]);
         }
-        if (P2.porch) { pathP(P2.porch.map(sh), true); g.fillStyle = paper ? '#efe7d8' : 'rgba(255,248,235,0.55)'; g.fill(); g.strokeStyle = '#7a6a52'; g.lineWidth = 1; g.stroke(); }
+        if (P2.porch) { pathP(P2.porch.map(sh), true); g.fillStyle = paper ? '#efe7d8' : 'rgba(255,248,235,0.55)'; g.fill(); g.strokeStyle = '#7a6a52'; g.lineWidth = 1.5; g.stroke(); }
         pathP(HC, true); g.fillStyle = paper ? '#ffffff' : 'rgba(255,255,255,0.74)'; g.fill();
         var bar = function(a, b, t, col){ a = sh(a); b = sh(b); var dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1, nx = -dz / L * t / 2, nz = dx / L * t / 2; pathP([[a[0] + nx, a[1] + nz], [b[0] + nx, b[1] + nz], [b[0] - nx, b[1] - nz], [a[0] - nx, a[1] - nz]], true); g.fillStyle = col; g.fill(); };
         P2.ext.forEach(function(w){ bar(w[0], w[1], P2.th, '#2a2e2c'); });
         P2.int.forEach(function(w){ bar(w[0], w[1], w[2], '#4c514e'); });
-        g.strokeStyle = '#2a2e2c'; g.lineWidth = 0.8;
+        g.strokeStyle = '#2a2e2c'; g.lineWidth = 1.2;
         P2.win.forEach(function(o){
           if (o[2] === 'd' || o[2] === 'gs') return;
           var a = sh(o[0]), b = sh(o[1]), dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1, nx = -dz / L, nz = dx / L, t2 = P2.th / 2;
@@ -8314,7 +8366,7 @@
     // outdoor lights: the house, the deck, the garage and the fence's lights at the entrance
     if (plan.show.lights) {
       var lps = [].concat(state.house && P2 && P2.lights ? shift(P2.lights, hd) : [], state.garage && GAR && GAR.lights ? shift(GAR.lights, off('gar')) : [], state.yard ? YL : []);
-      g.strokeStyle = '#a35f00'; g.lineWidth = 1.1;
+      g.strokeStyle = '#a35f00'; g.lineWidth = 1.7;
       lps.forEach(function(p){ var q = S(p); g.beginPath(); g.arc(q[0], q[1], 3.8, 0, 6.2832); g.fillStyle = '#ffd27a'; g.fill(); g.stroke(); g.beginPath(); g.moveTo(q[0] - 2.6, q[1] - 2.6); g.lineTo(q[0] + 2.6, q[1] + 2.6); g.moveTo(q[0] + 2.6, q[1] - 2.6); g.lineTo(q[0] - 2.6, q[1] + 2.6); g.stroke(); });
     }
     // boreholes: 1-6 of 9/2026 (GEO 3388) and U2-U9 of 2013 (UMA)
@@ -8336,7 +8388,7 @@
       var dimLine = function(a, b, txt, warn){
         var A = S(a), B = S(b), dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy); if (L < 8) return;
         var ux = dx / L, uy = dy / L, col = warn ? PL_BND : PL_DIM;
-        g.strokeStyle = col; g.lineWidth = 1.2; g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke();
+        g.strokeStyle = col; g.lineWidth = 1.7; g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke();
         [[A, 1], [B, -1]].forEach(function(pq){ var P = pq[0], k = pq[1]; g.beginPath(); g.moveTo(P[0], P[1]); g.lineTo(P[0] + (ux * 7 - uy * 3) * k, P[1] + (uy * 7 + ux * 3) * k); g.lineTo(P[0] + (ux * 7 + uy * 3) * k, P[1] + (uy * 7 - ux * 3) * k); g.closePath(); g.fillStyle = col; g.fill(); });
         ptxt(txt, (A[0] + B[0]) / 2 - uy * 9, (A[1] + B[1]) / 2 + ux * 9, {c:col, px:11, w:600, rot:upright(Math.atan2(dy, dx))});
       };
@@ -8448,28 +8500,23 @@
     flyTo({p:[c[0] + d[0] / l * 31, Y(F.S0) + 11, c[1] + d[1] / l * 31], t:[c[0], Y(F.S0 - 6), c[1]]});
   }
   function fndSet(m){
-    if (m === 'sec') { selClear(); if (!sec.on) secEnter(); if (sec.mode !== 'side') secMode('side'); secFrame('fnd'); }
-    else {
-      if (sec.on) secExit(); if (plan.on) planExit(); preDrop();
-      var was = state.fnd; state.fnd = m === 'x' ? 'x' : 'off';
-      applyLayers();
-      if (state.fnd === 'x' && was !== 'x') fndView();
-    }
-    syncFndUI(); saveUI(); techUI();
+    if (plan.on) planExit(); preDrop();
+    state.fnd = m === 'x' ? 'x' : 'off';
+    applyLayers(); syncLayerUI(); syncFndUI(); saveUI(); techUI();
   }
   document.querySelectorAll('[data-fnd]').forEach(function(b){ b.addEventListener('click', function(){ fndSet(b.dataset.fnd); }); });
   // ---------- boreholes under the ground (Tekninen): the plot alone, see-through ground, no trees ----------
   var soilIn = document.getElementById('soil-op'), soilV = document.getElementById('f-soilop');
   function soilUI(){ if (soilIn && document.activeElement !== soilIn) soilIn.value = soilOp; if (soilV) soilV.textContent = Math.round(soilOp * 100) + ' %'; }
   function soilView(){
-    preDrop(); planExit(); fpExit(); secExit(); selClear(); aedExit();
+    preDrop(); planExit(); fpExit(); secExit(); selClear(); aedExit(); if (mOpen) sheetTo('closed');
     state.soil = true; state.cut = true; state.trees = false; state.ptrees = false; state.hedge = false; state.util = false; state.points = false; state.water = false;
     if (!state.labels) state.labels = 1;
     syncLayerUI(); applyLayers(); saveUI();
-    // from the road side, a little above the ground, looking down at the middle of the boreholes 5 m deep
-    var bx = 0, bz = 0, bl = DATA.boreholes.concat(DATA.uma); bl.forEach(function(b){ bx += b.p[0] / bl.length; bz += b.p[1] / bl.length; });
-    var dx = HF0.a[0] + HF0.b[0] * 0.7, dz = HF0.a[1] + HF0.b[1] * 0.7, dl = Math.hypot(dx, dz), g0 = H(bx, bz) || 41;
-    flyTo({p:[bx + dx / dl * 27, Y(g0) + 7, bz + dz / dl * 27], t:[bx, Y(g0) - 5, bz]});
+    // from the plot's long side and a little above the ground, so the block's side with its layers, the boreholes and
+    // the level where they stopped all show
+    var c = PLOTC.reduce(function(a, p){ return [a[0] + p[0] / PLOTC.length, a[1] + p[1] / PLOTC.length]; }, [0, 0]);
+    flyTo({p:[c[0] + AX.rx * 66 - AX.ux * 30, Y(53), c[1] + AX.rz * 66 - AX.uz * 30], t:[c[0], Y(34), c[1]]});
   }
   if (soilIn) soilIn.addEventListener('input', function(){ soilOp = Number(soilIn.value); soilUI(); if (!state.soil && !state.water) { state.soil = true; syncLayerUI(); } applyLayers(); saveUI(); });
   bindBtn('soil-view', soilView);
@@ -8532,7 +8579,7 @@
   // the hedge and the terrace's; the ground and everything on it are built again
   function applyPlace(p5){
     if (!p5 || !p5.bld) return;
-    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:10, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:11, fire:'veronika', plan:'a', facade:'wood', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
     try { readPlace(p5, P); } catch (e) { return; }
     Object.keys(P).forEach(function(k){ place[k] = P[k]; }); delete place.m4;
     var mk = DATA.houses[place.bld.house.model] ? place.bld.house.model : '132'; place.bld.house.model = mk;
@@ -8548,12 +8595,11 @@
     if (S.place) applyPlace(S.place);
     if (typeof S.animals === 'boolean') { state.animals = S.animals; anSync(); }
     if (S.layers) LAYER_KEYS.forEach(function(k){ if (typeof S.layers[k] === 'boolean') state[k] = S.layers[k]; });
-    if (typeof S.ortho === 'boolean') state.ortho = S.ortho; state.gray = S.gray === true;
     if (S.labels === 0 || S.labels === 1 || S.labels === 2) state.labels = S.labels;
-    if (typeof S.tod === 'number') tod = clamp(S.tod, 8, 24); else if (S.mood === 'eve' || S.mood === 'night') tod = S.mood === 'night' ? 23.75 : 20;
+    if (typeof S.tod === 'number') tod = clamp(S.tod, 0, 24); else if (S.mood === 'eve' || S.mood === 'night') tod = S.mood === 'night' ? 23.75 : 20;
     readDimmers(S);
     state.fnd = 'off';
-    if (typeof S.treeHide === 'number') { treeHideD = clamp(S.treeHide, 0, 150); if (treeIn) { treeIn.value = treeHideD; treeV.textContent = treeLabel(treeHideD); } }
+    if (typeof S.treeHide === 'number') { treeHideD = clamp(S.treeHide, 0, 150); treeUI(); }
     if (typeof S.cut === 'boolean' && S.cut !== state.cut) { if (S.cut) { fpExit(); secExit(); } state.cut = S.cut; }
     syncLayerUI(); applyLayers(); applyTime(); applyLights(); saveUI(); drillUI(); syncFndUI();
   }
@@ -9120,9 +9166,9 @@
     var m = curMode(), cc = document.getElementById('camctl');
     document.querySelectorAll('[data-mode]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.mode === m)); });
     // the camera buttons in the orbit and the look-around views; the site plan and the section have their own bars
-    if (cc) cc.hidden = m !== 'orbit' && m !== 'fp';
+    if (cc) cc.classList.toggle('flat', m !== 'orbit' && m !== 'fp');
     var je = document.getElementById('joy'); if (je) je.hidden = m === 'plan' || m === 'sec';
-    if (m !== 'orbit' && m !== 'fp') vsClose();
+    if (m !== 'orbit' && m !== 'fp') { vsClose(); obClose(); }
     techUI(); syncFndUI();
   }
   document.querySelectorAll('[data-mode]').forEach(function(b){
@@ -9135,7 +9181,28 @@
   // the views sheet: opened from the camera buttons; a view chosen, the cross, Esc or a touch on the 3D view closes it.
   // Saving names the view as it is now (the saved views are on the Näkymä tab)
   var vsEl = document.getElementById('vsheet'), vsBtn = document.getElementById('cam-views'), vsName = document.getElementById('vs-name');
-  function vsOpen(){ if (!vsEl) return; if (mOpen) sheetTo('closed'); vsBuild(); preUI(); vsEl.hidden = false; if (vsBtn) vsBtn.setAttribute('aria-expanded', 'true'); }
+  function vsOpen(){ if (!vsEl) return; if (mOpen) sheetTo('closed'); lsClose(); obClose(); vsBuild(); preUI(); vsEl.hidden = false; if (vsBtn) vsBtn.setAttribute('aria-expanded', 'true'); }
+  // the layers sheet stays open while the view is turned, so a layer can be tried and looked at; the obstacle slider
+  // opens beside its button and closes with a touch on the view
+  var lsEl = document.getElementById('lsheet'), lsBtn = document.getElementById('cam-layers'), obEl = document.getElementById('obpop'), obBtn = document.getElementById('cam-ob');
+  function lsClose(){ if (!lsEl || lsEl.hidden) return; lsEl.hidden = true; if (lsBtn) lsBtn.setAttribute('aria-expanded', 'false'); }
+  function lsOpen(){ if (!lsEl) return; if (mOpen) sheetTo('closed'); vsClose(); obClose(); syncLayerUI(); lsEl.hidden = false; if (lsBtn) lsBtn.setAttribute('aria-expanded', 'true'); }
+  function obClose(){ if (!obEl || obEl.hidden) return; obEl.hidden = true; if (obBtn) obBtn.setAttribute('aria-expanded', 'false'); }
+  function obOpen(){
+    if (!obEl || !obBtn) return; if (mOpen) sheetTo('closed'); vsClose(); lsClose();
+    var r = obBtn.getBoundingClientRect(), v = view.getBoundingClientRect();
+    obEl.style.top = Math.round(r.top - v.top) + 'px'; obEl.style.right = Math.round(v.right - r.left + 8) + 'px';
+    obEl.hidden = false; obBtn.setAttribute('aria-expanded', 'true');
+  }
+  if (lsBtn) lsBtn.addEventListener('click', function(){ if (lsEl.hidden) lsOpen(); else lsClose(); });
+  if (obBtn) obBtn.addEventListener('click', function(){ if (obEl.hidden) obOpen(); else obClose(); });
+  bindBtn('ls-x', lsClose);
+  (function(){
+    var h = document.getElementById('ls-h'), d = null; if (!h) return;
+    h.addEventListener('pointerdown', function(e){ if (!e.target.closest('button')) d = {y:e.clientY, id:e.pointerId}; });
+    window.addEventListener('pointermove', function(e){ if (d && d.id === e.pointerId && e.clientY - d.y > 48) { d = null; lsClose(); } });
+    window.addEventListener('pointerup', function(){ d = null; });
+  })();
   if (vsBtn) vsBtn.addEventListener('click', function(){ if (vsEl.hidden) vsOpen(); else vsClose(); });
   bindBtn('vs-x', vsClose);
   bindBtn('vs-back', function(){ preBack(); vsClose(); });
@@ -9146,7 +9213,7 @@
   }
   bindBtn('vs-save', vsSave);
   if (vsName) vsName.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); vsSave(); } });
-  renderer.domElement.addEventListener('pointerdown', function(){ vsClose(); });
+  renderer.domElement.addEventListener('pointerdown', function(){ vsClose(); obClose(); });
   // drawn down by its head on a phone it closes
   (function(){
     var h = document.getElementById('vs-h'), d = null; if (!h) return;
@@ -9158,6 +9225,7 @@
   window.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
     if (vsEl && !vsEl.hidden) { vsClose(); e.stopPropagation(); e.preventDefault(); }
+    else if ((lsEl && !lsEl.hidden) || (obEl && !obEl.hidden)) { lsClose(); obClose(); e.stopPropagation(); e.preventDefault(); }
     else if (mOpen) { sheetTo('closed'); e.stopPropagation(); e.preventDefault(); }
   }, true);
   document.querySelectorAll('[data-mbhelp]').forEach(function(b){
@@ -9168,7 +9236,7 @@
   var TAB_OLD = {model:'house', lights:'env', info:'tech'};
   function showTab(t){
     t = TAB_OLD[t] || t;
-    if (!document.getElementById('tab-' + t) || (isPhone() && t === 'tech')) t = 'house';
+    if (!document.getElementById('tab-' + t)) t = 'house';
     subClose(true);
     tabBtns.forEach(function(b){ var on = b.dataset.tab === t; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; document.getElementById('tab-' + b.dataset.tab).hidden = !on; });
     curTab = t; panesEl.scrollTop = 0; drillUI();
@@ -9191,7 +9259,6 @@
   function drillUI(){
     var set = function(id, t){ var el = document.getElementById(id); if (el) el.textContent = t; }, pct = function(v){ return Math.round(v * 100) + ' %'; };
     if (typeof LV === 'object' && LV) set('d-lin', pct(LV.all));
-    if (typeof EXT === 'object' && EXT) set('d-lout', pct(EXT.w) + ' · ' + pct(EXT.b));
     if (typeof LAYER_KEYS === 'object' && LAYER_KEYS) set('d-layers', LAYER_KEYS.filter(function(k){ return state[k]; }).length + ' / ' + LAYER_KEYS.length + ' päällä');
     if (typeof views === 'object' && views && typeof run === 'object' && run) set('d-run', views.runs.length ? views.runs.length + ' tallennettua' : run.pts.length ? run.pts.length + ' pistettä' : 'ei ajoja');
     var HH = DATA.houses[houseSel], P2d = HH.plan2d;
@@ -9237,7 +9304,7 @@
     if (!isPhone()) s = 'closed';
     sheet.s = s; mOpen = s !== 'closed';
     appEl.classList.toggle('m-open', mOpen); appEl.classList.toggle('sheet-full', s === 'full'); panelEl.classList.remove('dragging');
-    if (mOpen) { sheet.h = sheetPx(s); root.style.setProperty('--sheetH', sheet.h + 'px'); vsClose(); drillUI(); }
+    if (mOpen) { sheet.h = sheetPx(s); root.style.setProperty('--sheetH', sheet.h + 'px'); vsClose(); lsClose(); obClose(); drillUI(); }
     root.style.setProperty('--sheetB', (mOpen ? sheet.h : 0) + 'px');
     if (menuBtn) menuBtn.setAttribute('aria-expanded', String(mOpen));
     grab.setAttribute('aria-expanded', String(s === 'full'));
@@ -9263,7 +9330,7 @@
   window.addEventListener('pointercancel', function(e){ var d = sheet.drag; if (!d || d.id !== e.pointerId) return; sheet.drag = null; if (d.moved) sheetTo(sheet.s); });
   panelEl.addEventListener('click', function(e){ if (sheet.dragged) { e.stopPropagation(); e.preventDefault(); sheet.dragged = false; } }, true);
   function phoneLayout(){
-    if (isPhone()) { if (curTab === 'tech') showTab('house'); sheetTo(sheet.s); }
+    if (isPhone()) sheetTo(sheet.s);
     else { sheet.s = 'closed'; mOpen = false; appEl.classList.remove('m-open', 'sheet-full'); panelEl.classList.remove('dragging'); root.style.setProperty('--sheetB', '0px'); if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false'); }
   }
   if (phoneMq.addEventListener) phoneMq.addEventListener('change', phoneLayout); else if (phoneMq.addListener) phoneMq.addListener(phoneLayout);
@@ -9299,12 +9366,10 @@
   try { ui0 = JSON.parse(localStorage.getItem(UI_KEY) || 'null'); } catch (e) {}
   if (ui0) {
     if (ui0.layers) LAYER_KEYS.forEach(function(k){ if (typeof ui0.layers[k] === 'boolean') state[k] = ui0.layers[k]; });
-    if (typeof ui0.ortho === 'boolean') state.ortho = ui0.ortho; state.gray = ui0.gray === true;
-    if (ui0.labels === 0 || ui0.labels === 1 || ui0.labels === 2) state.labels = ui0.labels;
     state.cut = !!ui0.cut;
     if (typeof ui0.speed === 'number' && ui0.speed >= 0.3 && ui0.speed <= 1.8) { camSpeed = ui0.speed; applyCamSpeed(); }
     if (typeof ui0.treeHide === 'number' && ui0.treeHide >= 0 && ui0.treeHide <= 150) treeHideD = ui0.treeHide;
-    if (typeof ui0.tod === 'number' && ui0.tod >= 8 && ui0.tod <= 24) tod = ui0.tod; else if (ui0.mood === 'night') tod = 23.75;
+    if (typeof ui0.tod === 'number' && ui0.tod >= 0 && ui0.tod <= 24) tod = ui0.tod; else if (ui0.mood === 'night') tod = 23.75;
     readDimmers(ui0);
     if (typeof ui0.soilOp === 'number' && ui0.soilOp >= 0 && ui0.soilOp <= 0.95) soilOp = ui0.soilOp;
 
@@ -9314,11 +9379,11 @@
   }
   syncLayerUI(); applyLayers(); exagUI(); syncMode(); applyTime(); applyLights(); soilUI(); anSync();
   if (camIn) { camIn.value = camSpeed; camV.textContent = camLabel(camSpeed); }
-  if (treeIn) { treeIn.value = treeHideD; treeV.textContent = treeLabel(treeHideD); }
+  treeUI();
   if (ui0 && ui0.cam && ui0.cam.p && ui0.cam.t) {
     var sy0 = world.scale.y;
     camera.position.set(ui0.cam.p[0], ui0.cam.p[1] * sy0, ui0.cam.p[2]); controls.target.set(ui0.cam.t[0], ui0.cam.t[1] * sy0, ui0.cam.t[2]);
-    if (state.soil || state.water || state.cut) controls.maxPolarAngle = Math.PI * 0.72;
+    if (state.soil || state.water || state.cut || state.fnd === 'x') controls.maxPolarAngle = Math.PI * 0.72;
   } else { camera.position.set(v0.p[0], v0.p[1], v0.p[2]); controls.target.set(v0.t[0], v0.t[1], v0.t[2]); }
   controls.update();
   uiReady = true;

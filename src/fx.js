@@ -37,7 +37,7 @@ function ownColor(mat){
 
 // ---------- the sky dome ----------
 function skyMaterial(sunDir){
-  const U = { sunDir:uniform(sunDir), dusk:uniform(0), noon:uniform(0) };
+  const U = { sunDir:uniform(sunDir), dusk:uniform(0), noon:uniform(0), night:uniform(0) };
   const m = own(new THREE.MeshBasicNodeMaterial({ side:THREE.BackSide, depthWrite:false, fog:false }));
   m.colorNode = Fn(() => {
     const d = normalize(positionLocal), h = d.y, dusk = U.dusk, noon = U.noon;
@@ -53,13 +53,27 @@ function skyMaterial(sunDir){
       .mul(float(1).sub(smoothstep(0.05, 0.6, h))).mul(float(1).sub(dusk.mul(0.6))).mul(float(1).sub(noon.mul(0.5)));
     col.addAssign(glow);
     col.assign(mix(col, vec3(1.0, 0.96, 0.86), smoothstep(0.9988, 0.9996, sd).mul(float(1).sub(dusk))));
-    return toL(col);
+    // the dead of night: the last glow of the dusk goes out
+    return toL(col.mul(mix(float(1.0), float(0.07), U.night)));
   })();
   m.uniforms = U;
   return m;
 }
 
 // ---------- the ground: holes, cut-outs, the grey look, road paint and fine grain ----------
+// inside the plot (x, z)? An exact test against its corners: Vain tontti cuts the ground along the boundary, and what
+// stands on the plot itself is never taken away from in front of the camera
+function plotIn(P, p){
+  let n = float(0);
+  for (let i = 0; i < P.length; i++) {
+    const a = P[i], b = P[(i + 1) % P.length];
+    if (Math.abs(b[1] - a[1]) < 1e-6) continue;
+    const across = float(a[1]).sub(p.y).mul(float(b[1]).sub(p.y)).lessThan(0.0);
+    const left = p.x.lessThan(float((b[0] - a[0]) / (b[1] - a[1])).mul(p.y.sub(a[1])).add(a[0]));
+    n = n.add(select(across.and(left), 1.0, 0.0));
+  }
+  return n.mod(2.0).greaterThan(0.5);
+}
 const pitIn = (U, xz) => {
   const pq = xz.sub(U.uPit.xy), pl = abs(vec2(dot(pq, U.uPit.zw), dot(pq, vec2(U.uPit.w.negate(), U.uPit.z))));
   return U.uPitOn.greaterThan(0.5).and(pl.x.lessThan(U.uPitS.x)).and(pl.y.lessThan(U.uPitS.y));
@@ -109,19 +123,28 @@ function grayAware(mat, G){
   return mat;
 }
 function pitAware(mat, T){ addMask(mat, pitIn(T, positionLocal.xz).not()); return mat; }
-function cutAware(mat, C, T){
-  const xz = positionLocal.xz, uvm = xz.sub(C.uBox.xy).div(C.uBox.zw), pmv = xz.sub(C.uPlanBox.xy).div(C.uPlanBox.zw);
-  const cutOut = C.uCut.greaterThan(0.5).and(inBox(uvm).not().or(C.uMask.sample(clamp(uvm, 0, 1)).r.lessThan(0.5)));
+function cutAware(mat, C, T, P){
+  const xz = positionLocal.xz, pmv = xz.sub(C.uPlanBox.xy).div(C.uPlanBox.zw);
+  const cutOut = C.uCut.greaterThan(0.5).and(plotIn(P, xz).not());
   const planOut = C.uPlanOn.greaterThan(0.5).and(inBox(pmv)).and(C.uPlanMask.sample(clamp(pmv, 0, 1)).r.greaterThan(0.5));
   addMask(mat, pitIn(T, xz).or(tubIn(T, xz)).or(cutOut).or(planOut).not());
   mat.colorNode = vec4(toL(roadTint(C, toS(ownColor(mat)), xz)), 1.0);
   return mat;
 }
-function roadAware(mat, C, T, detTex, ykTex){
+function roadAware(mat, C, T, detTex, ykTex, P){
   const xz = positionLocal.xz, det = texture(data(detTex)), yk = texture(data(ykTex), uv()).r;
-  addMask(mat, pitIn(T, xz).or(tubIn(T, xz)).not());
+  addMask(mat, pitIn(T, xz).or(tubIn(T, xz)).or(C.uCut.greaterThan(0.5).and(plotIn(P, xz).not())).not());
   const c0 = toS(ownColor(mat));
   mat.colorNode = vec4(toL(roadTint(C, mix(c0, yardGrain(det, c0, xz), yk), xz)), 1.0);
+  return mat;
+}
+// Vain tontti for everything else that may reach over the boundary (roads, pipes, lines, the fill's body): drawn only
+// inside the plot while the cut is on. P is the plot a little grown, so what runs along the boundary stays whole
+function plotOnly(mat, C, P){
+  if (!mat || !mat.isNodeMaterial || mat.userData.pc) return mat;
+  mat.userData.pc = true;
+  addMask(mat, C.uCut.lessThan(0.5).or(plotIn(P, positionWorld.xz)));
+  mat.needsUpdate = true;
   return mat;
 }
 // a rectangular hole (in map coordinates) in the far terrain, where the nearer terrain takes over
@@ -276,26 +299,16 @@ function shadowOnly(){
 }
 
 // ---------- obstacles out of the camera's way (Esteet pois kameran edestä) ----------
-// inside the plot (x, z)? What stands on the plot itself is never taken away
-function plotIn(P, p){
-  let n = float(0);
-  for (let i = 0; i < P.length; i++) {
-    const a = P[i], b = P[(i + 1) % P.length];
-    if (Math.abs(b[1] - a[1]) < 1e-6) continue;
-    const across = float(a[1]).sub(p.y).mul(float(b[1]).sub(p.y)).lessThan(0.0);
-    const left = p.x.lessThan(float((b[0] - a[0]) / (b[1] - a[1])).mul(p.y.sub(a[1])).add(a[0]));
-    n = n.add(select(across.and(left), 1.0, 0.0));
-  }
-  return n.mod(2.0).greaterThan(0.5);
-}
 // A tree whose trunk comes within the set distance of the camera, short of the point looked at, is dropped whole in the
 // vertex stage: all its corners go to one point, so nothing of it is drawn. An instanced tree carries its foot and
 // height in the instance attribute tb (x, y, z, height); a single tree stands at its mesh's origin
-function treeHide(mat, T, P){
+function treeHide(mat, T, P, C){
   mat.positionNode = Fn((builder) => {
     const inst = builder.object.isInstancedMesh && builder.geometry.hasAttribute('tb');
     const tb = inst ? attribute('tb', 'vec4') : vec4(0.0, 0.0, 0.0, T.uTreeH.mul(1.3));
     const pos = positionLocal.toVar();
+    // Vain tontti: a tree that stands outside the plot is away whole
+    if (inst) If(C.uCut.greaterThan(0.5).and(plotIn(P, tb.xz).not()), () => { pos.assign(tb.xyz); });
     If(T.uTreeHide.greaterThan(0.0), () => {
       const w = modelWorldMatrix.mul(vec4(tb.xyz, 1.0)).xyz;
       const tq = vec3(w.x, clamp(T.uTreeCam.y, w.y, w.y.add(tb.w)), w.z).sub(T.uTreeCam);
@@ -318,5 +331,5 @@ function obHide(mat, T, O, P){
 
 export const FX = {
   uniforms, data, mapOf, skyMaterial, grayAware, pitAware, cutAware, roadAware, holeCut, leafLit, boardMap, deckMap, hedgeMap,
-  glassMaterial, interiorUniforms, interiorLit, fireMaterial, washMaterial, poolMaterial, shadowOnly, treeHide, obHide
+  glassMaterial, interiorUniforms, interiorLit, fireMaterial, washMaterial, poolMaterial, shadowOnly, treeHide, obHide, plotOnly
 };

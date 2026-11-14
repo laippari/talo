@@ -6,7 +6,7 @@ import {
   Fn, If, Loop, Break, uniform, uniformArray, texture, attribute, uv, vertexColor, float, int, vec2, vec3, vec4,
   positionLocal, positionWorld, normalLocal, normalViewGeometry, normalWorldGeometry, faceDirection, cameraPosition,
   materialColor, materialEmissive, materialOpacity, diffuseColor, output, select, mix, smoothstep, step, clamp, max, min, abs, dot,
-  length, normalize, fract, floor, sin, exp, pow, reflect, sRGBTransferEOTF, sRGBTransferOETF
+  length, normalize, fract, floor, sin, exp, pow, reflect, rand, sRGBTransferEOTF, sRGBTransferOETF
 } from 'three/tsl';
 
 // The application's colours and its painted effects were written for the screen (sRGB); the renderer works in linear
@@ -199,7 +199,7 @@ function glassMaterial(G, sun, o){
 // ---------- interior lights: spots, pendants, strips and the fire add a warm glow to the surfaces near them ----------
 function interiorUniforms(I){
   ['uLP', 'uLC', 'uLR'].forEach((k) => { const arr = I[k].value, n = uniformArray(arr); n.value = arr; I[k] = n; });
-  ['uPT0', 'uPT1', 'uLN', 'uLK', 'uDay'].forEach((k) => { I[k] = uniform(I[k].value); });
+  ['uPT0', 'uPT1', 'uLN', 'uLK', 'uDay', 'uBounce', 'uSh'].forEach((k) => { I[k] = uniform(I[k].value); });
   return I;
 }
 function interiorLit(mat, I, count){
@@ -222,7 +222,11 @@ function interiorLit(mat, I, count){
     });
     return vec3(1).sub(exp(il.negate())).mul(I.uLK).mul(diffuseColor.rgb);
   });
-  mat.emissiveNode = materialEmissive.add(glow());
+  // Daylight inside. Under the roof the rooms are in the roof's shadow, and the light that in reality bounces in through
+  // the windows is missing: the surfaces get an even share of the day's light instead (uBounce). With the roof taken off
+  // the sun falls in: toned down (uDay.x) and its shadows softened (uSh), so the floor plan stays easy to read
+  mat.emissiveNode = materialEmissive.add(glow()).add(diffuseColor.rgb.mul(I.uBounce));
+  mat.receivedShadowNode = Fn(([sh]) => sh.oneMinus().mul(I.uSh).oneMinus().mul(I.uDay.x));
   return mat;
 }
 
@@ -263,9 +267,17 @@ function poolMaterial(U, k, c){
   return m;
 }
 
+// ---------- a shape that only casts a shadow (the crowns of the trees round the plot), with gaps like foliage ----------
+function shadowOnly(){
+  const m = own(new THREE.MeshBasicNodeMaterial({ colorWrite:false, depthWrite:false }));
+  const p = floor(positionWorld.mul(11.0));   // cells of 9 cm: the shadow map's filter blends them into a light dapple
+  m.maskShadowNode = rand(vec2(p.x.add(p.y.mul(31.7)), p.z.add(p.y.mul(17.3)))).greaterThan(0.45);
+  return m;
+}
+
 export const FX = {
   uniforms, data, mapOf, skyMaterial, grayAware, pitAware, cutAware, roadAware, holeCut, leafLit, boardMap, deckMap, hedgeMap,
-  glassMaterial, interiorUniforms, interiorLit, fireMaterial, washMaterial, poolMaterial,
+  glassMaterial, interiorUniforms, interiorLit, fireMaterial, washMaterial, poolMaterial, shadowOnly,
   // hiding trees and buildings in front of the camera: not ported yet
   treeHide(mat){ return mat; }, obHide(mat){ return mat; }
 };

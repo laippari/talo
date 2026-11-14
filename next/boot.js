@@ -40,10 +40,38 @@ try {
   const q = new URLSearchParams(location.search);
   const renderer = new THREE_NS.WebGPURenderer({ antialias: true, alpha: true, forceWebGL: q.has('webgl') });
   await renderer.init();
+
+  // Laatutaso: puhelimessa pienempi varjokartta. ?varjot=0 ottaa varjot pois, ?varjot=4096 pakottaa tarkkuuden
+  const phone = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 820;
+  const sq = q.get('varjot'), Q = { phone, shadow: sq === '0' ? 0 : (Number(sq) || (phone ? 2048 : 4096)) };
+  renderer.shadowMap.enabled = Q.shadow > 0;
+  renderer.shadowMap.type = phone ? THREE_NS.PCFShadowMap : THREE_NS.PCFSoftShadowMap;
+  // Sävykäyrä: väri pysyy sellaisenaan polveen (0,72) asti ja taittuu sen yläpuolella pehmeästi kohti valkoista, sävy
+  // säilyttäen. Sama kuin three.js:n neutraali käyrä ilman sen tummaa siirtymää, joka söisi mallin tummat pinnat
+  // (asfaltti, katto), koska materiaaleissa ei ole kiiltoa, jota siirtymä kompensoisi
+  const softTone = TSL.Fn(([colorIn, exposure]) => {
+    const c = colorIn.mul(exposure), peak = TSL.max(c.r, TSL.max(c.g, c.b)), knee = TSL.float(0.72), d = TSL.float(1).sub(knee);
+    const np = TSL.select(peak.lessThan(knee), peak, TSL.float(1).sub(d.mul(d).div(peak.add(d).sub(knee))));
+    const sc = c.mul(np.div(TSL.max(peak, 1e-5)));
+    const g = TSL.float(1).sub(TSL.float(1).div(TSL.float(0.15).mul(peak.sub(np)).add(1)));
+    return TSL.mix(sc, TSL.vec3(np, np, np), g);
+  });
+  renderer.library.addToneMapping(softTone, THREE_NS.CustomToneMapping);
+  renderer.toneMapping = THREE_NS.CustomToneMapping;
+  renderer.toneMappingExposure = 1;
+  // Jokainen sovelluksen luoma kappale heittää ja ottaa varjon, paitsi läpinäkyvät (lasi, vesi, hehkut) ja omalla
+  // varjostimella piirretyt (taivas, tuli). Poikkeukset (maasto, kaukaiset puut) asetetaan main.js:ssä
+  const shadowDefaults = (o, m) => {
+    const one = m && !Array.isArray(m), own = one && m.userData && m.userData.own;
+    o.castShadow = !(one && (m.transparent || own)); o.receiveShadow = !own;
+  };
+  THREE.Mesh = class extends THREE_NS.Mesh { constructor(g, m){ super(g, m); shadowDefaults(this, m); } };
+  THREE.InstancedMesh = class extends THREE_NS.InstancedMesh { constructor(g, m, n){ super(g, m, n); shadowDefaults(this, m); } };
+  THREE.SkinnedMesh = class extends THREE_NS.SkinnedMesh { constructor(g, m){ super(g, m); shadowDefaults(this, m); } };
   const res = await fetch('../data/site.json');
   if (!res.ok) throw new Error('data');
   window.SITE_DATA = await res.json();
-  window.THREE = THREE; window.TSL = TSL; window.FX = FX; window.TALO_RENDERER = renderer;
+  window.THREE = THREE; window.TSL = TSL; window.FX = FX; window.TALO_RENDERER = renderer; window.TALO_Q = Q;
   window.TALO_BACKEND = renderer.backend && renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL2';
   await new Promise((ok, no) => { const s = document.createElement('script'); s.src = './main.js'; s.onload = ok; s.onerror = no; document.body.appendChild(s); });
 } catch (e) {

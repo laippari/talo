@@ -56,6 +56,17 @@
   // the colours of the lights are multipliers as they were written, not screen colours: taken as they are
   var LIN = THREE.LinearSRGBColorSpace; hemi.color.setHex(0xdfe6f3, LIN); hemi.groundColor.setHex(0x6c6555, LIN);
   var sun = new THREE.DirectionalLight(0xffd8ab, 0.72 * LK); sun.position.copy(sunDir).multiplyScalar(100); scene.add(sun); sun.color.setHex(0xffd8ab, LIN);
+  // The sun casts shadows over the plot and a little round it: one shadow map fitted to the plot (sunFit, once the plot is
+  // known). With shadows the sun is stronger and the sky light weaker than without, so the shaded side is clearly darker
+  // and cooler while what is in the sun stays as bright as it was
+  var SHADOW = window.TALO_Q && window.TALO_Q.shadow > 0, SH = SHADOW ? {sun:1.5, hemi:0.7} : {sun:1, hemi:1};
+  scene.add(sun.target);
+  if (SHADOW) { sun.castShadow = true; sun.shadow.mapSize.set(window.TALO_Q.shadow, window.TALO_Q.shadow); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.035; sun.shadow.radius = 1.5; }
+  function sunFit(cx, cy, cz, r){
+    sun.target.position.set(cx, cy, cz); sun.target.updateMatrixWorld();
+    var c = sun.shadow.camera; c.left = -r; c.right = r; c.top = r; c.bottom = -r; c.near = 40; c.far = 260; c.updateProjectionMatrix();
+  }
+  function sunPlace(dir){ sun.position.copy(sun.target.position).addScaledVector(dir, 150); }
   var skyMat = FX.skyMaterial(sunDir);
   var sky = new THREE.Mesh(new THREE.SphereGeometry(18000, 48, 24), skyMat); sky.renderOrder = -10; sky.frustumCulled = false; scene.add(sky);
   var FOG_NEAR = 2600, FOG_FAR = 26000;
@@ -179,7 +190,7 @@
   var outerMat = new THREE.MeshLambertMaterial({vertexColors:true});
   var outerNeedsShader = true;
   var og0 = makeGeo(op, on, oc, oi); og0.setAttribute('uv', new THREE.BufferAttribute(ouv, 2));
-  var outer = new THREE.Mesh(og0, outerMat); world.add(outer);
+  var outer = new THREE.Mesh(og0, outerMat); outer.castShadow = false; world.add(outer);
 
   // detail mesh (1 m, survey blended in)
   var n2 = wc * wr, wp = new Float32Array(n2 * 3), wn = new Float32Array(n2 * 3), wcl = new Float32Array(n2 * 3);
@@ -319,7 +330,7 @@
       a.onload = done; b.onload = done; a.src = FAR.a; b.src = FAR.b;
     })();
     farMat = new THREE.MeshLambertMaterial({vertexColors:true, polygonOffset:true, polygonOffsetFactor:4, polygonOffsetUnits:4});
-    grayAware(farMat, 'far'); farMesh = new THREE.Mesh(fg, farMat); world.add(farMesh);
+    grayAware(farMat, 'far'); farMesh = new THREE.Mesh(fg, farMat); farMesh.castShadow = farMesh.receiveShadow = false; world.add(farMesh);
   }
 
   // the 24 m surroundings come as a surface model with the forest canopy in it; the ground under it is estimated: the
@@ -368,7 +379,7 @@
                  uTE:{value:new THREE.Vector3(a0[0], ax[0] - a0[0], az[0] - a0[0])}, uTN:{value:new THREE.Vector3(a0[1], ax[1] - a0[1], az[1] - a0[1])}};
     xfMat = new THREE.MeshLambertMaterial({vertexColors:true, polygonOffset:true, polygonOffsetFactor:8, polygonOffsetUnits:8});
     FX.holeCut(xfMat, holeU.uHole.value, holeU.uTE.value, holeU.uTN.value);
-    grayAware(xfMat, 'xfar'); xfMesh = new THREE.Mesh(xg, xfMat); world.add(xfMesh);
+    grayAware(xfMat, 'xfar'); xfMesh = new THREE.Mesh(xg, xfMat); xfMesh.castShadow = xfMesh.receiveShadow = false; world.add(xfMesh);
   }
 
   // cut wall, rim and bottom
@@ -914,6 +925,13 @@
   // Further out simple shapes are enough
   var TREEG = [];
   // trees on and next to the plot, so the yard plan can hide the ones that would go under asphalt, buildings or deep fill
+  // the sun's shadow map covers the plot and about ten metres round it
+  (function(){
+    var P = DATA.plot.corners, cx = 0, cz = 0, r = 0;
+    P.forEach(function(p){ cx += p[0] / P.length; cz += p[1] / P.length; });
+    P.forEach(function(p){ r = Math.max(r, Math.hypot(p[0] - cx, p[1] - cz)); });
+    sunFit(cx, Y(43), cz, r + 10); sunPlace(sunDir);
+  })();
   var TREECLR = [], PBB = (function(){ var P = DATA.plot.corners, xs = P.map(function(p){ return p[0]; }), zs = P.map(function(p){ return p[1]; }); return [Math.min.apply(null, xs) - 6, Math.min.apply(null, zs) - 6, Math.max.apply(null, xs) + 6, Math.max.apply(null, zs) + 6]; })();
   function nearPlot(x, z){ return x > PBB[0] && z > PBB[1] && x < PBB[2] && z < PBB[3]; }
   var TREE_SP = {spruce:0, pine:0, birch:0, aspen:0, maple:0, oak:0};
@@ -964,7 +982,7 @@
     Object.keys(sets).forEach(function(key){
       var kp = key.split('|'), lay = kp[0], T = TPL[kp[1]][Number(kp[2])], list = sets[key];
       var barkI = new THREE.InstancedMesh(T.bark, T.bm, list.length), leafI = new THREE.InstancedMesh(T.leaf, T.lm, list.length);
-      barkI.frustumCulled = leafI.frustumCulled = false;
+      barkI.frustumCulled = leafI.frustumCulled = false; barkI.castShadow = leafI.castShadow = barkI.receiveShadow = leafI.receiveShadow = false;
       list.forEach(function(t, i){
         var s = t[2] / H_REF, w = 0.85 + hash(t[0], t[1], 3) * 0.3;
         q.setFromAxisAngle(YAX, hash(t[0], t[1], 4) * Math.PI * 2); sc.set(s * w, s, s * w); ps.set(t[0], Y(t[3]), t[1]); m4.compose(ps, q, sc);
@@ -980,7 +998,7 @@
     var leafM = new THREE.MeshLambertMaterial({color:0xffffff}), cDark = new THREE.Color('#244a2b'), cMid = new THREE.Color('#34603a'), dLight = new THREE.Color('#82a852'), dDark = new THREE.Color('#5b8a3c');
     Object.keys(far).forEach(function(key){
       var list = far[key], broad = key.slice(-1) === 'D', lay = key.slice(0, -1), crowns = new THREE.InstancedMesh(broad ? geoD : geoC, leafM, list.length);
-      crowns.frustumCulled = false;
+      crowns.frustumCulled = false; crowns.castShadow = crowns.receiveShadow = false;
       list.forEach(function(t, i){
         var h = t[2], g = t[3], jit = ((t[0] * 12.9898 + t[1] * 78.233) % 1 + 1) % 1;
         if (broad) { var r = Math.min(3.4, Math.max(0.9, 0.4 + 0.1 * h)), cb = 0.42 * h, ch = h - cb; ps.set(t[0], Y(g) + cb + ch / 2, t[1]); sc.set(r, ch / 2, r); col.copy(dLight).lerp(dDark, 0.3 + 0.5 * jit); }
@@ -1010,8 +1028,27 @@
       }
       reg('ptrees', grp);
       var tg = t.s === 'haapa' ? {x:t.x, z:t.z, g:g, broad:true, r:0.15 * h * q.wide * 0.85, c:g + 0.74 * h, hv:0.26 * h} : {x:t.x, z:t.z, g:g, broad:true, r:2.6, c:g + 0.82 * h, hv:0.16 * h};
-      TREEG.push(tg);
+      tg.own = true; TREEG.push(tg);
       if (nearPlot(t.x, t.z)) TREECLR.push({x:t.x, z:t.z, grp:grp, tg:tg, cl:false, special:t.s, id:t.id});
+    });
+  })();
+  // Shadows of the laser trees round the plot. The trees themselves are thousands of instances all over the map and cast
+  // nothing; those within 85 m of the plot get a plain crown (an ellipsoid or a cone of the tree's size) that is drawn
+  // only into the shadow map, with gaps in it so the shade is dappled like that of leaves
+  if (SHADOW) (function(){
+    var C = sun.target.position, B = [], N = [];
+    TREEG.forEach(function(t){ if (!t.own && Math.hypot(t.x - C.x, t.z - C.z) < 85) (t.broad ? B : N).push(t); });
+    var mat = FX.shadowOnly(), cone = new THREE.ConeGeometry(1, 1, 7); cone.translate(0, 0.5, 0);
+    [[B, new THREE.SphereGeometry(1, 8, 6)], [N, cone]].forEach(function(e){
+      if (!e[0].length) return;
+      var im = new THREE.InstancedMesh(e[1], mat, e[0].length), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), ps = new THREE.Vector3(), sc = new THREE.Vector3();
+      im.frustumCulled = false; im.castShadow = true; im.receiveShadow = false; im.raycast = function(){};
+      e[0].forEach(function(t, i){
+        if (t.broad) { ps.set(t.x, Y(t.c), t.z); sc.set(t.r, t.hv, t.r); }
+        else { var b = t.g + 0.22 * (t.top - t.g); ps.set(t.x, Y(b), t.z); sc.set(t.r, t.top - b, t.r); }
+        m4.compose(ps, q, sc); im.setMatrixAt(i, m4); t.sh = [im, i, m4.clone()];
+      });
+      im.instanceMatrix.needsUpdate = true; reg('trees', im);
     });
   })();
 
@@ -1717,7 +1754,7 @@
   // light inside the house without real lamps: ceiling spots, pendants and the fire add a warm glow to the interior
   // surfaces near them (computed per pixel, only on these materials, softly saturating so that overlapping lights do not
   // burn out); stronger late in the evening, and all of them follow the dimmer
-  var ILN = 48, ILU = {uLP:{value:[]}, uLC:{value:[]}, uLR:{value:[]}, uPT0:{value:new THREE.Vector4(1, 0, 0, 0)}, uPT1:{value:new THREE.Vector4(0, 1, 0, 0)}, uLN:{value:0}, uLK:{value:0.3}, uDay:{value:new THREE.Vector2(1, 1)}};
+  var ILN = 48, ILU = {uLP:{value:[]}, uLC:{value:[]}, uLR:{value:[]}, uPT0:{value:new THREE.Vector4(1, 0, 0, 0)}, uPT1:{value:new THREE.Vector4(0, 1, 0, 0)}, uLN:{value:0}, uLK:{value:0.3}, uDay:{value:new THREE.Vector2(1, 1)}, uBounce:{value:0}, uSh:{value:1}};
   for (var il0 = 0; il0 < ILN; il0++) { ILU.uLP.value.push(new THREE.Vector4(0, -1e4, 0, 0.01)); ILU.uLC.value.push(new THREE.Color(0, 0, 0)); ILU.uLR.value.push(new THREE.Vector4(-1e6, -1e6, 1e6, 1e6)); }
   FX.interiorUniforms(ILU);
   var CEIL_K = 1, IL_LIST = [], fireLight = -1, IN_DAY = [0.42, 0.95];
@@ -5457,7 +5494,7 @@
     var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     var iAll = new THREE.BufferAttribute(new Uint32Array(idx), 1), iFill = new THREE.BufferAttribute(new Uint32Array(idxF), 1);
     geo.setIndex(iAll); geo.computeVertexNormals(); if (!state.yard) geo.setIndex(iFill);
-    planMesh = new THREE.Mesh(geo, state.yard ? yardMat : thickMat); planMesh.userData.layer = 'groundplan'; planMesh.userData.iAll = iAll; planMesh.userData.iFill = iFill; reg('groundplan', planMesh); groundObjs.push(planMesh);
+    planMesh = new THREE.Mesh(geo, state.yard ? yardMat : thickMat); planMesh.castShadow = false; planMesh.userData.layer = 'groundplan'; planMesh.userData.iAll = iAll; planMesh.userData.iFill = iFill; reg('groundplan', planMesh); groundObjs.push(planMesh);
     // round stone bed of dark wall blocks (500 x 200 x 200 mm) in running bond, cut straight along the boundary
     (YD.rings || []).forEach(function(r){
       var rc = RING_IN + RING_W / 2, N = Math.max(8, Math.round(2 * Math.PI * rc / BLK_L)), step = 2 * Math.PI / N, len = 2 * Math.PI * rc / N - 0.01;
@@ -6480,13 +6517,15 @@
     sunDir.set(Math.sin(s.az) * Math.cos(s.el), Math.sin(s.el), -Math.cos(s.az) * Math.cos(s.el)).normalize();
     // the light itself never comes from below the horizon
     var ld = sunDir.clone(); if (ld.y < 0.07) { ld.y = 0.07; ld.normalize(); }
-    sun.position.copy(ld).multiplyScalar(100);
+    sunPlace(ld);
+    // the shadows fade away as the sun sets
+    if (SHADOW) sun.shadow.intensity = sstep(-3, 5, el);
     var sunC = el < 14 ? mixHex(0xff9a55, 0xffd8ab, sstep(0, 14, el)) : mixHex(0xffd8ab, 0xfff4e4, sstep(14, 35, el));
-    sun.intensity = LK * ((0.35 + 0.55 * sstep(-1, 25, el)) * (1 - nt) + 0.1 * nt); sun.color.setHex(mixHex(sunC, 0xff8a4a, nt), LIN);
-    hemi.intensity = LK * num('hemi'); hemi.color.setHex(col('sky'), LIN); hemi.groundColor.setHex(col('gnd'), LIN);
+    sun.intensity = LK * ((0.35 + 0.55 * sstep(-1, 25, el)) * (1 - nt) * (1 + (SH.sun - 1) * sstep(-3, 5, el)) + 0.1 * nt); sun.color.setHex(mixHex(sunC, 0xff8a4a, nt), LIN);
+    var hemiN = num('hemi'); hemi.intensity = LK * hemiN * (1 + (SH.hemi - 1) * sstep(-3, 5, el)); hemi.color.setHex(col('sky'), LIN); hemi.groundColor.setHex(col('gnd'), LIN);
     // the ceiling faces down and would get only the brownish ground light: the light reflected from the floor and the
     // walls lifts it to the walls' tone, following the daylight
-    M132.ceilP.emissive.setRGB(0.19, 0.19, 0.205, THREE.SRGBColorSpace).multiplyScalar(hemi.intensity / LK / 0.66 * CEIL_K); GLASSU.uGlassK.value = clamp(hemi.intensity / LK / 0.66, 0, 1.2);
+    M132.ceilP.emissive.setRGB(0.19, 0.19, 0.205, THREE.SRGBColorSpace).multiplyScalar(hemiN / 0.66 * CEIL_K); GLASSU.uGlassK.value = clamp(hemiN / 0.66, 0, 1.2);
     skyMat.uniforms.dusk.value = nt; skyMat.uniforms.noon.value = dn; scene.fog.color.setHex(col('fog'));
     LT.spots = num('spots'); LT.fire = num('fire'); LT.ext = sstep(10, -2, el);
     shinySet(sstep(-1.5, 5, el));
@@ -6533,6 +6572,8 @@
     // does not jump
     var dOff = !state.roof || preNoRoof, dd = ILU.uDay.value, dx = dOff ? IN_DAY[0] : 1, dy = dOff ? IN_DAY[1] : 1;
     dd.set(dd.x + (dx - dd.x) * 0.25, dd.y + (dy - dd.y) * 0.25); if (Math.abs(dd.x - dx) < 0.002) dd.set(dx, dy);
+    // with shadows: under the roof an even share of the day's light, with the roof off softer shadows (see FX.interiorLit)
+    if (SHADOW) { var rk = (dd.x - IN_DAY[0]) / (1 - IN_DAY[0]); ILU.uBounce.value = 0.36 * rk * clamp(hemi.intensity / LK / SH.hemi / 0.66, 0, 1.2); ILU.uSh.value = 0.35 + 0.65 * rk; }
     var fo = LV.fire * (LT.ext || 0) * fl; FIRE_U.uL.value = fo; HALO_F.color.setRGB(1.0, 0.55, 0.22, THREE.SRGBColorSpace).multiplyScalar(0.5 * fo);
     lampGlow();
     FBOX.emissive.setRGB(0.44, 0.19, 0.06, THREE.SRGBColorSpace).multiplyScalar(LV.fire * fl * (0.5 + 0.5 * Math.min(1, LT.ext || 0)));
@@ -6578,6 +6619,7 @@
       if (rc.hid === hide) return;
       rc.hid = hide;
       rc.crowns.setMatrixAt(rc.i, hide ? ZERO_M4 : rc.mc); rc.crowns.instanceMatrix.needsUpdate = true;
+      if (rc.tg && rc.tg.sh) { rc.tg.sh[0].setMatrixAt(rc.tg.sh[1], hide ? ZERO_M4 : rc.tg.sh[2]); rc.tg.sh[0].instanceMatrix.needsUpdate = true; }
       if (rc.trunks) { rc.trunks.setMatrixAt(rc.i, hide ? ZERO_M4 : rc.mt); rc.trunks.instanceMatrix.needsUpdate = true; }
     });
     Object.keys(houseGroups).forEach(function(k){ houseGroups[k].visible = state.house && k === houseSel && !fx; houseGroups[k].traverse(function(o){ if (o.userData.roof || o.userData.terr) o.visible = (!o.userData.roof || (state.roof && !preNoRoof)) && (!o.userData.terr || !preSolo); }); });

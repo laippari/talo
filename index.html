@@ -2132,7 +2132,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   var FT_SZ = {s:0, m:1, l:2}, FT_SZN = ['pieni', 'keskikokoinen', 'iso'], FT_MULCH = [0.55, 0.7, 0.9];
   var clamp = function(v, a, b){ return Math.max(a, Math.min(b, v)); };
   var copyOf = function(o){ return JSON.parse(JSON.stringify(o)); };
-  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:9, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:10, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
   // checked readers of a stored place (this browser's, or a saved view's)
   var plNum = function(v, d){ v = Number(v); return isFinite(v) ? v : d; }, plQuarter = function(v){ return ((Math.round(plNum(v, 0)) % 4) + 4) % 4; };
   var plHalf = function(v){ return ((Math.round(plNum(v, 0) * 2) / 2 % 4) + 4) % 4; };
@@ -2154,6 +2154,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         // version 8: the permit drawings of 5.11.2026 place Ideal 132 itself (0.89 m towards the south-west boundary and
         // 0.45 m towards the lake from the old drawing's house as it was centred); a house left where it stood by default moves
         if (!(p5.v >= 8) && Math.abs(place.bld.house.c[0]) < 0.01 && Math.abs(place.bld.house.c[1]) < 0.01) place.bld.house.c = BLD0.house.c.slice();
+        if (!(p5.v >= 10) && place.asph) place.aDetach = true;
   }
   (function(){
     var num = plNum, quarter = plQuarter, half = plHalf, bld = plBld, poly = plPoly;
@@ -5999,6 +6000,12 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   // the hedge opens. Behind the house the ground follows the ground line of drawing 03. At the boundaries the plan meets
   // the surveyed ground within 1 m, under the hedge. The yard runs level round the aspen at the edge of the asphalt (no
   // stone bed; RING_IDS lists trees that get one). Planned minus surveyed ground gives the fills and cuts.
+  // how wide a blend from planned to surveyed ground must be for a height dh: the smoothstep's steepest part is 1.5 dh / W,
+  // so 1.6 dh keeps it a little under 45 degrees
+  var SLOPE_K = 1.6, edgeWOf = function(dh){ return Math.max(EDGE_W, SLOPE_K * Math.abs(dh)); };
+  // the surveyed trees keep their roots: within TREE_R0 of the trunk the ground stays as it is, and the plan comes down
+  // to it no steeper than at the edges
+  var TREE_R0 = 0.6;
   var F0B = 42.00, RING_IN = 1.5, RING_W = 0.2, BLK_L = 0.5, BLK_H = 0.2, RING_IDS = [], RING_UP = 0.2, EDGE_W = 1.0, MOUTH_W = 6;
   function isRoadAt(x, z){ var c = rpx([x, z]); if (c[0] < 0 || c[1] < 0 || c[0] >= RMW || c[1] >= RMH) return false; return rg.getImageData(Math.floor(c[0]), Math.floor(c[1]), 1, 1).data[0] > 128; }
   function segNear(x, z, a, b){ var vx = b[0] - a[0], vz = b[1] - a[1], L2 = vx * vx + vz * vz || 1e-9, t = Math.max(0, Math.min(1, ((x - a[0]) * vx + (z - a[1]) * vz) / L2)), qx = a[0] + vx * t, qz = a[1] + vz * t; return [Math.hypot(x - qx, z - qz), qx, qz]; }
@@ -6074,10 +6081,13 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   // and over the verge to Opistontie
   var KT = null; (DATA.special || []).forEach(function(t){ if (t.id === 124) KT = t; });
   var B_SW = KT ? Math.round(HF0.B(KT.x, KT.z) * 100) / 100 : HF0.hb + 0.37, A_BK = -Math.round(HF0.ha * 100) / 100, R_ASPH = 1.0;
+  // the asphalt's end towards the house: 2 m of lawn in front of the house's front wall where it stands by default; and
+  // its south-west edge 1.6 m clear of the aspen's trunk
+  var A_FR = Math.round((HF0.ha + BLD0.house.c[0] + 2.0) * 100) / 100, TREE_CLR = 1.6;
   var abOf = function(p){ return [Math.round(HF0.A(p[0], p[1]) * 100) / 100, Math.round(HF0.B(p[0], p[1]) * 100) / 100]; };
   var ASPH0 = (function(){
     var M = mouthAt(0.22), q = M.poly.map(abOf);   // entrance edge on the boundary and its crossing to the road
-    return [[A_BK, -7.6], [9.2, -7.6], [9.45, -7.0], [16.0, -7.0], [16.24, -6.04], q[0], q[1], q[2], q[3], [16.42, B_SW], [A_BK, B_SW]];
+    return [[A_FR, -7.6], [9.2, -7.6], [9.45, -7.0], [16.0, -7.0], [16.24, -6.04], q[0], q[1], q[2], q[3], [16.42, B_SW - TREE_CLR], [A_FR, B_SW - TREE_CLR]];
   })();
   // an edited outline from version 4 gets the entrance it had then
   if (place.asph && place.m4 != null) {
@@ -6114,7 +6124,14 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     });
     return out;
   }
-  function asphAB(){ return asphLive(place.asph || ASPH0); }
+  function asphAB(){
+    if (place.aDetach) {
+      var hfA = HF0.ha + 0.05, toA = Math.round((HF0.ha + place.bld.house.c[0] + 2.0) * 100) / 100;
+      if (place.asph) place.asph = place.asph.map(function(v){ return v[0] <= hfA ? [toA, v[1]] : v; });
+      delete place.aDetach; savePlace();
+    }
+    return asphLive(place.asph || ASPH0);
+  }
   // the outline in world coordinates with its corners inside the plot (inside the hedge) rounded
   function asphRound(){
     return asphGarage(filletPoly(asphAB().map(function(v){ var p = HF0.P(v[0], v[1]); return [p[0], p[1], v[2] === 0 ? 0 : edgeMin(p[0], p[1]) > 0.35 ? R_ASPH : 0]; })));
@@ -6233,6 +6250,17 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     if (!nR) { var M0 = mouthAt(0.22), e3 = H(M0.R[0], M0.R[1]); sE = e3 == null ? 43 : e3; sA = HF.A(M0.R[0], M0.R[1]); nR = 1; }
     var ER = sE / nR, AR = sA / nR, tRoad = sT > 0 ? sT / nR : 2.4, s = clamp((ER - 0.03 - F0) / Math.max(4, AR - Ar), 0, 0.09);
     var PL = function(x, z){ return F0 + s * Math.max(0, HF.A(x, z) - Ar); };
+    // the surveyed trees inside the plot (not the ones the garage stands on): round each the planned ground comes down to
+    // the present ground at TREE_R0 from the trunk
+    var TRK = (DATA.special || []).filter(function(t){ return inPoly(t.x, t.z, PLOT) && !(GAR && GAR.F && Math.abs(GAR.F.U(t.x, t.z)) < GAR.F.d / 2 + 0.6 && Math.abs(GAR.F.V(t.x, t.z)) < GAR.F.w / 2 + 0.6); });
+    var treeW = function(x, z, dh){
+      var k = 1;
+      for (var q = 0; q < TRK.length; q++) {
+        var d = Math.hypot(x - TRK[q].x, z - TRK[q].z) - TREE_R0; if (d > 6) continue;
+        var u = clamp(d / edgeWOf(dh), 0, 1); k = Math.min(k, u * u * (3 - 2 * u));
+      }
+      return k;
+    };
     // over the verge the surface goes from the yard level at the boundary to the road edge (it matters when the yard is
     // raised above the road)
     var PX = function(x, z){ var p = PL(x, z); return p + (ER - 0.03 - p) * clamp(-edgeMin(x, z) / tRoad, 0, 1); };
@@ -6242,8 +6270,9 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
       if (INP[kk]) {
         var A = HF.A(x, z);
         D = A >= -ha ? PL(x, z) : Math.max(e, lerpP(PA_BACK, -A - ha) + dzH * Math.max(0, 1 - (-A - ha) / 10));
-        w = clamp(edgeMin(x, z) / EDGE_W, 0, 1); w = Math.max(w * w * (3 - 2 * w), wc); if (w < 1 && inPoly(x, z, AS)) w = 1;
+        w = clamp(edgeMin(x, z) / edgeWOf(D - e), 0, 1); w = Math.max(w * w * (3 - 2 * w), wc); if (w < 1 && inPoly(x, z, AS)) w = 1;
         for (var q = 0; q < rings.length; q++) if (Math.hypot(x - rings[q].x, z - rings[q].z) < RING_IN) { D = e; break; }
+        w *= treeW(x, z, D - e);
       } else if (CR[kk]) { D = PX(x, z); w = 1; }
       else if (wc > 0 && !inPoly(x, z, RP)) { D = Math.max(e, PX(x, z) - Math.max(0, dc - 0.3) / 3); w = wc; }
       else continue;
@@ -6274,7 +6303,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         if (wg > best) { best = wg; tgt = glawn; }
         if (best <= 0) continue;
         if (rings.some(function(r){ return Math.hypot(x5 - r.x, z5 - r.z) < RING_IN + RING_W; })) continue;
-        var we5 = ss(edgeMin(x5, z5) / EDGE_W);
+        var we5 = ss(edgeMin(x5, z5) / edgeWOf(tgt - E[k5])) * treeW(x5, z5, tgt - E[k5]);
         T[k5] += (tgt - E[k5] - T[k5]) * best * we5; IN[k5] = 1;
       }
     })();
@@ -6308,7 +6337,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         var zt = Math.min(Math.max(cur, lo), Math.max(hi, lo));
         if (Math.abs(zt - cur) < 1e-4) continue;
         if (rings.some(function(r){ return Math.hypot(xg - r.x, zg - r.z) < RING_IN; })) continue;
-        var we = clamp(edgeMin(xg, zg) / EDGE_W, 0, 1); we = we * we * (3 - 2 * we);
+        var we = clamp(edgeMin(xg, zg) / edgeWOf(zt - E[kg]), 0, 1); we = we * we * (3 - 2 * we) * treeW(xg, zg, zt - E[kg]);
         T[kg] += (zt - cur) * we; IN[kg] = 1;
       }
     })();
@@ -9552,7 +9581,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   // the hedge and the terrace's; the ground and everything on it are built again
   function applyPlace(p5){
     if (!p5 || !p5.bld) return;
-    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:9, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:10, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
     try { readPlace(p5, P); } catch (e) { return; }
     Object.keys(P).forEach(function(k){ place[k] = P[k]; }); delete place.m4;
     var mk = DATA.houses[place.bld.house.model] ? place.bld.house.model : '132'; place.bld.house.model = mk;

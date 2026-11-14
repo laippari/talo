@@ -66,6 +66,11 @@ Tavoite: talo, piha ja tontti näyttävät uskottavilta mutta värikkäiltä, ja
 - Talon ja autotallin korot ovat erilliset: kumpikin lasketaan pihan perussuunnitelmasta (`GP.TB`), ja oma hienosäätö
   nostaa tai laskee maata rakennuksen ympärillä pehmeästi häipyen.
 - Oletukset: tekstit pois, puujulkisivu, alkuperäinen pohja peilikuvana, korot 0.
+- Perusnäkymä: kotipainike ja jokainen sivun käynnistys palauttavat saman perustilan (kaikki työkalut ja tilat pois,
+  tasot oletuksiin, tekstit pois, esteliuku nollaan, kello 14.00, kamera talon etuviistoon). Talon ja pihan valinnat
+  säilyvät. Selaimeen jäävät muistiin vain asetukset: kameran nopeus, valojen himmennys, maanpinnan läpinäkyvyys,
+  sivupaneeli ja eläimet.
+- Kairaukset maan alla on oma tilansa: Poistu palauttaa tasot, tekstit ja kameran sellaisiksi kuin ne olivat.
 - Valinnoista on poistettu Lehtikuusi 125, Kaarna 152 ja Pikku-Jussi. Niiden koodi on tallessa.
 
 ## Rakenne

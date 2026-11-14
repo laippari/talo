@@ -480,6 +480,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
       <div class="ov runbar" id="runbar" hidden><span>Kamera-ajo</span><button type="button" class="btn" id="run-stop">■ Pysäytä</button></div>
       <div class="ov runbar" id="simbar" hidden><span>Tesla Model 3 ajaa kotiin</span><button type="button" class="btn" id="sim-stop">■ Lopeta</button></div>
       <div class="ov joy" id="joy" aria-hidden="true"><div class="joy-k" id="joyk"></div></div>
+      <div class="ov runbar" id="soilbar" hidden><span>Kairaukset maan alla</span><button type="button" class="btn" id="soil-exit">Poistu</button></div>
       <div class="ov runbar" id="prebar" hidden><span id="pre-name">Pohja ylhäältä</span><button type="button" class="btn" id="pre-back2">↩ Palaa</button></div>
       <div class="ov selbar" id="selbar" hidden>
         <div class="sel-t"><b id="sel-name">Ideal 132</b><span class="mb-read num" id="sel-info"></span></div>
@@ -685,7 +686,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         </div>
         <div class="grp">
           <h3>Maaperä ja kairaukset</h3>
-          <button type="button" class="btn center" id="soil-view">Näytä kairaukset maan alla</button>
+          <button type="button" class="btn center" id="soil-view" aria-pressed="false">Näytä kairaukset maan alla</button>
           <div class="ctl"><div class="ctl-h"><label for="soil-op">Maanpinnan läpinäkyvyys</label><span class="num" id="f-soilop">75 %</span></div>
             <input type="range" id="soil-op" min="0" max="0.95" step="0.05" value="0.75" style="width:100%"></div>
           <ul class="legend">

@@ -6585,7 +6585,7 @@
   // ---------- time of day and the interior lights (Näkymä) ----------
   // The sun follows 15 July in Vihti (60.4° N, 24.3° E) at local summer time; the light blends from day to evening and,
   // after sunset, to a dark late evening. The interior lights have one dimmer; the fire glows on its own
-  var tod = 20;
+  var tod = 14;   // the default hour (TOD_DEF below): the afternoon, when the yard is in full light
   var todIn = document.getElementById('tod'), todV = document.getElementById('f-tod');
   var sstep = function(a, b, x){ var t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   function sunAt(hr){
@@ -7132,7 +7132,7 @@
   }
   // from the camera as it is, or from a given spot {x, z, yaw, pitch, h, fov}
   function fpEnter(o){
-    secExit(); planExit(); selClear(); aedExit(); runStop();
+    soilExit(true); secExit(); planExit(); selClear(); aedExit(); runStop();
     if (state.cut) { state.cut = false; syncLayerUI(); applyLayers(); saveUI(); }
     setWorldExag(1); resetHud();
     if (o && o.x != null) { fp.x = o.x; fp.z = o.z; fp.yaw = o.yaw || 0; fp.pitch = o.pitch || 0; fp.h = clamp(o.h || 1.7, 0.3, FP_HMAX); }
@@ -7321,7 +7321,7 @@
     applyLayers();
   }
   function secEnter(){
-    preDrop(); fpExit(); planExit(); selClear(); aedExit(); if (mOpen) sheetTo('closed');
+    soilExit(true); preDrop(); fpExit(); planExit(); selClear(); aedExit(); if (mOpen) sheetTo('closed');
     setWorldExag(1);
     sec.was = {p:camera.position.clone(), t:controls.target.clone()};
     sec.on = true; tween = null; secBar.hidden = false;
@@ -8162,7 +8162,7 @@
   // a changed outline regrades the yard: the crossing to the road, the slope up to it, the hedge opening and the floors
   function asphCommit(){ regradeNow(); }
   function aedEnter(){
-    preDrop(); fpExit(); secExit(); selClear(); showLayer('yard');
+    soilExit(true); preDrop(); fpExit(); secExit(); selClear(); showLayer('yard');
     if (!place.asph) place.asph = ASPH0.map(function(v){ return v.slice(); });
     aed.on = true; aedBar.hidden = false; aed.undo = []; aedUndoUI(); aedBuild();
     var b = document.getElementById('asph-edit'); if (b) b.setAttribute('aria-pressed', 'true');
@@ -8226,7 +8226,7 @@
   }
   function planEnter(){
     if (plan.on) return;
-    preDrop(); fpExit(); secExit(); aedExit(); runStop(); resetHud(); if (mOpen) sheetTo('closed');
+    soilExit(true); preDrop(); fpExit(); secExit(); aedExit(); runStop(); resetHud(); if (mOpen) sheetTo('closed');
     plan.on = true; tween = null; controls.enabled = false; planFit(); applyLayers();
     if (planBar) planBar.hidden = false; if (planCv) planCv.hidden = false;
     view.classList.add('planview'); syncMode();
@@ -8508,17 +8508,39 @@
   // ---------- boreholes under the ground (Tekninen): the plot alone, see-through ground, no trees ----------
   var soilIn = document.getElementById('soil-op'), soilV = document.getElementById('f-soilop');
   function soilUI(){ if (soilIn && document.activeElement !== soilIn) soilIn.value = soilOp; if (soilV) soilV.textContent = Math.round(soilOp * 100) + ' %'; }
+  // Näytä kairaukset maan alla is a mode of its own: it remembers the layers, the texts and the camera as they were,
+  // and Poistu (or Esc, the button again, Perusnäkymä or any other mode) puts them back
+  var soilM = {on:false, was:null}, soilBar = document.getElementById('soilbar');
+  function soilBarUI(){
+    if (soilBar) soilBar.hidden = !soilM.on;
+    var b = document.getElementById('soil-view'); if (b) { b.setAttribute('aria-pressed', String(soilM.on)); b.textContent = soilM.on ? 'Sulje kairaukset' : 'Näytä kairaukset maan alla'; }
+  }
   function soilView(){
+    if (soilM.on) { soilExit(); return; }
     preDrop(); planExit(); fpExit(); secExit(); selClear(); aedExit(); if (mOpen) sheetTo('closed');
+    var ly = {}; LAYER_KEYS.forEach(function(k){ ly[k] = state[k]; });
+    soilM.was = {ly:ly, cut:state.cut, labels:state.labels, fnd:state.fnd, cam:{p:[camera.position.x, camera.position.y, camera.position.z], t:[controls.target.x, controls.target.y, controls.target.z], fixed:true}};
+    soilM.on = true;
     state.soil = true; state.cut = true; state.trees = false; state.ptrees = false; state.hedge = false; state.util = false; state.points = false; state.water = false;
     if (!state.labels) state.labels = 1;
-    syncLayerUI(); applyLayers(); saveUI();
+    syncLayerUI(); applyLayers(); soilBarUI(); saveUI();
     // from the plot's long side and a little above the ground, so the block's side with its layers, the boreholes and
     // the level where they stopped all show
     var c = PLOTC.reduce(function(a, p){ return [a[0] + p[0] / PLOTC.length, a[1] + p[1] / PLOTC.length]; }, [0, 0]);
     flyTo({p:[c[0] + AX.rx * 66 - AX.ux * 30, Y(53), c[1] + AX.rz * 66 - AX.uz * 30], t:[c[0], Y(34), c[1]]});
   }
-  if (soilIn) soilIn.addEventListener('input', function(){ soilOp = Number(soilIn.value); soilUI(); if (!state.soil && !state.water) { state.soil = true; syncLayerUI(); } applyLayers(); saveUI(); });
+  // quiet: the layers and the texts come back but the camera stays (another mode or view takes it from here)
+  function soilExit(quiet){
+    if (!soilM || !soilM.on) return;
+    var W = soilM.was; soilM.on = false; soilM.was = null;
+    LAYER_KEYS.forEach(function(k){ state[k] = W.ly[k]; }); state.cut = W.cut; state.labels = W.labels; state.fnd = W.fnd;
+    syncLayerUI(); applyLayers(); syncFndUI(); soilBarUI();
+    if (!quiet) flyTo(W.cam);
+    saveUI();
+  }
+  bindBtn('soil-exit', function(){ soilExit(); });
+  document.addEventListener('keydown', function(e){ if (soilM.on && e.key === 'Escape') soilExit(); });
+  if (soilIn) soilIn.addEventListener('input', function(){ soilOp = Number(soilIn.value); soilUI(); applyLayers(); saveUI(); });
   bindBtn('soil-view', soilView);
   // ---------- saved views, camera runs and pictures (the Näkymät tab) ----------
   // A view keeps the camera (also the look-around eye) and every setting that is on: layers, surface, extent, texts, the
@@ -8604,6 +8626,7 @@
     syncLayerUI(); applyLayers(); applyTime(); applyLights(); saveUI(); drillUI(); syncFndUI();
   }
   function vApply(v, instant){
+    soilExit(true);
     if (!v) return;
     preDrop(); runStop(); aedExit(); selClear(); secExit(); planExit();
     vApplySettings(v.settings);
@@ -8730,6 +8753,22 @@
   }
   // the layers a ready view has taken off come back
   function preClear(){ var ch = preNoRoof || preSolo; preNoRoof = false; preSolo = null; if (ch) applyLayers(); }
+  // The basic view. Every tool and mode is off, the layers are as the model opens with them, the texts are away, nothing
+  // is hidden from in front of the camera and the hour is the default one; the camera looks at the house from the road
+  // side as the model opens. Perusnäkymä (the home button) and every start of the page come back to exactly this, so
+  // whatever was left on is gone with one press. The house's and the yard's own choices are not touched
+  var TOD_DEF = 14;
+  function homeView(){
+    var HH = DATA.houses[houseSel], hcN = mean4(HH.corners), vo = VIEWS.oblique, yt = Y(HH.floor - 0.5);
+    return {p:[hcN[0] + vo.p[0] - vo.t[0], yt + vo.p[1] - vo.t[1], hcN[1] + vo.p[2] - vo.t[2]], t:[hcN[0], yt, hcN[1]]};
+  }
+  function viewDefaults(){
+    LAYER_KEYS.forEach(function(k){ state[k] = LAYER_DEF[k]; });
+    state.cut = false; state.fnd = 'off'; state.labels = 0; layerMemo = null;
+    treeHideD = 0; treeUI();
+    if (tod !== TOD_DEF) { tod = TOD_DEF; applyTime(); }
+    syncLayerUI(); applyLayers(); syncFndUI();
+  }
   function preGo(id){
     var P = PRE.filter(function(x){ return x.id === id; })[0], HH = DATA.houses[houseSel], pm = HH.plan2d && HH.plan2d.pm;
     if (!P) return;
@@ -8737,13 +8776,16 @@
     // fresh start, not a ready view to come back from
     if (P.home) {
       if (fp.on) fpQuiet();
-      secExit(); planExit(); runStop(); aedExit(); selClear();
+      if (typeof sim === 'object' && sim && sim.on) simStop();
+      secExit(); planExit(); runStop(); aedExit(); selClear(); soilExit(true);
       pre.cur = null; pre.back = null; preClear();
-      var hcN = mean4(HH.corners), vo = VIEWS.oblique, yt = Y(HH.floor - 0.5);
+      vsClose(); lsClose(); obClose();
+      viewDefaults();
       fovT = null; camera.fov = 36; camera.updateProjectionMatrix();
-      flyTo({p:[hcN[0] + vo.p[0] - vo.t[0], yt + vo.p[1] - vo.t[1], hcN[1] + vo.p[2] - vo.t[2]], t:[hcN[0], yt, hcN[1]]});
-      syncMode(); preUI(); return;
+      flyTo(homeView());
+      syncMode(); preUI(); saveUI(); return;
     }
+    soilExit(true);
     if (pre.cur === id && pre.back) { preBack(); return; }
     if (!pre.back && (P.top || P.solo || P.plotTop)) pre.back = preSnap();
     pre.cur = id; pre.busy = true;
@@ -8993,7 +9035,7 @@
   function simAt(R, s, arr){ var k = clamp(s / R.ds, 0, R.N), i = Math.min(R.N - 1, Math.floor(k)), w = k - i; return arr[i] + (arr[i + 1] - arr[i]) * w; }
   function simStart(){
     if (sim.on || !GAR || !GAR.door) return;
-    preDrop(); runStop(); secExit(); planExit(); aedExit(); selClear();
+    soilExit(true); preDrop(); runStop(); secExit(); planExit(); aedExit(); selClear();
     if (state.fnd === 'x') { state.fnd = 'off'; syncFndUI(); }
     sim.back = preSnap(); if (fp.on) fpQuiet();
     sim.R = simRoute(); if (!sim.car) sim.car = m3Build();
@@ -9362,29 +9404,21 @@
   commitPlace();
 
   applyHouse();
-  var v0 = VIEWS.oblique, ui0 = null;
+  // The page always opens in the basic view (viewDefaults, homeView). Remembered from the last time are only the
+  // preferences: the camera's speed, the lights' dimmers, the ground's see-through, the side panel and the animals
+  var ui0 = null;
   try { ui0 = JSON.parse(localStorage.getItem(UI_KEY) || 'null'); } catch (e) {}
   if (ui0) {
-    if (ui0.layers) LAYER_KEYS.forEach(function(k){ if (typeof ui0.layers[k] === 'boolean') state[k] = ui0.layers[k]; });
-    state.cut = !!ui0.cut;
     if (typeof ui0.speed === 'number' && ui0.speed >= 0.3 && ui0.speed <= 1.8) { camSpeed = ui0.speed; applyCamSpeed(); }
-    if (typeof ui0.treeHide === 'number' && ui0.treeHide >= 0 && ui0.treeHide <= 150) treeHideD = ui0.treeHide;
-    if (typeof ui0.tod === 'number' && ui0.tod >= 0 && ui0.tod <= 24) tod = ui0.tod; else if (ui0.mood === 'night') tod = 23.75;
     readDimmers(ui0);
     if (typeof ui0.soilOp === 'number' && ui0.soilOp >= 0 && ui0.soilOp <= 0.95) soilOp = ui0.soilOp;
-
-    if (ui0.tab) showTab(ui0.tab);
     if (ui0.panel === false) setPanel(false);
     state.animals = ui0.anV === 2 ? ui0.animals === true : true;
   }
   syncLayerUI(); applyLayers(); exagUI(); syncMode(); applyTime(); applyLights(); soilUI(); anSync();
   if (camIn) { camIn.value = camSpeed; camV.textContent = camLabel(camSpeed); }
   treeUI();
-  if (ui0 && ui0.cam && ui0.cam.p && ui0.cam.t) {
-    var sy0 = world.scale.y;
-    camera.position.set(ui0.cam.p[0], ui0.cam.p[1] * sy0, ui0.cam.p[2]); controls.target.set(ui0.cam.t[0], ui0.cam.t[1] * sy0, ui0.cam.t[2]);
-    if (state.soil || state.water || state.cut || state.fnd === 'x') controls.maxPolarAngle = Math.PI * 0.72;
-  } else { camera.position.set(v0.p[0], v0.p[1], v0.p[2]); controls.target.set(v0.t[0], v0.t[1], v0.t[2]); }
+  (function(){ var v0 = homeView(); camera.position.set(v0.p[0], v0.p[1], v0.p[2]); controls.target.set(v0.t[0], v0.t[1], v0.t[2]); })();
   controls.update();
   uiReady = true;
   phoneLayout();

@@ -45,7 +45,7 @@ try {
   const phone = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 820;
   const sq = q.get('varjot'), Q = { phone, shadow: sq === '0' ? 0 : (Number(sq) || (phone ? 2048 : 4096)) };
   renderer.shadowMap.enabled = Q.shadow > 0;
-  renderer.shadowMap.type = phone ? THREE_NS.PCFShadowMap : THREE_NS.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE_NS.PCFShadowMap;
   // Sävykäyrä: väri pysyy sellaisenaan polveen (0,72) asti ja taittuu sen yläpuolella pehmeästi kohti valkoista, sävy
   // säilyttäen. Sama kuin three.js:n neutraali käyrä ilman sen tummaa siirtymää, joka söisi mallin tummat pinnat
   // (asfaltti, katto), koska materiaaleissa ei ole kiiltoa, jota siirtymä kompensoisi

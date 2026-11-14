@@ -500,34 +500,6 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
           <div class="ctl"><div class="ctl-h"><span>Malli ja paikka</span><span class="num" id="f-fire">syvennyksessä</span></div>
             <div class="seg" role="group" aria-label="Takka"><button type="button" data-fire="veronika" aria-pressed="true">Veronika</button><button type="button" data-fire="wilma" aria-pressed="false">Wilma AIR</button><button type="button" data-fire="pj" aria-pressed="false">Pikku-Jussi</button></div></div>
         </div>
-        <div class="grp">
-          <h3>Perustus</h3>
-          <div class="ctl"><div class="ctl-h"><span>Paalulaatta ja täytöt</span><span class="num" id="f-fnd">piilossa</span></div>
-            <div class="seg" role="group" aria-label="Perustus"><button type="button" data-fnd="off" aria-pressed="true">Piilossa</button><button type="button" data-fnd="x" aria-pressed="false">Maan alla</button><button type="button" data-fnd="sec" aria-pressed="false">Leikkaus</button></div></div>
-          <ul class="legend" id="fnd-legend" hidden>
-            <li><i style="background:#a7aaa9"></i>Betoni</li>
-            <li><i style="background:#f0ece2;box-shadow:inset 0 0 0 1px #9a9688"></i>EPS-eriste</li>
-            <li><i class="rod" style="background:#4b555e"></i>Paalut 90/6,3</li>
-            <li><i style="background:#d8c497"></i>Eristyssora</li>
-            <li><i style="background:#8d979c"></i>Kapillaarikatko</li>
-            <li><i style="background:#ae9c7c"></i>Alustäyttö KaM</li>
-            <li><i style="background:#d9bf82"></i>Vierustäyttö</li>
-            <li><i style="background:#86b9de"></i>Routaeriste</li>
-            <li><i style="background:#d9a12a;border-radius:50%"></i>Salaoja</li>
-            <li><i style="background:#5b3b22;opacity:.55"></i>Tunkeumataso</li>
-          </ul>
-          <p class="note" id="fnd-note" hidden>Maan alla -näkymässä talo on piilossa ja maa läpinäkyvä. Paalujako on havainnollinen: 18 paalua, kuten talokaupassa. Lopullinen paalukartta, salaojat ja routasuojaus tulevat perustussuunnitelmasta.</p>
-          <div class="drills"><button type="button" class="drill" data-sub="ifnd"><span class="dl-t">Perustuksen tiedot</span><span class="dl-v num" id="d-fnd"></span><span class="dl-c" aria-hidden="true">›</span></button></div>
-        </div>
-        <div class="grp">
-          <h3>Paikka ja korko</h3>
-          <p class="note">Valitse tästä tai klikkaa mallissa. Valinnan palkista sitä voi siirtää, kääntää, peilata ja nostaa.</p>
-          <div class="drills">
-            <button type="button" class="drill" data-pick="house"><span class="dl-t">Talo</span><span class="dl-v num" id="d-house"></span><span class="dl-c" aria-hidden="true">›</span></button>
-            <button type="button" class="drill" data-pick="deck"><span class="dl-t">Terassi ja pergola</span><span class="dl-v num" id="d-deck"></span><span class="dl-c" aria-hidden="true">›</span></button>
-            <button type="button" class="drill" data-pick="tub"><span class="dl-t">Allas</span><span class="dl-v num" id="d-tub"></span><span class="dl-c" aria-hidden="true">›</span></button>
-          </div>
-        </div>
       </section>
 
       <section class="pane" id="tab-yard" role="tabpanel" aria-labelledby="tb-yard" hidden>
@@ -9552,7 +9524,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     if (S.labels === 0 || S.labels === 1 || S.labels === 2) state.labels = S.labels;
     if (typeof S.tod === 'number') tod = clamp(S.tod, 8, 24); else if (S.mood === 'eve' || S.mood === 'night') tod = S.mood === 'night' ? 23.75 : 20;
     readDimmers(S);
-    if (S.fnd === 'x' || S.fnd === 'off') state.fnd = S.fnd;
+    state.fnd = 'off';
     if (typeof S.treeHide === 'number') { treeHideD = clamp(S.treeHide, 0, 150); if (treeIn) { treeIn.value = treeHideD; treeV.textContent = treeLabel(treeHideD); } }
     if (typeof S.cut === 'boolean' && S.cut !== state.cut) { if (S.cut) { fpExit(); secExit(); } state.cut = S.cut; }
     syncLayerUI(); applyLayers(); applyTime(); applyLights(); saveUI(); drillUI(); syncFndUI();
@@ -10306,7 +10278,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     if (typeof ui0.tod === 'number' && ui0.tod >= 8 && ui0.tod <= 24) tod = ui0.tod; else if (ui0.mood === 'night') tod = 23.75;
     readDimmers(ui0);
     if (typeof ui0.soilOp === 'number' && ui0.soilOp >= 0 && ui0.soilOp <= 0.95) soilOp = ui0.soilOp;
-    if (ui0.fnd === 'x') state.fnd = 'x';
+
     if (ui0.tab) showTab(ui0.tab);
     if (ui0.panel === false) setPanel(false);
     state.animals = ui0.anV === 2 ? ui0.animals === true : true;

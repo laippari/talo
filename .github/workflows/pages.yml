@@ -1,0 +1,56 @@
+# Julkaisee sivun GitHub Pagesiin jokaisella main-haaran pushilla.
+# Sivu on yksi staattinen HTML-tiedosto (ei käännösvaihetta): julkaistaan index.html.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check page
+        run: |
+          test -s index.html || { echo "index.html puuttuu"; exit 1; }
+          grep -q '<title>' index.html || { echo "index.html: title puuttuu"; exit 1; }
+          size=$(stat -c %s index.html); echo "index.html $size tavua"
+          [ "$size" -lt 50000000 ] || { echo "index.html on liian suuri"; exit 1; }
+      - name: Check script syntax
+        run: |
+          # inline-skriptit erikseen tarkistettaviksi (JSON-datalohkoa ei tarkisteta)
+          python3 - <<'PY'
+          import re, pathlib
+          s = pathlib.Path('index.html').read_text(encoding='utf-8')
+          parts = re.findall(r'<script(?![^>]*\bsrc=)(?![^>]*application/json)[^>]*>(.*?)</script>', s, re.S)
+          pathlib.Path('_check').mkdir(exist_ok=True)
+          for i, p in enumerate(parts):
+              pathlib.Path(f'_check/s{i}.js').write_text(p, encoding='utf-8')
+          print(len(parts), 'skriptiä')
+          PY
+          for f in _check/*.js; do node --check "$f" || { echo "syntaksivirhe: $f"; exit 1; }; done
+      - name: Assemble site
+        run: |
+          mkdir _site
+          cp index.html _site/
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

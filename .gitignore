@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__/
+*.pyc
+# työkopiot ja kuvakaappaukset pysyvät poissa repositoriosta
+shots/
+*.tmp.html

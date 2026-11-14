@@ -153,6 +153,9 @@ html.touch .m-only,html:not(.touch) .t-only{display:none}
 .sel-fl{display:flex;align-items:center;gap:8px;font-size:var(--fs-s);color:var(--muted)}
 .sel-fl input{width:130px;height:30px}
 .sel-fl .num{color:var(--ink);min-width:62px}
+.swatches{display:flex;align-items:center;gap:8px}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid var(--hud);box-shadow:0 0 0 1px var(--line);padding:0;cursor:pointer;flex:none}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent)}
 .selbar .mb-read.warn{color:var(--boundary)}
 .selbar .btn{min-height:30px;padding:3px 10px}
 #handles{position:absolute;inset:0;pointer-events:none;z-index:4;overflow:hidden}
@@ -494,6 +497,10 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
           <div class="seg" role="group" aria-label="Pergolan lasitus"><button type="button" data-glaze="closed" aria-pressed="true">lasit kiinni</button><button type="button" data-glaze="open" aria-pressed="false">auki</button></div>
           <div class="seg" role="group" aria-label="Terassin koko"><button type="button" data-decksz="big" aria-pressed="true" title="Terassi 5,4 m ja kasvihuone pergolan jatkona">iso</button><button type="button" data-decksz="small" aria-pressed="false" title="Terassi 4,4 m ja kasvihuone 2,6 m, seinä koko sivulla">pieni</button></div>
           <button type="button" class="btn" id="screen-tg" aria-pressed="true" title="Seinäke pergolaa vastapäätä">Seinäke</button>
+        </div>
+        <div class="sel-c" id="sel-tub" hidden>
+          <label class="sel-fl"><span>Valo</span><input type="range" id="tub-k" min="0" max="1" step="0.05" value="0.7" aria-label="Altaan valon voimakkuus"><span class="num" id="f-tubk">70 %</span></label>
+          <div class="swatches" role="group" aria-label="Altaan valon väri" id="tub-cols"></div>
         </div>
         <div class="sel-c" id="sel-tree" hidden>
           <div class="seg" role="group" aria-label="Laji"><button type="button" data-tsp="cherry" aria-pressed="false">kirsikka</button><button type="button" data-tsp="apple" aria-pressed="false">omena</button><button type="button" data-tsp="pear" aria-pressed="false">päärynä</button></div>

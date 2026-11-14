@@ -1147,6 +1147,8 @@
   function garAlignD(){ var a = HF0.a, d = PE[1].d, al = Math.atan2(a[0] * d[1] - a[1] * d[0], a[0] * d[0] + a[1] * d[1]) / (Math.PI / 2); return al - Math.round(al); }
   function garRot(G){ return G.al ? G.rot + garAlignD() : G.rot; }
   var garDim = function(v){ return String(Math.round(v * 10) / 10).replace('.', ','); };
+  // the tub's light: the colours to choose from (the first is the default)
+  var TUB_COLS = [['#35b8ff', 'sininen'], ['#22e0c8', 'turkoosi'], ['#eaf6ff', 'valkoinen'], ['#ffd9a0', 'lämmin'], ['#4cf06a', 'vihreä'], ['#c05cff', 'violetti'], ['#ff4a6a', 'punainen']];
   var PLACE_KEY = 'ah1-place-v5', MONO_SLOPE = 0.14, DZ_MIN = -1, DZ_MAX = 2;
   var BLD0 = {
     house:{c:[-0.45, 0.89], rot:0, mir:true, roof:'gable', dz:0, model:'132'},
@@ -1168,7 +1170,7 @@
   var FT_SZ = {s:0, m:1, l:2}, FT_SZN = ['pieni', 'keskikokoinen', 'iso'], FT_MULCH = [0.55, 0.7, 0.9];
   var clamp = function(v, a, b){ return Math.max(a, Math.min(b, v)); };
   var copyOf = function(o){ return JSON.parse(JSON.stringify(o)); };
-  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:11, fire:'veronika', plan:'a', facade:'wood', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:11, fire:'veronika', plan:'a', facade:'wood', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, tubK:0.7, tubC:TUB_COLS[0][0], treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
   // checked readers of a stored place (this browser's, or a saved view's)
   var plNum = function(v, d){ v = Number(v); return isFinite(v) ? v : d; }, plQuarter = function(v){ return ((Math.round(plNum(v, 0)) % 4) + 4) % 4; };
   var plHalf = function(v){ return ((Math.round(plNum(v, 0) * 2) / 2 % 4) + 4) % 4; };
@@ -1183,6 +1185,7 @@
         if (!(p5.v >= 6)) place.bld.tub.rot = 1; if (Math.abs(g5.c[0] - 12.94) < 0.01 && Math.abs(g5.c[1] + 4.0) < 0.01) g5.c = BLD0.gar.c.slice(); place.bld.gar = g5;
         place.asph = poly(p5.asph); place.hedge = clamp(num(p5.hedge, 2), 0.5, 3); place.fire = p5.v >= 9 && p5.fire === 'wilma' ? 'wilma' : 'veronika'; place.plan = p5.plan === 'b' ? 'b' : 'a'; place.facade = p5.facade === 'dark' ? 'dark' : 'wood'; place.deckDz = clamp(num(p5.deckDz, 0), -0.4, 0.3); place.screen = p5.screen !== false; place.glaze = p5.glaze === 'open' ? 'open' : 'closed'; place.pergSide = p5.pergSide === 'far' ? 'far' : 'near'; place.deckSmall = p5.deckSmall === true;
         place.treesOff = [];
+        place.tubK = clamp(num(p5.tubK, 0.7), 0, 1); place.tubC = TUB_COLS.some(function(c){ return c[0] === p5.tubC; }) ? p5.tubC : TUB_COLS[0][0];
         var of5 = p5.bld && p5.bld.ofire; place.bld.ofire = of5 && of5.c && isFinite(of5.c[0]) && isFinite(of5.c[1]) ? {c:[Number(of5.c[0]), Number(of5.c[1])], rot:plQuarter(of5.rot)} : {c:null, rot:of5 ? plQuarter(of5.rot) : 0};
         place.fence = p5.fence !== false; place.fenceH = clamp(num(p5.fenceH, 1), 0.6, 2); place.hedgeFront = p5.hedgeFront === true;
         place.trees = Array.isArray(p5.trees) ? p5.trees.filter(function(t){ return t && FT_SP[t.sp] && FT_SZ[t.sz] != null && t.c && isFinite(t.c[0]) && isFinite(t.c[1]); }).slice(0, 40).map(function(t, i){ return {id:typeof t.id === 'string' ? t.id.slice(0, 24) : 'u' + i, sp:t.sp, sz:t.sz, c:[Number(t.c[0]), Number(t.c[1])]}; }) : copyOf(TREES0);
@@ -2678,6 +2681,19 @@
     pillow:new THREE.MeshPhongMaterial({color:0x4a4e52, specular:0x141414, shininess:12}), spaLed:new THREE.MeshBasicMaterial({color:0xe2f5ff})
   };
   shinyAdd([OD.acryl, OD.spaWater]);
+  // The tub's light: lamps under the water. The water and the shell under it glow in the light's colour, faintly by day
+  // and fully once the evening darkens, and after dusk the light spills on the deck round the tub. Its strength and
+  // colour are the tub's own, set in the bar of the selected tub (place.tubK, place.tubC)
+  var TUBL = {U:FX.uniforms({uL:0}), G:FX.uniforms({uY:0}), col:THREE.screenColor(TUB_COLS[0][0]), ledOff:new THREE.Color(0x3a4044), white:new THREE.Color(0xffffff)};
+  FX.belowGlow(OD.acryl, TUBL.G); FX.belowGlow(OD.liner, TUBL.G);
+  var tubGlowMat = FX.poolMaterial(TUBL.U, 0.9, TUBL.col);
+  function applyTubLight(){
+    var k = clamp(place.tubK == null ? 0.7 : place.tubK, 0, 1), on = (LT && LT.ext) || 0, hex = place.tubC || TUB_COLS[0][0], e = new THREE.Color(hex), lk = Math.min(1, k * 1.6);
+    TUBL.col.copy(THREE.screenColor(hex)); TUBL.U.uL.value = k * on;
+    OD.spaWater.emissive.copy(e).multiplyScalar(k * (0.2 + 0.8 * on)); OD.water.emissive.copy(e).multiplyScalar(k * (0.22 + 0.9 * on));
+    OD.acryl.emissive.copy(e).multiplyScalar(k * (0.14 + 0.8 * on)); OD.liner.emissive.copy(e).multiplyScalar(k * (0.12 + 0.7 * on));
+    OD.spaLed.color.copy(TUBL.ledOff).lerp(e, lk).lerp(TUBL.white, 0.35 * lk);
+  }
   // walls washes and ground pools of one building, collected and drawn as meshes that clicks pass through. A pool lies on
   // what is under it, a grid of about 0.2 m following hf (the deck, the porch or the ground); at a wall only the part in
   // front of it
@@ -3101,6 +3117,29 @@
         var dW = new THREE.Vector3(SW[0] - TCw[0], 0, SW[1] - TCw[1]).normalize(), pc = [TCw[0] + dW.x * (R + 0.1), TCw[1] + dW.z * (R + 0.1)];
         [0.18, 0.48].forEach(function(zz){ put(new THREE.CylinderGeometry(0.04, 0.04, 0.2, 10), pc, z0 + zz, M132.steel).quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dW); });
       }
+      // the tub's light: the level of the water for the glow under it, and the spill of the light on the deck or the
+      // ground round the tub (not under the tub itself)
+      TUBL.G.uY.value = Y(rim - (spa ? 0.13 : 0.17)) + 0.005;
+      (function(){
+        var hw = spa ? SPA.h : R, RG = hw + 2.4, K = Math.ceil(2 * RG / 0.22), pos = [], lp = [];
+        // a point of the grid: one inside the tub is moved out to the tub's side, so nothing of the spill lies under the
+        // water; on the terrace the light stays on its boards (the pergola's wall stops it), elsewhere on the ground
+        var P = function(i, j){
+          var u = -RG + 2 * RG * i / K, v = -RG + 2 * RG * j / K, din = spa ? Math.max(Math.abs(u), Math.abs(v)) : Math.hypot(u, v), ins = din < hw;
+          if (ins) { if (din < 1e-6) { u = hw; v = 0; } else { u *= hw / din; v *= hw / din; } }
+          var x = tc[0] + u, y = tc[1] + v, w = L(x, y), px = flip ? tx1 - x : x;
+          var onD = inDeck(x, y) || (GL > 0 && px >= 0 && px <= PW && y >= PD && y <= PD + GL);
+          return [w[0], Y(onD ? D : gAt(w[0], w[1])) + 0.035, w[1], u / RG, v / RG, ins, onD];
+        };
+        for (var j = 0; j < K; j++) for (var i = 0; i < K; i++) {
+          var q = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)];
+          if (q.every(function(e){ return e[3] * e[3] + e[4] * e[4] > 1.1; }) || q.every(function(e){ return e[5]; })) continue;
+          if (onDeck && !q.every(function(e){ return e[6]; })) continue;
+          [0, 1, 2, 0, 2, 3].forEach(function(n){ pos.push(q[n][0], q[n][1], q[n][2]); lp.push(q[n][3], q[n][4]); });
+        }
+        var gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); gg.setAttribute('lp', new THREE.Float32BufferAttribute(lp, 2));
+        var gm = new THREE.Mesh(gg, tubGlowMat); gm.raycast = function(){}; gm.renderOrder = 4; gm.castShadow = gm.receiveShadow = false; tg.add(gm);
+      })();
       TUB = {g:tg, c:TCw, R:R, type:spa ? 'spa' : 'palju', rim:rim, base:base, up:up, surf:surf, onDeck:onDeck, stove:SW,
         out:tubRing(T, 0, 48).map(function(q){ return L(q[0], q[1]); }), foot:tubRing(T, 0.08).map(function(q){ return L(q[0], q[1]); }),
         redo:function(){ g.remove(tg); tg.traverse(function(o){ if (o.geometry && o.geometry !== unitBox) o.geometry.dispose(); }); makeTub(); }};
@@ -6675,6 +6714,7 @@
     HALO_B.color.setRGB(1.0, 0.72, 0.45, THREE.SRGBColorSpace).multiplyScalar(0.6 * kb);
     // the other models: their porch downlights with the wall lights, and in the evening a warm glow behind their windows
     if (MT) { MT.spot.color.copy(EXT_OFF).lerp(EXT_ON, Math.min(1, kw * 1.6)); var gw = on * Math.min(1, LV.all * 1.2); MT.glass.emissive.setRGB(0.62 * gw, 0.42 * gw, 0.2 * gw, THREE.SRGBColorSpace); }
+    applyTubLight();
     document.querySelectorAll('[data-ext]').forEach(function(inp){ var k = inp.dataset.ext, v = k === 'all' ? Math.max(EXT.w, EXT.b) : EXT[k], o = document.getElementById('f-ext-' + k); if (document.activeElement !== inp) inp.value = v; if (o) o.textContent = lvText(v); });
   }
   function applyLights(){
@@ -7629,6 +7669,7 @@
     if (sm) sm.hidden = k === 'tub' || k === 'ofire';
     var sfl = document.querySelector('#selbar .sel-fl'); if (sfl) sfl.hidden = k === 'ofire';
     var sdk = document.getElementById('sel-deck'); if (sdk) sdk.hidden = k !== 'deck';
+    var stb = document.getElementById('sel-tub'); if (stb) stb.hidden = k !== 'tub'; if (k === 'tub') tubLightUI();
     var ftb = document.getElementById('f-tub'); if (ftb) ftb.textContent = place.bld.tub.type === 'spa' ? 'poreallas 2,2 × 2,2 m' : 'palju Ø 1,95 m';
     var bl = document.getElementById('broof-low'); if (bl) bl.hidden = k !== 'gh';
     var rseg = document.querySelector('#selbar .seg[aria-label="Katto"]'); if (rseg) rseg.hidden = (k === 'house' && houseSel !== '132') || k === 'deck' || k === 'tub' || k === 'ofire';
@@ -7747,6 +7788,20 @@
     buildHouses(); applyLayers(); savePlace(); syncPlaceUI(); if (sec.on) secBuild();
   }); });
   syncPlanUI();
+  // the tub's light: its strength and colour
+  function tubLightUI(){
+    var kin = document.getElementById('tub-k'), kv = document.getElementById('f-tubk');
+    if (kin && document.activeElement !== kin) kin.value = place.tubK; if (kv) kv.textContent = lvText(place.tubK);
+    document.querySelectorAll('[data-tubcol]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.tubcol === place.tubC)); });
+  }
+  (function(){
+    var box = document.getElementById('tub-cols'), kin = document.getElementById('tub-k');
+    if (box) TUB_COLS.forEach(function(c){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'sw'; b.style.background = c[0]; b.title = c[1]; b.setAttribute('aria-label', c[1]); b.dataset.tubcol = c[0];
+      b.addEventListener('click', function(){ place.tubC = c[0]; applyTubLight(); savePlace(); tubLightUI(); }); box.appendChild(b);
+    });
+    if (kin) kin.addEventListener('input', function(){ place.tubK = Number(kin.value); applyTubLight(); savePlace(); tubLightUI(); });
+  })();
   bindBtn('sel-reset', function(){
     var k = sel.obj; if (!k || isTree(k) || isSp(k)) return;
     // the default place, turn, mirror image and level for every thing; its kind (the roof, the tub's) stays as chosen
@@ -8616,7 +8671,7 @@
   // the hedge and the terrace's; the ground and everything on it are built again
   function applyPlace(p5){
     if (!p5 || !p5.bld) return;
-    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:11, fire:'veronika', plan:'a', facade:'wood', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:11, fire:'veronika', plan:'a', facade:'wood', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, tubK:0.7, tubC:TUB_COLS[0][0], treesOff:[], fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
     try { readPlace(p5, P); } catch (e) { return; }
     Object.keys(P).forEach(function(k){ place[k] = P[k]; }); delete place.m4;
     var mk = DATA.houses[place.bld.house.model] ? place.bld.house.model : '132'; place.bld.house.model = mk;

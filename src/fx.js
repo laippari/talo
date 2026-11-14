@@ -284,10 +284,18 @@ function poolMaterial(U, k, c){
   c = c || [1.0, 0.7, 0.42];
   const m = lampBase(); m.polygonOffset = true; m.polygonOffsetFactor = -4; m.polygonOffsetUnits = -4;
   const d = length(attribute('lp', 'vec2')), a = exp(d.mul(d).mul(-7.0)).mul(0.55).add(pow(max(float(1).sub(d), 0.0), 1.4).mul(0.5));
-  m.colorNode = vec4(toL(vec3(c[0], c[1], c[2])).mul(a).mul(U.uL).mul(k), 1.0);
+  // the colour as screen values: fixed, or a colour object the application changes (the tub's light)
+  const cv = c.isColor ? vec3(uniform(c)) : vec3(c[0], c[1], c[2]);
+  m.colorNode = vec4(toL(cv).mul(a).mul(U.uL).mul(k), 1.0);
   m.maskNode = d.lessThan(1.0);
   m.uniforms = U;
   return m;
+}
+
+// a glow only under a level (the tub's lamps are under the water): the material's emissive colour counts below U.uY
+function belowGlow(mat, U){
+  mat.emissiveNode = materialEmissive.mul(float(1).sub(smoothstep(U.uY.sub(0.03), U.uY.add(0.02), positionWorld.y)));
+  return mat;
 }
 
 // ---------- a shape that only casts a shadow (the crowns of the trees round the plot), with gaps like foliage ----------
@@ -331,5 +339,5 @@ function obHide(mat, T, O, P){
 
 export const FX = {
   uniforms, data, mapOf, skyMaterial, grayAware, pitAware, cutAware, roadAware, holeCut, leafLit, boardMap, deckMap, hedgeMap,
-  glassMaterial, interiorUniforms, interiorLit, fireMaterial, washMaterial, poolMaterial, shadowOnly, treeHide, obHide, plotOnly
+  glassMaterial, interiorUniforms, interiorLit, fireMaterial, washMaterial, poolMaterial, belowGlow, shadowOnly, treeHide, obHide, plotOnly
 };

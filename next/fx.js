@@ -5,7 +5,7 @@ import * as THREE from 'three/webgpu';
 import {
   Fn, If, Loop, Break, uniform, uniformArray, texture, attribute, uv, vertexColor, float, int, vec2, vec3, vec4,
   positionLocal, positionWorld, normalLocal, normalViewGeometry, normalWorldGeometry, faceDirection, cameraPosition,
-  materialColor, materialEmissive, materialOpacity, diffuseColor, output, select, mix, smoothstep, step, clamp, max, min, abs, dot,
+  modelWorldMatrix, materialColor, materialEmissive, materialOpacity, diffuseColor, output, select, mix, smoothstep, step, clamp, max, min, abs, dot,
   length, normalize, fract, floor, sin, exp, pow, reflect, rand, sRGBTransferEOTF, sRGBTransferOETF
 } from 'three/tsl';
 
@@ -275,9 +275,48 @@ function shadowOnly(){
   return m;
 }
 
+// ---------- obstacles out of the camera's way (Esteet pois kameran edestä) ----------
+// inside the plot (x, z)? What stands on the plot itself is never taken away
+function plotIn(P, p){
+  let n = float(0);
+  for (let i = 0; i < P.length; i++) {
+    const a = P[i], b = P[(i + 1) % P.length];
+    if (Math.abs(b[1] - a[1]) < 1e-6) continue;
+    const across = float(a[1]).sub(p.y).mul(float(b[1]).sub(p.y)).lessThan(0.0);
+    const left = p.x.lessThan(float((b[0] - a[0]) / (b[1] - a[1])).mul(p.y.sub(a[1])).add(a[0]));
+    n = n.add(select(across.and(left), 1.0, 0.0));
+  }
+  return n.mod(2.0).greaterThan(0.5);
+}
+// A tree whose trunk comes within the set distance of the camera, short of the point looked at, is dropped whole in the
+// vertex stage: all its corners go to one point, so nothing of it is drawn. An instanced tree carries its foot and
+// height in the instance attribute tb (x, y, z, height); a single tree stands at its mesh's origin
+function treeHide(mat, T, P){
+  mat.positionNode = Fn((builder) => {
+    const inst = builder.object.isInstancedMesh && builder.geometry.hasAttribute('tb');
+    const tb = inst ? attribute('tb', 'vec4') : vec4(0.0, 0.0, 0.0, T.uTreeH.mul(1.3));
+    const pos = positionLocal.toVar();
+    If(T.uTreeHide.greaterThan(0.0), () => {
+      const w = modelWorldMatrix.mul(vec4(tb.xyz, 1.0)).xyz;
+      const tq = vec3(w.x, clamp(T.uTreeCam.y, w.y, w.y.add(tb.w)), w.z).sub(T.uTreeCam);
+      If(length(tq).lessThan(T.uTreeHide).and(dot(tq, T.uTreeFwd).lessThan(T.uTreeLt)).and(plotIn(P, w.xz).not()), () => { pos.assign(tb.xyz); });
+    });
+    return pos;
+  })();
+  return mat;
+}
+// the other obstacles off the plot (the neighbours' buildings, poles) are cut away where they come within the same
+// distance in front of the camera, short of the point looked at
+function obHide(mat, T, O, P){
+  if (!mat || !mat.isNodeMaterial || mat.userData.ob) return mat;
+  mat.userData.ob = true;
+  const oq = positionWorld.sub(T.uTreeCam);
+  addMask(mat, O.uObD.greaterThan(0.0).and(length(oq).lessThan(O.uObD)).and(dot(oq, T.uTreeFwd).lessThan(O.uObLt)).and(plotIn(P, positionWorld.xz).not()).not());
+  mat.needsUpdate = true;
+  return mat;
+}
+
 export const FX = {
   uniforms, data, mapOf, skyMaterial, grayAware, pitAware, cutAware, roadAware, holeCut, leafLit, boardMap, deckMap, hedgeMap,
-  glassMaterial, interiorUniforms, interiorLit, fireMaterial, washMaterial, poolMaterial, shadowOnly,
-  // hiding trees and buildings in front of the camera: not ported yet
-  treeHide(mat){ return mat; }, obHide(mat){ return mat; }
+  glassMaterial, interiorUniforms, interiorLit, fireMaterial, washMaterial, poolMaterial, shadowOnly, treeHide, obHide
 };

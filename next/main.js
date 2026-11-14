@@ -896,23 +896,21 @@
   })();
   // trees in front of the camera can be hidden (Näkymä: Esteet pois kameran edestä): a tree whose trunk comes within the
   // set distance of the camera, short of the point looked at, is dropped in the vertex shader, so it costs nothing
-  var TREE_U = {uTreeHide:{value:0}, uTreeFwd:{value:new THREE.Vector3(0, 0, -1)}, uTreeLt:{value:1e6}, uTreeH:{value:16}, uTreeCam:{value:new THREE.Vector3()}};
-  // inside the plot (world x, z)? Things on the plot itself are never taken away from in front of the camera
-  function plotGLSL(){
-    var P = DATA.plot.corners, s = 'bool plotIn(vec2 p){ bool c = false;\n';
-    for (var i = 0; i < P.length; i++) {
-      var a = P[i], b = P[(i + 1) % P.length], f = function(v){ return v.toFixed(3); };
-      if (Math.abs(b[1] - a[1]) < 1e-6) continue;
-      s += '  if (((' + f(a[1]) + ' > p.y) != (' + f(b[1]) + ' > p.y)) && p.x < ' + f((b[0] - a[0]) / (b[1] - a[1])) + ' * (p.y - (' + f(a[1]) + ')) + (' + f(a[0]) + ')) c = !c;\n';
-    }
-    return s + '  return c; }\n';
+  var TREE_U = FX.uniforms({uTreeHide:0, uTreeFwd:new THREE.Vector3(0, 0, -1), uTreeLt:1e6, uTreeH:16, uTreeCam:new THREE.Vector3()});
+  function treeHide(mat){ FX.treeHide(mat, TREE_U, DATA.plot.corners); }
+  // the other obstacles off the plot (the neighbours' buildings, poles) are cut away where they come within the same
+  // distance in front of the camera, short of the point looked at; not in Katsele ympärille, where one may stand
+  // inside a building
+  var OB_U = FX.uniforms({uObD:0, uObLt:1e6}), obTick = 0;
+  function obHide(mat){ FX.obHide(mat, TREE_U, OB_U, DATA.plot.corners); }
+  // an instanced tree's geometry: the model's own attributes (shared) and each tree's foot and height for treeHide
+  function treeGeo(g, tb){
+    var o = new THREE.BufferGeometry();
+    Object.keys(g.attributes).forEach(function(k){ o.setAttribute(k, g.attributes[k]); });
+    if (g.index) o.setIndex(g.index);
+    o.setAttribute('tb', tb);
+    return o;
   }
-  function treeHide(mat){ FX.treeHide(mat); }
-  // the other obstacles off the plot (the neighbours' buildings, poles) are cut
-  // away in the fragment shader where they come within the same distance in front of the camera, short of the point looked
-  // at; not in Katsele ympärille, where one may stand inside a building
-  var OB_U = {uObD:{value:0}, uObLt:{value:1e6}}, obTick = 0;
-  function obHide(mat){ FX.obHide(mat); }
   function obPatchAll(){
     var roots = [];
     ['bldg', 'bldgOut', 'util', 'utilOut'].forEach(function(k){ (layers[k] || []).forEach(function(o){ roots.push(o); }); });
@@ -981,7 +979,9 @@
     var m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3(), col = new THREE.Color(), YAX = new THREE.Vector3(0, 1, 0);
     Object.keys(sets).forEach(function(key){
       var kp = key.split('|'), lay = kp[0], T = TPL[kp[1]][Number(kp[2])], list = sets[key];
-      var barkI = new THREE.InstancedMesh(T.bark, T.bm, list.length), leafI = new THREE.InstancedMesh(T.leaf, T.lm, list.length);
+      var tb = new THREE.InstancedBufferAttribute(new Float32Array(list.length * 4), 4);
+      list.forEach(function(t, i){ tb.setXYZW(i, t[0], Y(t[3]), t[1], t[2]); });
+      var barkI = new THREE.InstancedMesh(treeGeo(T.bark, tb), T.bm, list.length), leafI = new THREE.InstancedMesh(treeGeo(T.leaf, tb), T.lm, list.length);
       barkI.frustumCulled = leafI.frustumCulled = false; barkI.castShadow = leafI.castShadow = barkI.receiveShadow = leafI.receiveShadow = false;
       list.forEach(function(t, i){
         var s = t[2] / H_REF, w = 0.85 + hash(t[0], t[1], 3) * 0.3;

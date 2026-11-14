@@ -2065,7 +2065,8 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     var house = DATA.houses['132'].corners.reduce(function(s, c){ return [s[0] + c[0] / 4, s[1] + c[1] / 4]; }, [0, 0]);
     DATA.special.forEach(function(t){
       var g = H(t.x, t.z); if (g == null) return;
-      var grp = new THREE.Group(); grp.position.set(t.x, Y(g), t.z);
+      // the trunk's foot a little down in the ground, so no edge of it shows on the chips
+      var grp = new THREE.Group(); grp.position.set(t.x, Y(g - 0.12), t.z);
       var h = t.h, q = t.s === 'haapa' ? (t.id === 95 ? {hero:true, dens:1.9, wide:1.4, thick:1.7} : {hero:true, dens:1.4, wide:1.12, thick:1.15}) : {hero:true, dens:1.5, wide:1.3, thick:1.6};
       var tr = TL.build(t.s === 'haapa' ? 'aspen' : 'pine', h, t.id + 3, q);
       var bark = new THREE.Mesh(tr.bark.geo(), TL.BMAT[tr.barkKey]), leaf = new THREE.Mesh(tr.leaf.geo(), TL.MAT[tr.leafKey]);
@@ -6005,7 +6006,10 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   var SLOPE_K = 1.6, edgeWOf = function(dh){ return Math.max(EDGE_W, SLOPE_K * Math.abs(dh)); };
   // the surveyed trees keep their roots: within TREE_R0 of the trunk the ground stays as it is, and the plan comes down
   // to it no steeper than at the edges
-  var TREE_R0 = 0.6;
+  // the flat ring is the wood chips' own (1.1-1.45 m) and a little more; from there the plan comes down gently (about 25
+  // degrees at most), so a tree in the fill stands in a shallow, wide bowl rather than a pit
+  var TREE_R0 = 0.6, treeMulchR = function(t){ return t.s === 'haapa' ? (t.id === 95 ? 1.35 : 1.1) : 1.45; };
+  var treeWOf = function(dh){ return Math.max(1.5, 2.2 * Math.abs(dh)); };
   var F0B = 42.00, RING_IN = 1.5, RING_W = 0.2, BLK_L = 0.5, BLK_H = 0.2, RING_IDS = [], RING_UP = 0.2, EDGE_W = 1.0, MOUTH_W = 6;
   function isRoadAt(x, z){ var c = rpx([x, z]); if (c[0] < 0 || c[1] < 0 || c[0] >= RMW || c[1] >= RMH) return false; return rg.getImageData(Math.floor(c[0]), Math.floor(c[1]), 1, 1).data[0] > 128; }
   function segNear(x, z, a, b){ var vx = b[0] - a[0], vz = b[1] - a[1], L2 = vx * vx + vz * vz || 1e-9, t = Math.max(0, Math.min(1, ((x - a[0]) * vx + (z - a[1]) * vz) / L2)), qx = a[0] + vx * t, qz = a[1] + vz * t; return [Math.hypot(x - qx, z - qz), qx, qz]; }
@@ -6252,12 +6256,12 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     var PL = function(x, z){ return F0 + s * Math.max(0, HF.A(x, z) - Ar); };
     // the surveyed trees inside the plot (not the ones the garage stands on): round each the planned ground comes down to
     // the present ground at TREE_R0 from the trunk
-    var TRK = (DATA.special || []).filter(function(t){ return inPoly(t.x, t.z, PLOT) && !(GAR && GAR.F && Math.abs(GAR.F.U(t.x, t.z)) < GAR.F.d / 2 + 0.6 && Math.abs(GAR.F.V(t.x, t.z)) < GAR.F.w / 2 + 0.6); });
+    var TRK = (DATA.special || []).filter(function(t){ return edgeMin(t.x, t.z) > -3 && !(GAR && GAR.F && Math.abs(GAR.F.U(t.x, t.z)) < GAR.F.d / 2 + 0.6 && Math.abs(GAR.F.V(t.x, t.z)) < GAR.F.w / 2 + 0.6); });
     var treeW = function(x, z, dh){
       var k = 1;
       for (var q = 0; q < TRK.length; q++) {
-        var d = Math.hypot(x - TRK[q].x, z - TRK[q].z) - TREE_R0; if (d > 6) continue;
-        var u = clamp(d / edgeWOf(dh), 0, 1); k = Math.min(k, u * u * (3 - 2 * u));
+        var d = Math.hypot(x - TRK[q].x, z - TRK[q].z) - treeMulchR(TRK[q]) - 0.15; if (d > 8) continue;
+        var u = clamp(d / treeWOf(dh), 0, 1); k = Math.min(k, u * u * (3 - 2 * u));
       }
       return k;
     };
@@ -6354,6 +6358,31 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
           var x4 = gx0 + i4 * sp, z4 = gz0 + j4 * sp; if (keep(x4, z4) || inPoly(x4, z4, AS)) continue;
           var zs = Z[k4] * 0.4 + (Z[k4 - 1] + Z[k4 + 1] + Z[k4 - nx] + Z[k4 + nx]) * 0.15, we4 = clamp(edgeMin(x4, z4) / EDGE_W, 0, 1);
           T[k4] += (zs - Z[k4]) * we4;
+        }
+      }
+    })();
+    // round the surveyed trees the bowls and the edge blend leave humps between them: a few passes of smoothing within
+    // 7 m of a trunk (not on the chips, the asphalt or at the buildings) round them off
+    (function(){
+      if (!TRK.length) return;
+      var gfT = garFloor().F, HCT = houseFrame(DATA.houses[houseSel].corners);
+      var zone = new Uint8Array(nn);
+      for (var jt = 1; jt < nz - 1; jt++) for (var it = 1; it < nx - 1; it++) {
+        var kt = jt * nx + it; if (!IN[kt] || CR[kt]) continue;
+        var xt = gx0 + it * sp, zt0 = gz0 + jt * sp, near = false, onChips = false;
+        for (var q = 0; q < TRK.length; q++) { var dt = Math.hypot(xt - TRK[q].x, zt0 - TRK[q].z); if (dt < 7) near = true; if (dt < treeMulchR(TRK[q]) + 0.1) onChips = true; }
+        if (!near || onChips || inPoly(xt, zt0, AS)) continue;
+        if (Math.abs(gfT.U(xt, zt0)) < garT().d / 2 + 0.8 && Math.abs(gfT.V(xt, zt0)) < garT().w / 2 + 0.8) continue;
+        if (Math.abs(HCT.A(xt, zt0)) < HCT.ha + 0.8 && Math.abs(HCT.B(xt, zt0)) < HCT.hb + 0.8) continue;
+        zone[kt] = 1;
+      }
+      for (var ps = 0; ps < 8; ps++) {
+        var Z = new Float32Array(nn); for (var q0 = 0; q0 < nn; q0++) Z[q0] = E[q0] + T[q0];
+        for (var k6 = 0; k6 < nn; k6++) {
+          if (!zone[k6] || !IN[k6 - 1] || !IN[k6 + 1] || !IN[k6 - nx] || !IN[k6 + nx]) continue;
+          var zs = Z[k6] * 0.2 + (Z[k6 - 1] + Z[k6 + 1] + Z[k6 - nx] + Z[k6 + nx]) * 0.2;
+          // never above the plan (no new fill) and never into the present ground
+          T[k6] = Math.max(Math.min(zs - E[k6], Math.max(T[k6], 0)), Math.min(0, T[k6]));
         }
       }
     })();
@@ -7095,11 +7124,11 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
       root.add(grp);
       FT_PLAN.push({x:p[0], z:p[1], r:tpl.R});
     });
-    // wood chips round the foot of the plot's big trees too (not the aspen in the drive)
+    // wood chips round the foot of the plot's big trees too
     var bm0 = new THREE.Group(); root.add(bm0);
     (DATA.special || []).forEach(function(t, i){
-      if (t === KT || edgeMin(t.x, t.z) < -0.8 || (YD && YD.AS && inPoly(t.x, t.z, YD.AS))) return;
-      bm0.add(ftMulch([t.x, t.z], t.s === 'haapa' ? (t.id === 95 ? 1.35 : 1.1) : 1.45, (i * 0.37) % 1));
+      if (edgeMin(t.x, t.z) < -0.8) return;
+      bm0.add(ftMulch([t.x, t.z], treeMulchR(t), (i * 0.37) % 1));
     });
     ftGroup = root; reg('ptrees', root); root.visible = !!state.ptrees && !preSolo;
   }

@@ -63,6 +63,9 @@ h1{margin:0;font-size:var(--fs-l);line-height:1.2;font-weight:600;letter-spacing
 .camctl button:hover{background:var(--accent-soft);color:var(--accent)}
 .camctl button svg{width:18px;height:18px}
 .camctl .cam-menu{display:none}
+#cam-labels .lb-off{display:none}
+#cam-labels[aria-pressed="false"] .lb-off{display:inline}
+#cam-labels[aria-pressed="false"]{color:var(--muted)}
 .compass{right:12px;top:12px;width:48px;height:48px;border-radius:50%;background:var(--hud);border:1px solid var(--line)}
 .badge{left:12px;bottom:12px;font-size:var(--fs-xs);font-weight:500;padding:5px 9px;border-radius:6px;background:var(--hud);border:1px solid var(--boundary);color:var(--boundary)}
 .hud{left:0;top:0;background:var(--hud);border:1px solid var(--line);border-radius:8px;padding:7px 10px 8px;width:max-content;max-width:260px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.16)}
@@ -413,12 +416,14 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         <button type="button" data-cam="ccw" title="Kierrä vastapäivään" aria-label="Kierrä vastapäivään"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4 4v4.5h4.5"/></svg></button>
         <button type="button" data-cam="cw" title="Kierrä myötäpäivään" aria-label="Kierrä myötäpäivään"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M20 4v4.5h-4.5"/></svg></button>
         <button type="button" data-cam="home" title="Perusnäkymä" aria-label="Perusnäkymä"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg></button>
-        <button type="button" id="cam-views" aria-expanded="false" aria-controls="vsheet" title="Näkymät" aria-label="Näkymät"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5h3.4l1.7-2.4h6.8l1.7 2.4h3.4v10h-17z"/><circle cx="12" cy="13.3" r="3.3"/></svg></button>
+        <button type="button" id="cam-views" aria-expanded="false" aria-controls="vsheet" title="Näkymät" aria-label="Näkymät"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M3.5 17.5l5.2-6 3.8 4.3 2.6-2.8 5.4 5.6"/><circle cx="16" cy="9" r="1.7"/></svg></button>
+        <button type="button" id="cam-labels" aria-pressed="true" title="Tekstit näkyvissä (T)" aria-label="Tekstit"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6.5h12M12 6.5v12"/><path class="lb-off" d="M4.5 4.5l15 15"/></svg></button>
       </div>
       <div class="ov vsheet" id="vsheet" role="dialog" aria-label="Näkymät" hidden>
         <div class="vs-h" id="vs-h"><h2>Näkymät</h2><button type="button" class="btn" id="vs-back" hidden>↩ Palaa</button><button type="button" class="vs-x" id="vs-x" aria-label="Sulje" title="Sulje">×</button></div>
         <div class="vs-grp"><p class="vlab">Ulkoa</p><div class="vs-list" id="vs-out"></div></div>
         <div class="vs-grp" id="vs-ing"><p class="vlab">Sisältä</p><div class="vs-list" id="vs-in"></div></div>
+        <div class="vs-grp" id="vs-owng" hidden><p class="vlab">Omat</p><div class="vs-list" id="vs-own"></div></div>
         <div class="row-in vs-save"><input type="text" id="vs-name" class="txt" maxlength="60" placeholder="Nimi tälle näkymälle" aria-label="Näkymän nimi"><button type="button" class="btn" id="vs-save">Tallenna</button></div>
       </div>
       <div class="secax" id="secaxw" hidden aria-hidden="true"><svg id="secax"></svg></div>
@@ -437,6 +442,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         </div>
         <div class="sel-c" id="sel-deck" hidden>
           <div class="seg" role="group" aria-label="Pergolan lasitus"><button type="button" data-glaze="closed" aria-pressed="true">lasit kiinni</button><button type="button" data-glaze="open" aria-pressed="false">auki</button></div>
+          <div class="seg" role="group" aria-label="Terassin koko"><button type="button" data-decksz="big" aria-pressed="true" title="Terassi 5,4 m ja kasvihuone pergolan jatkona">iso</button><button type="button" data-decksz="small" aria-pressed="false" title="Terassi 1 m lyhyempi, ei kasvihuonetta">pieni</button></div>
           <button type="button" class="btn" id="screen-tg" aria-pressed="true" title="Seinäke pergolaa vastapäätä">Seinäke</button>
         </div>
         <div class="sel-c" id="sel-tree" hidden>
@@ -611,8 +617,6 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         </div>
         <div class="grp">
           <h3>Näytä</h3>
-          <div class="ctl"><div class="ctl-h"><span>Tekstit</span></div>
-            <div class="seg" role="group" aria-label="Tekstit näkymässä"><button type="button" data-labels="0" aria-pressed="false">Ei</button><button type="button" data-labels="1" aria-pressed="true">Tärkeimmät</button><button type="button" data-labels="2" aria-pressed="false">Kaikki</button></div></div>
           <div class="drills">
             <button type="button" class="drill" data-sub="layers"><span class="dl-t">Tasot</span><span class="dl-v num" id="d-layers"></span><span class="dl-c" aria-hidden="true">›</span></button>
           </div>
@@ -819,7 +823,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
           <dt>Sokkeli maan yläpuolella</dt><dd id="f-lift">0,89–1,85 m</dd>
           <dt>Autotalli</dt><dd id="f-gar">6 × 7 m</dd>
           <dt>Kasvihuone</dt><dd>3 × 5 m</dd>
-          <dt>Pergola</dt><dd>4,5 × 5,4 m + kasvihuone 3,6 m</dd>
+          <dt>Pergola</dt><dd id="f-perg">4,5 × 5,4 m + kasvihuone 3,6 m</dd>
           <dt>Allas</dt><dd id="f-tub">palju Ø 1,95 m</dd>
           <dt>Etupihan nousu tielle</dt><dd id="f-slope">6 %</dd>
           <dt>Asfaltti</dt><dd id="f-asph">n. 300 m²</dd>
@@ -2112,7 +2116,10 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     house:{c:[-0.45, 0.89], rot:0, mir:false, roof:'gable', dz:0, model:'132'},
     gar:{type:'gs', c:[12.94, -3.5], rot:0, mir:false, roof:'mono', dz:0},
     gh:{c:[-31.77, 5.08], rot:0, mir:false, roof:'gable', dz:0},
-    tub:{c:[1.65, 1.6], rot:1, mir:false, roof:'gable', dz:0, type:'palju'}
+    tub:{c:[1.65, 1.6], rot:1, mir:false, roof:'gable', dz:0, type:'palju'},
+    // the outdoor fire: its place in the terrace's frame (metres along the back wall, out from it); none: its own place
+    // in the pergola, 20 cm off the seinäke
+    ofire:{c:null, rot:0}
   };
   // the fruit trees: kind, size (s, m, l) and place in the house's frame, as the buildings'
   var TREES0 = [{id:'t1', sp:'cherry', sz:'m', c:[-16.5, 5.0]}, {id:'t2', sp:'apple', sz:'m', c:[-20.0, -3.5]}, {id:'t3', sp:'pear', sz:'m', c:[-24.0, 4.0]}];
@@ -2125,7 +2132,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   var FT_SZ = {s:0, m:1, l:2}, FT_SZN = ['pieni', 'keskikokoinen', 'iso'], FT_MULCH = [0.55, 0.7, 0.9];
   var clamp = function(v, a, b){ return Math.max(a, Math.min(b, v)); };
   var copyOf = function(o){ return JSON.parse(JSON.stringify(o)); };
-  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:9, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+  var place = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:9, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
   // checked readers of a stored place (this browser's, or a saved view's)
   var plNum = function(v, d){ v = Number(v); return isFinite(v) ? v : d; }, plQuarter = function(v){ return ((Math.round(plNum(v, 0)) % 4) + 4) % 4; };
   var plHalf = function(v){ return ((Math.round(plNum(v, 0) * 2) / 2 % 4) + 4) % 4; };
@@ -2138,7 +2145,8 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         var g5 = bld(p5.bld.gar, BLD0.gar); g5.type = p5.bld.gar && GAR_T[p5.bld.gar.type] ? p5.bld.gar.type : 'gs'; g5.rot = half(p5.bld.gar && p5.bld.gar.rot); g5.al = !!(p5.bld.gar && p5.bld.gar.al); if (g5.al) g5.rot = Math.round(g5.rot) % 4;
         // before version 6 the tub's stove stood out from the house; now towards the neighbour, beside the pergola's low edge
         if (!(p5.v >= 6)) place.bld.tub.rot = 1; if (Math.abs(g5.c[0] - 12.94) < 0.01 && Math.abs(g5.c[1] + 4.0) < 0.01) g5.c = BLD0.gar.c.slice(); place.bld.gar = g5;
-        place.asph = poly(p5.asph); place.hedge = clamp(num(p5.hedge, 2), 0.5, 3); place.fire = p5.fire === 'pj' || p5.fire === 'veronika' ? p5.fire : 'wilma'; if (!(p5.v >= 9) && place.fire === 'wilma') place.fire = 'veronika'; place.plan = p5.plan === 'b' ? 'b' : 'a'; place.facade = p5.facade === 'wood' ? 'wood' : 'dark'; place.deckDz = clamp(num(p5.deckDz, 0), -0.4, 0.3); place.screen = p5.screen !== false; place.glaze = p5.glaze === 'open' ? 'open' : 'closed'; place.pergSide = p5.pergSide === 'far' ? 'far' : 'near';
+        place.asph = poly(p5.asph); place.hedge = clamp(num(p5.hedge, 2), 0.5, 3); place.fire = p5.fire === 'pj' || p5.fire === 'veronika' ? p5.fire : 'wilma'; if (!(p5.v >= 9) && place.fire === 'wilma') place.fire = 'veronika'; place.plan = p5.plan === 'b' ? 'b' : 'a'; place.facade = p5.facade === 'wood' ? 'wood' : 'dark'; place.deckDz = clamp(num(p5.deckDz, 0), -0.4, 0.3); place.screen = p5.screen !== false; place.glaze = p5.glaze === 'open' ? 'open' : 'closed'; place.pergSide = p5.pergSide === 'far' ? 'far' : 'near'; place.deckSmall = p5.deckSmall === true;
+        var of5 = p5.bld && p5.bld.ofire; place.bld.ofire = of5 && of5.c && isFinite(of5.c[0]) && isFinite(of5.c[1]) ? {c:[Number(of5.c[0]), Number(of5.c[1])], rot:plQuarter(of5.rot)} : {c:null, rot:of5 ? plQuarter(of5.rot) : 0};
         place.fence = p5.fence !== false; place.fenceH = clamp(num(p5.fenceH, 1), 0.6, 2); place.hedgeFront = p5.hedgeFront === true;
         place.trees = Array.isArray(p5.trees) ? p5.trees.filter(function(t){ return t && FT_SP[t.sp] && FT_SZ[t.sz] != null && t.c && isFinite(t.c[0]) && isFinite(t.c[1]); }).slice(0, 40).map(function(t, i){ return {id:typeof t.id === 'string' ? t.id.slice(0, 24) : 'u' + i, sp:t.sp, sz:t.sz, c:[Number(t.c[0]), Number(t.c[1])]}; }) : copyOf(TREES0);
         // version 7 joined a greenhouse to the pergola; the free one goes back to the end of the yard
@@ -3778,7 +3786,10 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   // room's door), the deck 6 x 0.9 m
   // deep, the greenhouse 4 x 0.9 m on from it
   // the step along the deck's edge is two planks deep
-  var PERG = {w:4.5, d:5.4, g:3.6, mod:0.9, raf:0.6}, TERR_D = 3.0, TUB_R = 0.975, TUB = null, DECK_STEP = 2 * 0.157, DECK_RISE = 0.225;
+  var PERG = {w:4.5, d:5.4, g:3.6, mod:0.9, raf:0.6}, TERR_D = 3.0, TUB_R = 0.975, TUB = null, OFIRE = null, DECK_STEP = 2 * 0.157, DECK_RISE = 0.225;
+  // the terrace's depth and the greenhouse's: the small terrace is 1 m shorter and has no greenhouse
+  function pergD(){ return place.deckSmall ? PERG.d - 1 : PERG.d; }
+  function pergG(){ return place.deckSmall ? 0 : PERG.g; }
   function tubWorld(c){ var pm = planMap(DATA.houses[houseSel], P132); return pm.pt(P132.x0 + c[0] / pm.sb, P132.y0 - c[1] / pm.sa); }
   function tubLocal(w){
     var HH = DATA.houses[houseSel], pm = planMap(HH, P132), N = HH.corners[0], A = (w[0] - N[0]) * pm.a[0] + (w[1] - N[1]) * pm.a[1], B = (w[0] - N[0]) * pm.b[0] + (w[1] - N[1]) * pm.b[1];
@@ -3826,7 +3837,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   // the deck of 150 mm boards (the terrace and its part under the pergola), the pergola of 100 x 100 timber with a smoked
   // polycarbonate roof, the summer kitchen, the tub and the lights of the house
   function buildOutdoor(g, pm, F, HH, P2, wallTop){
-    var P = P132, sb = pm.sb, sa = pm.sa, D = HH.sokkeli + 0.05 + (place.deckDz || 0), tx1 = pm.lb, PW = PERG.w, PD = PERG.d, TD = TERR_D, wood = OD.wood, nT0 = g.children.length;
+    var P = P132, sb = pm.sb, sa = pm.sa, D = HH.sokkeli + 0.05 + (place.deckDz || 0), tx1 = pm.lb, PW = PERG.w, PD = pergD(), TD = TERR_D, wood = OD.wood, nT0 = g.children.length;
     OD.deck.concat([OD.fascia]).forEach(function(m){ m.userData.ax.value.set(pm.b[0], pm.b[1]); });
     var L = function(x, y){ return pm.pt(P.x0 + x / sb, P.y0 - y / sa); };
     var nrm = function(px, py, dx, dy){ var a = pm.pt(px, py), b = pm.pt(px + dx, py + dy), l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; return [(b[0] - a[0]) / l, (b[1] - a[1]) / l]; };
@@ -3861,7 +3872,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     // rises of 22.5 cm down to the lawn; fascia boards under the deck's edges and under the step's edge to the ground
     var outline = [[0, 0], [0, PD], [tx1, PD], [tx1, 0]], S = DECK_STEP, zT = D - DECK_RISE;
     // the step runs along the outer edge except where the greenhouse carries the pergola on (at the pergola's end)
-    var GX = PERG.w, sx0 = flip ? 0 : GX, sx1 = flip ? tx1 - GX : tx1;
+    var GX = pergG() > 0 ? PERG.w : 0, sx0 = flip ? 0 : GX, sx1 = flip ? tx1 - GX : tx1;
     [0, 1].forEach(function(b){ var a0 = PD + PLANK.gap + b * PLANK.pitch; pl.flat([L(sx0, a0), L(sx1, a0), L(sx1, a0 + PLANK.w), L(sx0, a0 + PLANK.w)], zT, b + 1); });
     quadBox(sx0, PD, sx1, PD + S, zT - 0.04, zT - 0.035, OD.skirt);
     // under the boards a dark underlay (cut round the tub), so the gaps between them never show the lawn
@@ -3886,7 +3897,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     // (in a group of its own, so that a click through it still reaches the tub under it)
     var pg = new THREE.Group(); pg.userData.pick = 'perg'; g.add(pg);
     var T15 = 0.15, zt = function(x){ return D + 2.6 - 0.05 * (PW - x); };   // underside of the rafters
-    var GL = PERG.g, PE = PD + GL;   // the greenhouse: 4 x 0.9 m on from the deck, as wide as the pergola
+    var GL = pergG(), PE = PD + GL;   // the greenhouse: 4 x 0.9 m on from the deck, as wide as the pergola
     // the beams and the rafters are the roof: Pohja ylhäältä and the Katto layer take them off with the glass
     [0.075, PW - 0.075].forEach(function(xb){ var bm = boxAlong(Lp(xb, 0.02), Lp(xb, PE + 0.2), T15, zt(xb) - T15, zt(xb), wood); bm.userData.roof = true; pg.add(bm); });
     for (var i = 0; i * PERG.raf <= PE + 0.001; i++) { var yr = clamp(i * PERG.raf, 0.05, PE - 0.05); var rf = slab(Lp(-0.12, yr), Lp(PW + 0.12, yr), 0.1, zt(-0.12), zt(PW + 0.12), zt(-0.12) + T15, zt(PW + 0.12) + T15, wood); rf.userData.roof = true; pg.add(rf); }
@@ -3911,8 +3922,10 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     var gw = OD.wood, t1 = 0.1, M = PERG.mod, zTopG = function(x){ return zt(x) - T15; };
     for (var rr2 = 0; PLANK.gap + rr2 * PLANK.pitch < GL - 0.005; rr2++) { var gy0 = PD + PLANK.gap + rr2 * PLANK.pitch, gy1 = Math.min(PE, gy0 + PLANK.w); pl.flat([Lp(0, gy0), Lp(PW, gy0), Lp(PW, gy1), Lp(0, gy1)], D, rr2); }
     var inG = Lp(PW / 2, PD + GL / 2);
-    [[[0, PD], [0, PE]], [[0, PE], [PW, PE]], [[PW, PE], [PW, PD]]].forEach(function(f){ pl.side(Lp(f[0][0], f[0][1]), Lp(f[1][0], f[1][1]), D - PLANK.t - 0.004, null, inG, G2); });
-    G2.add(new THREE.Mesh(prism([Lp(0, PD), Lp(PW, PD), Lp(PW, PE), Lp(0, PE)], Y(D - 0.035), Y(D - 0.01)), OD.skirt));
+    if (GL > 0) {
+      [[[0, PD], [0, PE]], [[0, PE], [PW, PE]], [[PW, PE], [PW, PD]]].forEach(function(f){ pl.side(Lp(f[0][0], f[0][1]), Lp(f[1][0], f[1][1]), D - PLANK.t - 0.004, null, inG, G2); });
+      G2.add(new THREE.Mesh(prism([Lp(0, PD), Lp(PW, PD), Lp(PW, PE), Lp(0, PE)], Y(D - 0.035), Y(D - 0.01)), OD.skirt));
+    }
     var gPost = function(x, y, w){ w = w || t1; var y0 = clamp(y - w / 2, 0, PE - w), q = Lp(x, y0 + w / 2); G2.add(boxAlong(Lp(x - w / 2, y0 + w / 2), Lp(x + w / 2, y0 + w / 2), w, Math.min(D, gAt(q[0], q[1])) - 0.05, zTopG(x), gw)); };
     for (var pi = 1; pi * M < PE - 0.01; pi++) gPost(0.08, pi * M);
     gPost(0.08, PE, 0.15); gPost(PW - 0.075, PE, 0.15); gPost(PW - 0.075, PE / 2, 0.15);
@@ -3924,11 +3937,11 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     G2.add(new THREE.Mesh(prism([Lp(0, 0), Lp(0.025, 0), Lp(0.025, SWE), Lp(0, SWE)], Y(D - 0.03), Y(zTopG(0.0125))), BOARD_DS));
     G2.add(new THREE.Mesh(prism([Lp(0.13, 0.003), Lp(SWI, 0.003), Lp(SWI, SWE), Lp(0.13, SWE)], Y(D - 0.005), Y(zTopG(0.14))), BOARD_DS));
     var GV = function(x, y, z){ var q = Lp(x, y); return new THREE.Vector3(q[0], Y(z), q[1]); }, gq2 = [];
-    gq2.push([GV(0.1, PD, D + 0.004), GV(0.1, PE, D + 0.004), GV(0.1, PE, zTopG(0.1)), GV(0.1, PD, zTopG(0.1))]);
+    if (GL > 0) gq2.push([GV(0.1, PD, D + 0.004), GV(0.1, PE, D + 0.004), GV(0.1, PE, zTopG(0.1)), GV(0.1, PD, zTopG(0.1))]);
     gq2.push([GV(0, PE - 0.08, D + 0.004), GV(PW, PE - 0.08, D + 0.004), GV(PW, PE - 0.08, zTopG(PW)), GV(0, PE - 0.08, zTopG(0))]);
     var gm2 = quadsMesh(gq2, M132.glass); gm2.renderOrder = 5; G2.add(gm2);
     var FG = {P:function(u, v){ return Lp(PW / 2 + u, PD + GL / 2 + v); }}, pl2 = new THREE.Group();
-    ghPlants(pl2, FG, D, function(u){ return zTopG(PW / 2 + u); }, [PW / 2 - 0.05, GL / 2, 'L']); G2.add(pl2);
+    if (GL > 0) { ghPlants(pl2, FG, D, function(u){ return zTopG(PW / 2 + u); }, [PW / 2 - 0.05, GL / 2, 'L']); G2.add(pl2); }
     var xT = PW - 0.075, zTT = zTopG(xT);
     mergeStatic(G2);
     // the sliding panels: five each side of the middle post, frameless glass on five tracks 15 mm apart; open, the
@@ -3952,9 +3965,19 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     // so it shows and glows round the sides too. On a dark steel plate that guards the boards, 20 cm off the seinäke's
     // inner boards beside the greenhouse's bed, its flue up through the roof with a steel plate round it as the palju's.
     // Its fire burns with the house's (Takan tuli)
+    // its frame in the terrace's coordinates: its own place in the pergola, or where it has been moved, turned in quarters;
+    // on the boards inside the terrace, on the ground outside it
+    var OFD = (function(){
+      var Q = place.bld.ofire || {c:null, rot:0}, WC = 0.245, f0 = flip ? [-1, 0] : [1, 0], s0 = [0, 1];
+      var c0 = flip ? [tx1 - (SWI + 0.2) - WC, PD - 0.35] : [SWI + 0.2 + WC, PD - 0.35];
+      var c = Q.c ? Q.c.slice() : c0, f = turn(f0, Q.rot || 0), s = turn(s0, Q.rot || 0), O = [c[0] - f[0] * WC, c[1] - f[1] * WC];
+      var px = flip ? tx1 - c[0] : c[0], onD = inDeck(c[0], c[1]) || (GL > 0 && px >= 0 && px <= PW && c[1] >= PD && c[1] <= PE), cw = L(c[0], c[1]);
+      return {c:c, O:O, f:f, s:s, onDeck:onD, z:onD ? D : gAt(cw[0], cw[1])};
+    })();
     var FPO = (function(){
-      var fg = new THREE.Group(); g.add(fg);
-      var xb = SWI + 0.2, yc = PD - 0.35, P = function(u, w){ return Lp(xb + w, yc + u); };
+      var fg = new THREE.Group(); fg.userData.pick = 'ofire'; g.add(fg);
+      var D = OFD.z, WC0 = 0.02 + 0.225, Of = OFD.O, ff = OFD.f, fs = OFD.s;
+      var P = function(u, w){ return L(Of[0] + ff[0] * w + fs[0] * u, Of[1] + ff[1] * w + fs[1] * u); };
       var Q = function(u0, w0, u1, w1){ return [P(u0, w0), P(u1, w0), P(u1, w1), P(u0, w1)]; };
       var stl = M132.mattblack, A = 0.25, B = 0.225, WC = 0.02 + B, NE = 2.6, TAU = 2 * Math.PI;
       var se = function(v){ return (v < 0 ? -1 : 1) * Math.pow(Math.abs(v), 2 / NE); };
@@ -4003,15 +4026,21 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
       });
       // the flue: 150 mm black steel from the top's back to 0.8 m above the roof; in the roof a steel plate (along its
       // slope) and a collar, which are the roof's; a rain cap on top
-      var xf = xb + WC - 0.06, fq = P(0, WC - 0.06), zr = function(x){ return zt(x) + T15 + 0.01; }, fTop = zr(xf) + 0.8;
+      // through the pergola's roof when it stands under it, otherwise a free flue 1.6 m above the stove
+      var fq = P(0, WC - 0.06), fL = [Of[0] + ff[0] * (WC - 0.06), Of[1] + ff[1] * (WC - 0.06)], xf = flip ? tx1 - fL[0] : fL[0], yf = fL[1];
+      var underR = xf >= -0.1 && xf <= PW + 0.1 && yf >= -0.1 && yf <= PE + 0.25, zr = function(x){ return zt(x) + T15 + 0.01; }, fTop = underR ? zr(xf) + 0.8 : zT + 1.6;
       var cyl = function(r0, r1, za, zb, mat){ var m = new THREE.Mesh(new THREE.CylinderGeometry(r0, r1, zb - za, 16), mat); m.position.set(fq[0], Y((za + zb) / 2), fq[1]); fg.add(m); return m; };
       cyl(0.075, 0.075, zT, fTop, stl);
-      var fl = slab(Lp(xf - 0.17, yc), Lp(xf + 0.17, yc), 0.34, zr(xf - 0.17) + 0.002, zr(xf + 0.17) + 0.002, zr(xf - 0.17) + 0.008, zr(xf + 0.17) + 0.008, OD.flash); fl.userData.roof = true; fg.add(fl);
-      cyl(0.09, 0.1, zr(xf), zr(xf) + 0.12, OD.flash).userData.roof = true;
+      if (underR) {
+        var fl = slab(Lp(xf - 0.17, yf), Lp(xf + 0.17, yf), 0.34, zr(xf - 0.17) + 0.002, zr(xf + 0.17) + 0.002, zr(xf - 0.17) + 0.008, zr(xf + 0.17) + 0.008, OD.flash); fl.userData.roof = true; fg.add(fl);
+        cyl(0.09, 0.1, zr(xf), zr(xf) + 0.12, OD.flash).userData.roof = true;
+      }
       cyl(0.13, 0.08, fTop, fTop + 0.06, stl);
       // the glow round the fire seen from the front and through each side glass
       halo(fg, HALO_F, c0[0] + nf[0] * 0.08, Y(zG0 + gh * 0.42), c0[1] + nf[1] * 0.08, 0.85);
       [1.38, -1.38].forEach(function(f){ var q = at(f, -0.02); halo(fg, HALO_F, q[0], Y(zG0 + gh * 0.42), q[1], 0.5); });
+      var foot = [P(-0.42, -0.06), P(0.42, -0.06), P(0.42, 0.91), P(-0.42, 0.91)];
+      OFIRE = {g:fg, c:ctr, z:D, onDeck:OFD.onDeck, foot:foot};
       return {p:c0, n:nf, c:ctr, s:su, dw:0.2 + WC + B, dc:0.2 + WC};
     })();
     // the tub: the wood-fired palju Ø 1.95 m or the spa 2.2 x 2.2 m. In the deck the palju's rim is 0.5 m and the
@@ -4092,7 +4121,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         put(new THREE.CylinderGeometry(0.2, 0.2, 0.65, 24), SW, z0 + 0.325, M132.mattblack); put(new THREE.CylinderGeometry(0.21, 0.21, 0.03, 24), SW, z0 + 0.665, M132.mattblack);
         // through the roof: a dark steel plate 300 x 300 mm in the roof round the flue, with a collar, keeps the heat off the
         // polycarbonate
-        var sxp = flip ? tx1 - sxl : sxl, thru = sxp >= -0.1 && sxp <= PW + 0.1 && syl >= -0.1 && syl <= PD + PERG.g + 0.25, zr = function(x){ return zt(x) + T15 + 0.01; };
+        var sxp = flip ? tx1 - sxl : sxl, thru = sxp >= -0.1 && sxp <= PW + 0.1 && syl >= -0.1 && syl <= PD + GL + 0.25, zr = function(x){ return zt(x) + T15 + 0.01; };
         var cTop = thru ? zr(sxp) + 0.75 : z0 + 2.3;
         if (thru) {
           var fl1 = slab(L(sxl - 0.15, syl), L(sxl + 0.15, syl), 0.3, zr(sxp) + 0.002, zr(sxp) + 0.002, zr(sxp) + 0.008, zr(sxp) + 0.008, OD.flash); fl1.userData.roof = true; tg.add(fl1);
@@ -4136,11 +4165,11 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     [1, -1].forEach(function(sd){ acc.poolFb([FPO.c[0] + FPO.s[0] * 0.6 * sd, FPO.c[1] + FPO.s[1] * 0.6 * sd], FPO.n, 1.2, FPO.dc - 0.02); });
     var nT1 = g.children.length; acc.add(g);
     for (var tj = nT1; tj < g.children.length; tj++) g.children[tj].userData.terr = true;
-    P2.deck = outline.map(function(q){ return L(q[0], q[1]); }); P2.perg = [Lp(-0.05, 0), Lp(-0.05, PD + PERG.g + 0.25), Lp(PW + 0.05, PD + PERG.g + 0.25), Lp(PW + 0.05, 0)];
+    P2.deck = outline.map(function(q){ return L(q[0], q[1]); }); P2.perg = [Lp(-0.05, 0), Lp(-0.05, PD + GL + 0.25), Lp(PW + 0.05, PD + GL + 0.25), Lp(PW + 0.05, 0)];
     // the terrace's outline for its selection box, and for picking a little clear of the house wall
-    var tOut = function(y0){ return flip ? [[0, y0], [tx1, y0], [tx1, PE], [tx1 - PW, PE], [tx1 - PW, PD + S], [0, PD + S]] : [[0, y0], [tx1, y0], [tx1, PD + S], [PW, PD + S], [PW, PE], [0, PE]]; };
+    var tOut = function(y0){ if (GL <= 0) return [[0, y0], [tx1, y0], [tx1, PD + S], [0, PD + S]]; return flip ? [[0, y0], [tx1, y0], [tx1, PE], [tx1 - PW, PE], [tx1 - PW, PD + S], [0, PD + S]] : [[0, y0], [tx1, y0], [tx1, PD + S], [PW, PD + S], [PW, PE], [0, PE]]; };
     P2.deckSel = tOut(0).map(function(q){ return L(q[0], q[1]); }); P2.deckPick = tOut(0.08).map(function(q){ return L(q[0], q[1]); });
-    P2.kitchen = null; P2.ghouse = [Lp(0, PD), Lp(0, PERG.d + PERG.g), Lp(PW, PERG.d + PERG.g), Lp(PW, PD)]; P2.lights = lights; P2.deckZ = D;
+    P2.kitchen = null; P2.ghouse = GL > 0 ? [Lp(0, PD), Lp(0, PE), Lp(PW, PE), Lp(PW, PD)] : null; P2.lights = lights; P2.deckZ = D;
   }
   // ---------- Genelec 8040 / G Four sized speaker (H 350, W 237, D 223 mm) ----------
   // The die-cast Minimum Diffraction Enclosure: a rounded front whose edges blend into sides that curve back to a smaller
@@ -6229,7 +6258,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     // Both follow where the house and the greenhouse stand
     (function(){
       var HH = DATA.houses['132'], pm = planMap(HH, P132), o = pm.pt(P132.x0, P132.y0), ex = pm.pt(P132.x0 + 1 / pm.sb, P132.y0), ey = pm.pt(P132.x0, P132.y0 - 1 / pm.sa);
-      var ux = [ex[0] - o[0], ex[1] - o[1]], uy = [ey[0] - o[0], ey[1] - o[1]], tx1 = pm.lb, PD = PERG.d, S = DECK_STEP;
+      var ux = [ex[0] - o[0], ex[1] - o[1]], uy = [ey[0] - o[0], ey[1] - o[1]], tx1 = pm.lb, PD = pergD(), S = DECK_STEP;
       var fl = HH.floor0 + wallsMax(HH.corners) - wallsMax(HH.corners0) + place.bld.house.dz, lawn = fl - 0.097 + 0.05 + (place.deckDz || 0) - 2 * DECK_RISE;
       var gq = ghFloor(), GF = gq.F, glawn = gq.Fz - 0.15, ghd = GH_D / 2 + 0.05, ghw = GH_W / 2 + 0.05;
       var ss = function(q){ q = clamp(q, 0, 1); return q * q * (3 - 2 * q); };
@@ -6239,7 +6268,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         if (!INP[k5]) continue;
         var x5 = gx0 + (k5 % nx) * sp, z5 = gz0 + Math.floor(k5 / nx) * sp, best = 0, tgt = 0;
         var dx = x5 - o[0], dz = z5 - o[1], lx = dx * ux[0] + dz * ux[1], ly = dx * uy[0] + dz * uy[1];
-        var dd = Math.min(Math.hypot(Math.max(-S - lx, 0, lx - (tx1 + S)), Math.max(0, ly - (PD + S))), Math.hypot(Math.max((place.pergSide === 'far' ? tx1 - PERG.w : 0) - S - lx, 0, lx - ((place.pergSide === 'far' ? tx1 : PERG.w) + S)), Math.max(0, ly - (PD + PERG.g + S)))), wd = houseSel === '132' ? sm5(1 - dd / 4.5) * ss(1 + ly / 1.5) : 0;
+        var dd = Math.min(Math.hypot(Math.max(-S - lx, 0, lx - (tx1 + S)), Math.max(0, ly - (PD + S))), Math.hypot(Math.max((place.pergSide === 'far' ? tx1 - PERG.w : 0) - S - lx, 0, lx - ((place.pergSide === 'far' ? tx1 : PERG.w) + S)), Math.max(0, ly - (PD + pergG() + S)))), wd = houseSel === '132' ? sm5(1 - dd / 4.5) * ss(1 + ly / 1.5) : 0;
         if (wd > 0) { best = wd; tgt = lawn; }
         var gd = Math.hypot(Math.max(0, Math.abs(GF.U(x5, z5)) - ghd), Math.max(0, Math.abs(GF.V(x5, z5)) - ghw)), wg = ss(1 - gd / 1.5);
         if (wg > best) { best = wg; tgt = glawn; }
@@ -7778,6 +7807,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     document.querySelectorAll('[data-look]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.look === (state.gray ? 'gray' : state.ortho ? 'ortho' : 'hyp'))); });
     document.querySelectorAll('[data-terrain]').forEach(function(b){ b.setAttribute('aria-pressed', String((b.dataset.terrain === 'cut') === state.cut)); });
     document.querySelectorAll('[data-labels]').forEach(function(b){ b.setAttribute('aria-pressed', String(Number(b.dataset.labels) === state.labels)); });
+    var lbB = document.getElementById('cam-labels'); if (lbB) { lbB.setAttribute('aria-pressed', String(!!state.labels)); lbB.title = state.labels ? 'Piilota tekstit (T)' : 'Näytä tekstit (T)'; }
     var rb = document.getElementById('rampbox'); if (rb) rb.hidden = state.ortho || state.gray;
     var ab = document.querySelector('[data-alllayers]'); if (ab) ab.setAttribute('aria-pressed', String(LAYER_KEYS.some(function(k){ return state[k]; })));
   }
@@ -7801,6 +7831,11 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   document.querySelectorAll('[data-labels]').forEach(function(btn){
     btn.addEventListener('click', function(){ state.labels = Number(btn.dataset.labels); syncLayerUI(); saveUI(); });
   });
+  // the texts on and off from the camera buttons (or T); back on at the level they had
+  var labMemo = 1;
+  function labToggle(){ if (state.labels) { labMemo = state.labels; state.labels = 0; } else state.labels = labMemo || 1; syncLayerUI(); saveUI(); }
+  (function(){ var b = document.getElementById('cam-labels'); if (b) b.addEventListener('click', labToggle); })();
+  window.addEventListener('keydown', function(e){ var tg = e.target; if (tg && /^(INPUT|SELECT|TEXTAREA)$/.test(tg.tagName)) return; if (e.metaKey || e.ctrlKey || e.altKey) return; if (e.key === 't' || e.key === 'T') labToggle(); });
   document.querySelectorAll('[data-look]').forEach(function(btn){
     btn.addEventListener('click', function(){
       state.ortho = btn.dataset.look === 'ortho'; state.gray = btn.dataset.look === 'gray';
@@ -8043,7 +8078,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     if (d.y > -0.12) { d.y = -0.12; d.normalize(); }
     var t = fpHit(d), dist = t && t < 250 ? Math.max(3, t) : 25;
     controls.target.copy(camera.position).addScaledVector(d, dist);
-    controls.minDistance = ORBIT_MIN; controls.maxPolarAngle = Math.PI * 0.49; controls.update(); fovTo(36);
+    controls.minDistance = ORBIT_MIN; controls.maxPolarAngle = Math.PI * 0.49; controls.update();
     setWorldExag(exagOrbit); exagUI(exagOrbit); syncMode(); saveUI();
   }
   // a tap on a neighbour's house: the eye 1.7 m above its estimated floor, at the wall facing the house
@@ -8083,12 +8118,12 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     var k = e.key.toLowerCase(), st = e.shiftKey ? 2 : 0.5, fx = -Math.sin(fp.yaw), fzv = -Math.cos(fp.yaw), dx = 0, dz = 0;
     if (k === 'arrowup') { dx = fx; dz = fzv; } else if (k === 'arrowdown') { dx = -fx; dz = -fzv; }
     else if (k === 'arrowleft') { dx = fzv; dz = -fx; } else if (k === 'arrowright') { dx = -fzv; dz = fx; }
-    else if (k === 'escape') { if (pre.back) preBack(); else fpExit(); return; } else return;
+    else if (k === 'escape') { fpExit(); return; } else return;
     e.preventDefault(); fp.x += dx * st; fp.z += dz * st; fpApply();
   });
   if (fpH) fpH.addEventListener('input', function(){ var s = Number(fpH.value); fp.h = 0.5 + (FP_HMAX - 0.5) * s * s; if (fp.on) fpApply(); else fpHUI(); });
   var fpEye = document.getElementById('fp-eye'); if (fpEye) fpEye.addEventListener('click', function(){ fp.h = 1.7; if (fp.on) fpApply(); });
-  var fpExitB = document.getElementById('fp-exit'); if (fpExitB) fpExitB.addEventListener('click', function(){ if (pre.back) preBack(); else fpExit(); });
+  var fpExitB = document.getElementById('fp-exit'); if (fpExitB) fpExitB.addEventListener('click', function(){ fpExit(); });
   // ---------- the house as seen from the nearest neighbours: eye 1.7 m above an estimated floor, at the facing wall ----------
   var NBV = [];
   (function(){
@@ -8530,9 +8565,9 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   }
   var PC = DATA.plot.corners, SEG_NE = [[PC[0], PC[1]]], SEG_SW = [[PC[3], PC[4]]];
   var bFloorIn = document.getElementById('bld-floor'), bFloorV = document.getElementById('f-bfloor');
-  var LAYER_OF = {house:'house', gar:'garage', gh:'gh', tub:'house', deck:'house'}, NAME_OF = {house:'Ideal 132', gh:'Kasvihuone 3 × 5 m', tub:'Palju Ø 1,95 m', deck:'Terassi ja pergola'};
+  var LAYER_OF = {house:'house', gar:'garage', gh:'gh', tub:'house', deck:'house', ofire:'house'}, NAME_OF = {house:'Ideal 132', gh:'Kasvihuone 3 × 5 m', tub:'Palju Ø 1,95 m', deck:'Terassi ja pergola', ofire:'Ulkotuli'};
   function bldName(k){ if (isTree(k)) { var Tn = treeOf(k); return FT_SP[Tn.sp].name + ', ' + FT_SZN[FT_SZ[Tn.sz]]; } if (k === 'gar') return 'Autotalli ' + garDim(garT().d) + ' × ' + garDim(garT().w) + ' m'; if (k === 'house') return HM[houseSel].name; if (k === 'tub') return place.bld.tub.type === 'spa' ? 'Poreallas 2,2 × 2,2 m' : 'Palju Ø 1,95 m'; return NAME_OF[k]; }
-  function floorOf(k){ if (isTree(k)) { var pT = ftAt(treeOf(k)); return gAt(pT[0], pT[1]); } if (k === 'deck') { var P2d = DATA.houses[houseSel].plan2d; return P2d && P2d.deckZ; } return k === 'house' ? DATA.houses[houseSel].floor : k === 'gar' ? (GAR && GAR.Fz) : k === 'tub' ? (TUB && TUB.rim) : (GH && GH.Fz); }
+  function floorOf(k){ if (isTree(k)) { var pT = ftAt(treeOf(k)); return gAt(pT[0], pT[1]); } if (k === 'deck') { var P2d = DATA.houses[houseSel].plan2d; return P2d && P2d.deckZ; } if (k === 'ofire') return OFIRE && OFIRE.z; return k === 'house' ? DATA.houses[houseSel].floor : k === 'gar' ? (GAR && GAR.Fz) : k === 'tub' ? (TUB && TUB.rim) : (GH && GH.Fz); }
   function gapsText(C){ var ne = polyGap(C, SEG_NE).d, sw = polyGap(C, SEG_SW).d; return {t:'rajoihin ' + fn(ne, 1) + ' / ' + fn(sw, 1) + ' m', warn:Math.min(ne, sw) < 4}; }
   // footprint of a building in a given state (without building it), for keeping it inside the plot
   function footOf(k, Q){
@@ -8543,7 +8578,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     return objFrame(HF0.P(Q.c[0], Q.c[1]), k === 'gar' ? garRot(Q) : Q.rot, w, d).corners();
   }
   function fitInside(k){
-    if (k === 'tub' || isTree(k)) return;
+    if (k === 'tub' || k === 'ofire' || isTree(k)) return;
     var Q = place.bld[k]; if (insidePlot(footOf(k, Q))) return;
     var c0 = HF0.P(Q.c[0], Q.c[1]);
     for (var it = 1; it <= 80; it++) { var f = it / 80, q = copyOf(Q); q.c = abOf([c0[0] + (PLC[0] - c0[0]) * f, c0[1] + (PLC[1] - c0[1]) * f]); if (insidePlot(footOf(k, q))) { Q.c = q.c; return; } }
@@ -8566,11 +8601,12 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     // roof and no mirror image (its turn moves the stove or the panel), the terrace no roof and no turn
     var tt = document.getElementById('tub-type'); if (tt) tt.hidden = k !== 'tub';
     document.querySelectorAll('[data-tubtype]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.tubtype === (place.bld.tub.type === 'spa' ? 'spa' : 'palju'))); });
-    if (sm) sm.hidden = k === 'tub';
+    if (sm) sm.hidden = k === 'tub' || k === 'ofire';
+    var sfl = document.querySelector('#selbar .sel-fl'); if (sfl) sfl.hidden = k === 'ofire';
     var sdk = document.getElementById('sel-deck'); if (sdk) sdk.hidden = k !== 'deck';
     var ftb = document.getElementById('f-tub'); if (ftb) ftb.textContent = place.bld.tub.type === 'spa' ? 'poreallas 2,2 × 2,2 m' : 'palju Ø 1,95 m';
     var bl = document.getElementById('broof-low'); if (bl) bl.hidden = k !== 'gh';
-    var rseg = document.querySelector('#selbar .seg[aria-label="Katto"]'); if (rseg) rseg.hidden = (k === 'house' && houseSel !== '132') || k === 'deck' || k === 'tub';
+    var rseg = document.querySelector('#selbar .seg[aria-label="Katto"]'); if (rseg) rseg.hidden = (k === 'house' && houseSel !== '132') || k === 'deck' || k === 'tub' || k === 'ofire';
     if (Q && k !== 'gh' && Q.roof === 'low') Q.roof = 'mono';
     var sr0 = document.getElementById('sel-rot'); if (sr0) sr0.hidden = k === 'deck';
     var g45 = k === 'gar' && !place.bld.gar.al, sr = document.getElementById('sel-rot'); if (sr) { sr.textContent = g45 ? '⟳ 45°' : '⟳ 90°'; sr.title = (g45 ? 'Käännä 45°' : 'Käännä 90°') + ' (R)'; }
@@ -8602,19 +8638,20 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     showLayer(layerOf(k));
     if (isTree(k)) { buildFruitTrees(); savePlace(); ftListUI(); syncPlaceUI(); return; }
     if (k === 'house') { commitPlace(); clearTimeout(regradeT); regradeT = setTimeout(regradeNow, 250); return; }
-    if (k === 'tub') { buildHouses(); applyLayers(); savePlace(); syncPlaceUI(); if (sec.on) secBuild(); return; }
+    if (k === 'tub' || k === 'ofire') { buildHouses(); applyLayers(); savePlace(); syncPlaceUI(); if (sec.on) secBuild(); return; }
     if (k === 'gar') buildGarage(); else buildGreenhouse();
     updateAsphalt(); updateTreeClear(); drawYard(); applyLayers(); savePlace(); syncPlaceUI();
     if (k === 'gar' || k === 'gh') { clearTimeout(regradeT); regradeT = setTimeout(regradeNow, 250); }
     if (sec.on) secBuild();
   }
   function bldRotate(){ var k = sel.obj; if (!k || k === 'deck' || isTree(k)) return; place.bld[k].rot = (place.bld[k].rot + (k === 'gar' && !place.bld.gar.al ? 0.5 : 1)) % 4; fitInside(k); bldCommit(k); }
-  function bldMirror(){ var k = sel.obj; if (!k || k === 'tub' || isTree(k)) return;
+  function bldMirror(){ var k = sel.obj; if (!k || k === 'tub' || k === 'ofire' || isTree(k)) return;
     // the terrace's mirror image: the pergola, its greenhouse and the screen wall change ends, the tub with them
     if (k === 'deck') {
       var Tb = place.bld.tub, lbm = planMap(DATA.houses[houseSel], P132).lb;
       place.pergSide = place.pergSide === 'far' ? 'near' : 'far';
       Tb.c = [Math.round((lbm - Tb.c[0]) * 100) / 100, Tb.c[1]]; Tb.rot = (4 - (Tb.rot || 0)) % 4;
+      var Ofm = place.bld.ofire; if (Ofm && Ofm.c) { Ofm.c = [Math.round((lbm - Ofm.c[0]) * 100) / 100, Ofm.c[1]]; Ofm.rot = (4 - (Ofm.rot || 0)) % 4; }
       regradeNow(); savePlace(); syncPlaceUI(); return;
     } place.bld[k].mir = !place.bld[k].mir; bldCommit(k); }
   var bindBtn = function(id, f){ var el = document.getElementById(id); if (el) el.addEventListener('click', f); };
@@ -8661,6 +8698,12 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     var psUI = function(){ document.querySelectorAll('[data-pside]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.pside === place.pergSide)); }); var f = document.getElementById('f-pside'); if (f) f.textContent = place.pergSide === 'far' ? 'terassin toisessa päässä' : 'kodinhoitohuoneen päässä'; };
     document.querySelectorAll('[data-pside]').forEach(function(b){ b.addEventListener('click', function(){ var v = b.dataset.pside === 'far' ? 'far' : 'near'; if (place.pergSide === v) return; place.pergSide = v; psUI(); regradeNow(); savePlace(); }); });
     psUI();
+    var dsUI = function(){
+      document.querySelectorAll('[data-decksz]').forEach(function(b){ b.setAttribute('aria-pressed', String((b.dataset.decksz === 'small') === !!place.deckSmall)); });
+      var f = document.getElementById('f-perg'); if (f) f.textContent = place.deckSmall ? '4,5 × 4,4 m, ei kasvihuonetta' : '4,5 × 5,4 m + kasvihuone 3,6 m';
+    };
+    document.querySelectorAll('[data-decksz]').forEach(function(b){ b.addEventListener('click', function(){ var v = b.dataset.decksz === 'small'; if (!!place.deckSmall === v) return; place.deckSmall = v; dsUI(); regradeNow(); savePlace(); syncPlaceUI(); }); });
+    dsUI();
   })();
   document.querySelectorAll('[data-fire]').forEach(function(b){ b.addEventListener('click', function(){
     var v = b.dataset.fire === 'pj' || b.dataset.fire === 'veronika' ? b.dataset.fire : 'wilma'; if (place.fire === v) return; place.fire = v; syncFireUI();
@@ -8678,6 +8721,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     if (k === 'deck') { place.deckDz = 0; if (place.pergSide === 'far') { bldMirror(); return; } regradeNow(); savePlace(); syncPlaceUI(); return; }
     var Q = place.bld[k], dz0 = Q.dz;
     if (k === 'tub') { var th = tubHome(); Q.c = th.c; Q.rot = th.rot; Q.dz = 0; tubClear(Q); bldCommit(k); return; }
+    if (k === 'ofire') { place.bld.ofire = {c:null, rot:0}; bldCommit(k); return; }
     Q.c = BLD0[k].c.slice(); Q.rot = BLD0[k].rot; Q.mir = BLD0[k].mir; Q.dz = 0; if (k === 'gar') Q.al = false; fitInside(k);
     if (k === 'house' && dz0 !== 0) { regradeNow(); return; }
     bldCommit(k);
@@ -8863,17 +8907,18 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   var sel = {obj:null, drag:null}, selBar = document.getElementById('selbar'), selName = document.getElementById('sel-name'), selInfo = document.getElementById('sel-info');
   var selMat = new THREE.LineBasicMaterial({color:tok('--accent'), depthTest:false, transparent:true, opacity:0.95});
   var selBox = new THREE.LineSegments(new THREE.BufferGeometry(), selMat); selBox.renderOrder = 30; selBox.visible = false; world.add(selBox);
-  function objGroup(k){ if (isTree(k)) return ftGroupOf(k); return k === 'gar' ? garGroup : k === 'gh' ? ghGroup : k === 'tub' ? (TUB && TUB.g) : houseGroups[houseSel]; }
+  function objGroup(k){ if (isTree(k)) return ftGroupOf(k); return k === 'gar' ? garGroup : k === 'gh' ? ghGroup : k === 'tub' ? (TUB && TUB.g) : k === 'ofire' ? (OFIRE && OFIRE.g) : houseGroups[houseSel]; }
   function pickObj(cx, cy){
     var rr = rayAt(cx, cy), best = null;
     // hidden parts (roofs in the site plan) do not count; a click on the tub picks the tub, also through the pergola
     var inSub = function(h, tag){ for (var o = h.object; o; o = o.parent) if (o.userData.pick === tag) return true; return false; };
     var shown = function(h){ for (var o = h.object; o; o = o.parent) if (!o.visible) return false; return true; }, tubHit = null;
-    ['tub', 'gar', 'gh', 'house'].forEach(function(k){
-      var grp = objGroup(k); if (!state[layerOf(k)] || !grp || !grp.visible) return;
+    ['ofire', 'tub', 'gar', 'gh', 'house'].forEach(function(k){
+      var grp = objGroup(k); if (!state[layerOf(k)] || !grp || !grp.visible || (k === 'ofire' && houseSel !== '132')) return;
       var hits = ray.intersectObject(grp, true).filter(shown);
-      if (k === 'house') hits = hits.filter(function(h){ return !inSub(h, 'tub') && !(tubHit && inSub(h, 'perg')); });
-      var hit = hits[0]; if (k === 'tub' && hit) tubHit = hit;
+      if (k === 'tub') hits = hits.filter(function(h){ return !inSub(h, 'ofire'); });
+      if (k === 'house') hits = hits.filter(function(h){ return !inSub(h, 'tub') && !inSub(h, 'ofire') && !(tubHit && inSub(h, 'perg')); });
+      var hit = hits[0]; if ((k === 'tub' || k === 'ofire') && hit) tubHit = hit;
       // on the Ideal 132 the deck, the pergola and its greenhouse are the terrace, below the eaves
       var kk = k;
       if (k === 'house' && hit && houseSel === '132') {
@@ -8890,7 +8935,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     });
     return best;
   }
-  function footNow(k){ if (isTree(k)) { var Tf = treeOf(k); return ftCircle(ftAt(Tf), FT_MULCH[FT_SZ[Tf.sz]], 10); } if (k === 'deck') { var P2d = DATA.houses[houseSel].plan2d; return P2d && P2d.deckSel; } return k === 'house' ? DATA.houses[houseSel].corners : k === 'gar' ? (GAR && GAR.foot) : k === 'tub' ? (TUB && TUB.foot) : (GH && GH.foot); }
+  function footNow(k){ if (isTree(k)) { var Tf = treeOf(k); return ftCircle(ftAt(Tf), FT_MULCH[FT_SZ[Tf.sz]], 10); } if (k === 'deck') { var P2d = DATA.houses[houseSel].plan2d; return P2d && P2d.deckSel; } return k === 'house' ? DATA.houses[houseSel].corners : k === 'gar' ? (GAR && GAR.foot) : k === 'tub' ? (TUB && TUB.foot) : k === 'ofire' ? (OFIRE && OFIRE.foot) : (GH && GH.foot); }
   function selFoot(k){
     var C = footNow(k); if (!C) return null;
     if (isTree(k)) { var Ts = treeOf(k), ts = ftTpl(Ts), pS = ftAt(Ts), gS = gAt(pS[0], pS[1]); return {C:ftCircle(pS, ts.R + 0.15, 16), z0:gS - 0.05, z1:gS + ts.h + 0.15}; }
@@ -8898,6 +8943,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     if (k === 'gar') return {C:CC, z0:GAR.Fz - 0.15, z1:GAR.top + 0.1};
     if (k === 'gh') return {C:CC, z0:GH.Fz - 0.1, z1:GH.top + 0.1};
     if (k === 'tub') return {C:CC, z0:TUB.base, z1:TUB.rim + 0.15};
+    if (k === 'ofire') return {C:CC, z0:OFIRE.z - 0.05, z1:OFIRE.z + 1.15};
     if (k === 'deck') { var dz0 = DATA.houses[houseSel].plan2d.deckZ; return {C:C, z0:dz0 - 0.3, z1:dz0 + 2.75}; }
     var HH = DATA.houses[houseSel]; return {C:CC, z0:HH.sokkeli - 0.3, z1:(HH.top || HH.floor + 6) + 0.2};
   }
@@ -8911,6 +8957,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     var gp = sel.obj === 'house' ? gapsText(DATA.houses[houseSel].corners) : null;
     if (isTree(sel.obj)) { var Ti = treeOf(sel.obj), ti = ftTpl(Ti); selInfo.textContent = 'korkeus n. ' + fn(ti.h, 1) + ' m · latvus Ø ' + fn(2 * ti.R, 1) + ' m · hake Ø ' + fn(2 * FT_MULCH[FT_SZ[Ti.sz]], 1) + ' m'; selInfo.classList.remove('warn'); selBar.hidden = false; return; }
     if (sel.obj === 'deck') { selInfo.textContent = 'korko ' + fz(floorOf('deck'), 2) + ' · ' + fz((place.deckDz || 0) - 0.047, 2) + ' m talon lattiasta'; selInfo.classList.remove('warn'); selBar.hidden = false; return; }
+    if (sel.obj === 'ofire') { selInfo.textContent = OFIRE && OFIRE.onDeck ? 'terassilla · siirrä vetämällä' : 'maassa · siirrä vetämällä'; selInfo.classList.remove('warn'); selBar.hidden = false; return; }
     var tubH = TUB ? TUB.rim - TUB.surf : 0, tubS = TUB && TUB.onDeck ? 'terassin' : 'maan';
     selInfo.textContent = sel.obj === 'tub' ? 'reuna ' + fz(TUB.rim, 2) + ' · ' + (Math.abs(tubH) < 0.005 ? tubS + ' tasossa' : fn(tubH, 2) + ' m ' + tubS + ' yläpuolella') : 'lattia ' + fz(floorOf(sel.obj), 2) + (gp ? ' · ' + gp.t : ''); selInfo.classList.toggle('warn', !!(gp && gp.warn));
     selBar.hidden = false;
@@ -8937,9 +8984,9 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   function clampMove(k, d){
     var C0 = footNow(k), moved = function(dd){ return C0.map(function(p){ return [p[0] + dd[0], p[1] + dd[1]]; }); };
     // the tub also stays out of the house
-    var HC = DATA.houses[houseSel].corners, ok = function(C){ return insidePlot(C) && (k !== 'tub' || !(C.some(function(p){ return inPoly(p[0], p[1], HC); }) || HC.some(function(p){ return inPoly(p[0], p[1], C); }))); };
+    var HC = DATA.houses[houseSel].corners, ok = function(C){ return insidePlot(C) && ((k !== 'tub' && k !== 'ofire') || !(C.some(function(p){ return inPoly(p[0], p[1], HC); }) || HC.some(function(p){ return inPoly(p[0], p[1], C); }))); };
     if (!ok(C0) || ok(moved(d))) return d;
-    var F = k === 'tub' ? frameOf(HC) : frameOf(C0), best = null;
+    var F = k === 'tub' || k === 'ofire' ? frameOf(HC) : frameOf(C0), best = null;
     [F.a, F.b].forEach(function(u){ var t = d[0] * u[0] + d[1] * u[1], dd = [u[0] * t, u[1] * t]; if (ok(moved(dd)) && (!best || Math.abs(t) > best.t)) best = {d:dd, t:Math.abs(t)}; });
     if (best) return best.d;
     var lo = 0, hi = 1; for (var it = 0; it < 14; it++) { var m = (lo + hi) / 2; if (ok(moved([d[0] * m, d[1] * m]))) lo = m; else hi = m; }
@@ -8976,6 +9023,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     if (isTree(k)) { var Tm = treeOf(k), cT = ftAt(Tm); Tm.c = abOf([cT[0] + d[0], cT[1] + d[1]]); bldCommit(k); return; }
     var Q = place.bld[k];
     if (k === 'tub') { var tw = tubWorld(Q.c); Q.c = tubLocal([tw[0] + d[0], tw[1] + d[1]]); bldCommit(k); return; }
+    if (k === 'ofire') { if (!OFIRE) return; Q.c = tubLocal([OFIRE.c[0] + d[0], OFIRE.c[1] + d[1]]); bldCommit(k); return; }
     var c = HF0.P(Q.c[0], Q.c[1]);
     Q.c = abOf([c[0] + d[0], c[1] + d[1]]);
     bldCommit(k);
@@ -9504,7 +9552,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   // the hedge and the terrace's; the ground and everything on it are built again
   function applyPlace(p5){
     if (!p5 || !p5.bld) return;
-    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:9, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
+    var P = {bld:copyOf(BLD0), asph:null, hedge:2.0, v:9, fire:'veronika', plan:'a', facade:'dark', deckDz:0, screen:true, glaze:'closed', pergSide:'near', deckSmall:false, fence:true, fenceH:1.0, hedgeFront:false, trees:JSON.parse(JSON.stringify(TREES0))};
     try { readPlace(p5, P); } catch (e) { return; }
     Object.keys(P).forEach(function(k){ place[k] = P[k]; }); delete place.m4;
     var mk = DATA.houses[place.bld.house.model] ? place.bld.house.model : '132'; place.bld.house.model = mk;
@@ -9561,6 +9609,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
           ['✕', 'Poista', function(){ views.presets = views.presets.filter(function(q){ return q !== p; }); vSave(); vRender(); }]]);
       });
       var pe = document.getElementById('pv-empty'); if (pe) pe.hidden = views.presets.length > 0;
+      if (typeof PRE !== 'undefined' && PRE) vsBuild();
     }
     if (runList) {
       runList.textContent = '';
@@ -9586,19 +9635,10 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   // section simply take over. Points are floor plan pixels; h is the eye above the floor (on the deck, above the boards)
   var PRE132 = [
     {id:'plan', name:'Pohja ylhäältä', top:true},
-    {id:'kitchen', name:'Keittiö', p:[1506, 545], q:[1545, 250], h:1.6, pitch:-0.16, fov:72},
     {id:'living', name:'Olohuone', p:[1180, 300], q:[880, 610], h:1.6, pitch:-0.16, fov:76},
     {id:'sofa', name:'Sohvalta', p:[1084, 425], q:[740, 398], h:1.18, pitch:-0.05, fov:62},
     {id:'sauna', name:'Sauna, lauteilta', p:[334, 405], q:[385, 250], h:1.8, pitch:-0.22, fov:86},
-    {id:'ph', name:'Pesuhuone', p:[482, 494], q:[322, 575], h:1.6, pitch:-0.22, fov:84},
-    {id:'wc', name:'WC', p:[1182, 722], q:[1040, 750], h:1.6, pitch:-0.26, fov:82, b:{p:[738, 722], q:[880, 750]}},
-    {id:'khh', name:'Kodinhoitohuone', p:[630, 528], q:[585, 250], h:1.6, pitch:-0.12, fov:84},
-    {id:'et', name:'Eteinen', p:[1222, 960], q:[1255, 630], h:1.6, pitch:-0.1, fov:76, b:{p:[700, 960], q:[660, 600]}},
-    {id:'mh1', name:'Makuuhuone 1', p:[1362, 768], q:[1600, 965], h:1.6, pitch:-0.2, fov:80, b:{p:[1395, 655], q:[1590, 960]}},
-    {id:'mh2', name:'Makuuhuone 2', p:[853, 698], q:[1012, 962], h:1.6, pitch:-0.2, fov:80, b:{p:[1070, 698], q:[915, 962]}},
-    {id:'mh3', name:'Makuuhuone 3', p:[758, 698], q:[600, 962], h:1.6, pitch:-0.2, fov:80, b:{p:[1295, 698], q:[1140, 962]}},
     {id:'mh4', name:'Musiikkihuone', p:[442, 982], q:[398, 690], h:1.65, pitch:-0.15, fov:80},
-    {id:'studio', name:'Studion työpöytä', p:[468, 885], q:[306, 885], h:1.45, pitch:-0.14, fov:70},
     {id:'deck', name:'Terassi', p:[918, 105], q:[387, -224], h:1.6, pitch:-0.12, fov:72}
   ], PRE_COMMON = [{id:'home', name:'Perusnäkymä', home:true}, {id:'plotTop', name:'Tontti ylhäältä', plotTop:true}, {id:'soloHouse', name:'Pelkkä talo', solo:'house'}, {id:'soloGar', name:'Pelkkä autotalli', solo:'gar'}],
   PRE = PRE_COMMON.concat(houseSel === '132' ? PRE132 : HM[houseSel].pre);
@@ -9631,6 +9671,15 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
       b.addEventListener('click', function(){ preGo(P.id); vsClose(); }); (PRE_OUT[P.id] ? lo : li).appendChild(b);
     });
     var ig = document.getElementById('vs-ing'); if (ig) ig.hidden = !li.firstChild;
+    var lw = document.getElementById('vs-own'), og = document.getElementById('vs-owng');
+    if (lw) {
+      while (lw.firstChild) lw.removeChild(lw.firstChild);
+      views.presets.forEach(function(p){
+        var b = document.createElement('button'); b.type = 'button'; b.textContent = p.name; b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', function(){ vApply(p.view, false); vsClose(); }); lw.appendChild(b);
+      });
+      if (og) og.hidden = !views.presets.length;
+    }
   }
   function vsClose(){ var el = document.getElementById('vsheet'), b = document.getElementById('cam-views'); if (!el || el.hidden) return; el.hidden = true; if (b) b.setAttribute('aria-expanded', 'false'); }
   preBuildUI();
@@ -9639,7 +9688,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
     document.querySelectorAll('[data-pre]').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.pre === pre.cur)); });
     var pb = document.getElementById('pre-back'); if (pb) pb.hidden = !pre.back;
     var qb = document.getElementById('vs-back'); if (qb) qb.hidden = !pre.back;
-    var fe = document.getElementById('fp-exit'); if (fe) fe.textContent = pre.back ? 'Palaa' : 'Poistu';
+    var fe = document.getElementById('fp-exit'); if (fe) fe.textContent = 'Poistu';
     if (preBar) { preBar.hidden = !(P && (P.top || P.plotTop || P.solo)); var pn = document.getElementById('pre-name'); if (pn && P) pn.textContent = P.name; }
   }
   function preSnap(){
@@ -9669,8 +9718,8 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
       flyTo({p:[hcN[0] + vo.p[0] - vo.t[0], yt + vo.p[1] - vo.t[1], hcN[1] + vo.p[2] - vo.t[2]], t:[hcN[0], yt, hcN[1]]});
       syncMode(); preUI(); return;
     }
-    if (pre.cur === id) { preBack(); return; }
-    if (!pre.back) pre.back = preSnap();
+    if (pre.cur === id && pre.back) { preBack(); return; }
+    if (!pre.back && (P.top || P.solo || P.plotTop)) pre.back = preSnap();
     pre.cur = id; pre.busy = true;
     if (P.top) {
       if (fp.on) fpQuiet();
@@ -10099,7 +10148,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   document.querySelectorAll('[data-mode]').forEach(function(b){
     b.addEventListener('click', function(){
       // Katsele on and off: off it goes back to the view before a ready view, or turns round the point looked at
-      if (fp.on) { if (pre.back) preBack(); else fpExit(); } else fpEnter();
+      if (fp.on) fpExit(); else fpEnter();
       syncMode();
     });
   });

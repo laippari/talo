@@ -2870,7 +2870,7 @@
     })();
     // The pergola and the greenhouse are one space under one roof. The frame: on the outer long side (along the house's
     // end) a 100 x 100 post every 0.9 m, the pergola's part clad outside in the facade's boards, the greenhouse's part
-    // glazed; across the far end posts every 0.9 m with glass between; along the long side towards the deck only one
+    // glazed; across the far end sliding glass panels under a level rail; along the long side towards the deck only one
     // middle post, the rest closed by sliding glass panels. The fixed glass comes down to the floor; no sill, no rails
     var G2 = new THREE.Group(); g.add(G2);
     var gw = OD.wood, t1 = 0.1, M = PERG.mod, zTopG = function(x){ return zt(x) - T15; };
@@ -2883,7 +2883,10 @@
     var gPost = function(x, y, w){ w = w || t1; var y0 = clamp(y - w / 2, 0, PE - w), q = Lp(x, y0 + w / 2); G2.add(boxAlong(Lp(x - w / 2, y0 + w / 2), Lp(x + w / 2, y0 + w / 2), w, Math.min(D, gAt(q[0], q[1])) - 0.05, zTopG(x), gw)); };
     for (var pi = 1; pi * M < PE - 0.01; pi++) gPost(0.08, pi * M);
     gPost(0.08, PE, 0.15); gPost(PW - 0.075, PE, 0.15); gPost(PW - 0.075, PE / 2, 0.15);
-    for (var xi = 1; xi * M < PW - 0.01; xi++) gPost(xi * M, PE - 0.05);
+    // the far end (the plants' end) has no posts between its corners: a level rail under the lowest rafter carries
+    // sliding glass like the long side's, and over the rail a fixed wedge of glass fills up to the sloping roof
+    var yE = PE - 0.075, zRail = zTopG(0.08), eXa = 0.155, eXb = PW - 0.15;
+    G2.add(boxAlong(Lp(eXa, yE), Lp(eXb, yE), 0.1, zRail - 0.07, zRail, gw));
     // the pergola's part of the outer side, the seinäke: the facade's boards outside the posts and inside them too, so the
     // frame is hidden between them, from the deck to the beam; it ends flush with the far face of the post at the
     // greenhouse
@@ -2893,7 +2896,7 @@
     G2.add(new THREE.Mesh(prism([Lp(0.13, 0.003), Lp(SWI, 0.003), Lp(SWI, SWE), Lp(0.13, SWE)], Y(D - 0.005), Y(zTopG(0.14))), BOARD_DS));
     var GV = function(x, y, z){ var q = Lp(x, y); return new THREE.Vector3(q[0], Y(z), q[1]); }, gq2 = [];
     if (GL > 0 && !place.deckSmall) gq2.push([GV(0.1, PD, D + 0.004), GV(0.1, PE, D + 0.004), GV(0.1, PE, zTopG(0.1)), GV(0.1, PD, zTopG(0.1))]);
-    gq2.push([GV(0, PE - 0.08, D + 0.004), GV(PW, PE - 0.08, D + 0.004), GV(PW, PE - 0.08, zTopG(PW)), GV(0, PE - 0.08, zTopG(0))]);
+    gq2.push([GV(eXa, yE, zRail), GV(eXb, yE, zRail), GV(eXb, yE, zTopG(eXb)), GV(eXa, yE, zTopG(eXa))]);
     var gm2 = quadsMesh(gq2, M132.glass); gm2.renderOrder = 5; G2.add(gm2);
     var FG = {P:function(u, v){ return Lp(PW / 2 + u, PD + GL / 2 + v); }}, pl2 = new THREE.Group();
     if (GL > 0) { ghPlants(pl2, FG, D, function(u){ return zTopG(PW / 2 + u); }, [PW / 2 - 0.05, GL / 2, 'L']); G2.add(pl2); }
@@ -2913,6 +2916,18 @@
         g.add(grp); GLZ.list.push({g:grp, v:[(w1[0] - w0[0]) * sh, (w1[1] - w0[1]) * sh], m:mat, k:k});
       }
     });
+    // the far end's panels: five on their own tracks between the corner posts. Open, they stack at the end's left as
+    // seen from inside the pergola looking out (from the tub), whichever way the house and the pergola are turned
+    (function(){
+      var e0 = Lp(PW / 2, 0), e1 = Lp(PW / 2, PE), lf = [e1[1] - e0[1], -(e1[0] - e0[0])], x0w = Lp(0, 0), x1w = Lp(1, 0), xd = [x1w[0] - x0w[0], x1w[1] - x0w[1]];
+      var plusLeft = xd[0] * lf[0] + xd[1] * lf[1] > 0, xEnd = plusLeft ? eXb : eXa, dir = plusLeft ? -1 : 1, span = eXb - eXa, pw = span / NP + 0.02;
+      for (var k = 0; k < NP; k++) {
+        var yk = yE - 0.03 + k * 0.015, a = xEnd + dir * (k * span / NP - (k ? 0.02 : 0)), b = a + dir * pw, grp = new THREE.Group(), mat = glassMat();
+        var gl = boxAlong(Lp(a, yk), Lp(b, yk), 0.01, D + 0.02, zRail - 0.075, mat); gl.renderOrder = 5; grp.add(gl);
+        var sh = xEnd - a;
+        g.add(grp); GLZ.list.push({g:grp, v:[xd[0] * sh, xd[1] * sh], m:mat, k:k});
+      }
+    })();
     glzApply();
     mergeStatic(pg);
     // a light pedestal stove in the pergola after the Aduro 9.3: a black steel body rounded in plan (50 x 45 cm) on an

@@ -7,8 +7,8 @@ Tavoite: talo, piha ja tontti näyttävät uskottavilta mutta värikkäiltä, ja
 
 - Uusi moottori: three.js 0.186.1, WebGPU ja automaattinen WebGL2-varatie. Sama versio ja rakenne kuin Oura-projektissa.
 - Uusi moottori on 14.11.2026 alkaen pääsivu (`index.html` ja `src/`). Edellinen moottori (r128) on sellaisenaan
-  varalla kansiossa `vanha/` (https://laippari.github.io/talo/vanha/), eikä siihen tehdä muutoksia. `next/` ohjaa
-  pääsivulle.
+  varalla kansiossa `vanha/` (https://laippari.github.io/talo/vanha/), eikä siihen tehdä muutoksia. `next/`-kansio
+  poistettiin 16.11.2026.
 - Kohdelaitteet: iPhone 17 Pro ja MacBook Pro. Vanhempia laitteita ei viritetä erikseen.
 - Kuvien tallennus pysyy ennallaan. Erillistä valokuvatilaa ei tehdä.
 - Naapuritaloja ei tarkenneta, koska niiden ulkonäköä ei tiedetä. Lähimmät voidaan sävyttää tummiksi.

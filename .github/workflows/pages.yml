@@ -1,5 +1,5 @@
 # Julkaisee sivun GitHub Pagesiin jokaisella main-haaran pushilla.
-# Sivu on staattinen (ei käännösvaihetta): julkaistaan index.html, src/, data/, assets/, vanha/ ja next/.
+# Sivu on staattinen (ei käännösvaihetta): julkaistaan index.html, src/, data/, assets/ ja vanha/.
 name: Deploy to GitHub Pages
 
 on:
@@ -44,7 +44,7 @@ jobs:
           V=${GITHUB_SHA::7}; B=$(TZ=Europe/Helsinki date +'%-d.%-m.%Y klo %H.%M')
           sed -i "s/__VERSION__/$V/g; s/__BUILD__/$B/g" _site/index.html
           grep -q "boot.js?v=$V" _site/index.html || { echo "versioleima puuttuu"; exit 1; }
-          cp -r src data assets vanha next _site/
+          cp -r src data assets vanha _site/
           touch _site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

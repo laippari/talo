@@ -14,7 +14,6 @@ https://laippari.github.io/talo/
 | `data/site.json` | Maasto, tontti, rakennukset, puut ja ilmakuvat. |
 | `assets/` | Media (olohuoneen television video). |
 | `vanha/` | Edellinen moottori (three.js r128, WebGL) sellaisenaan varalla: https://laippari.github.io/talo/vanha/ |
-| `next/` | Ohjaus pääsivulle (uuden moottorin kehitysosoite). |
 | `tools/build_single.py` | Kokoaa sivusta yhden HTML-tiedoston (`dist/talo.html`). |
 | `docs/SUUNNITELMA.md` | Renderöinnin ja mallinnuksen parannussuunnitelma ja sen tilanne. |
 

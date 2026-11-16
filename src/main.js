@@ -576,6 +576,43 @@
     return new THREE.Mesh(g, mat);
   }
   var RW = {JV:0.35, VJ:0.3, HV:0.4};
+  // the trunk across the plots continues past the statement's map frame on the base map of the site plan draft
+  // (asemapiirustus luonnos L4, 8.4.2021; its line georeferenced on boundary marks 31, 34, 63, 68, 87 and 97):
+  // north to beyond the lot 2:369 and south-west to the edge of Ali-Haakkointie. The water main 0.9 m east of the sewer
+  // as on the statement. Depths there are not known: the sewer falls 0.3 % southwards, at least 1.6 m under the ground.
+  var PIPE_EXT = {
+    JV:{n:[[0.54, -96.17], [-2.48, -89.49], [-7.0, -79.55], [-11.39, -69.89], [-15.95, -59.89], [-19.94, -51.09]],
+        s:[[-41.49, 5.2], [-49.13, 12.84], [-56.92, 19.73], [-64.0, 25.98], [-70.92, 32.24], [-77.48, 38.2], [-84.42, 44.49]]},
+    VJ:{n:[[1.36, -95.8], [-1.66, -89.12], [-6.18, -79.18], [-10.57, -69.52], [-15.13, -59.52], [-19.12, -50.72]],
+        s:[[-40.85, 5.84], [-48.51, 13.5], [-56.32, 20.4], [-63.4, 26.65], [-70.32, 32.91], [-76.88, 38.87], [-83.82, 45.16]]}
+  };
+  ['JV', 'VJ'].forEach(function(t){
+    var pl = WS.pipes[t][0], E = PIPE_EXT[t], inv = WS.inv[t] && WS.inv[t][0];
+    if (!pl || pl.ext) return;
+    var len = function(a, b){ return Math.hypot(b[0] - a[0], b[1] - a[1]); };
+    if (inv) {
+      var ni = [], si = [], d = 0, prev = pl[0];
+      for (var i = E.n.length - 1; i >= 0; i--) { d += len(prev, E.n[i]); prev = E.n[i]; var g = H(E.n[i][0], E.n[i][1]); ni.unshift(Math.min(inv[0] + 0.003 * d, g == null ? 1e9 : g - 1.6)); }
+      d = 0; prev = pl[pl.length - 1];
+      E.s.forEach(function(p){ d += len(prev, p); prev = p; var g = H(p[0], p[1]); si.push(Math.min(inv[inv.length - 1] - 0.003 * d, g == null ? 1e9 : g - 1.6)); });
+      WS.inv[t][0] = ni.concat(inv, si);
+    }
+    WS.pipes[t][0] = E.n.concat(pl, E.s); WS.pipes[t][0].ext = true;
+  });
+  // the pipe markings lie on the ground as it is shown: on the planned yard, not under its lawn (utilDrape after a regrade)
+  var UDR = [], UDF = [];
+  function utilG(x, z){ if (GP && planOn()) return gAt(x, z); var h = H(x, z); return h == null ? Hall(x, z) : h; }
+  function drapeReg(m, off){ m.userData.drape = off; UDR.push(m); return m; }
+  var udPlan = null;
+  function utilDrape(){
+    udPlan = !!(GP && planOn());
+    UDR.forEach(function(m){
+      var a = m.geometry.attributes.position;
+      for (var i = 0; i < a.count; i++) a.setY(i, Y(utilG(a.getX(i), a.getZ(i))) + m.userData.drape);
+      a.needsUpdate = true; m.geometry.computeBoundingSphere(); m.geometry.computeBoundingBox();
+    });
+    UDF.forEach(function(f){ f(); });
+  }
   function densify(pl, zs, step){
     var out = [];
     for (var i = 0; i < pl.length - 1; i++) {
@@ -594,7 +631,7 @@
         var r = rr[1]; if (r.length < 2) return;
         var lay = rr[0] ? 'util' : 'utilOut';
         var g = r.map(function(p){ return new THREE.Vector3(p[0], Y(H(p[0], p[1])) + 0.06, p[1]); });
-        reg(lay, ribbon(g, RW[t], pipeGround[t], t === 'VJ'));
+        reg(lay, drapeReg(ribbon(g, RW[t], pipeGround[t], t === 'VJ'), 0.07));
         var deep = r.map(function(p){ var z = p[2] != null ? p[2] + PIPE[t].r : H(p[0], p[1]) - 2.2; return new THREE.Vector3(p[0], Y(z), p[1]); });
         var cp = new THREE.CurvePath(); for (var k = 0; k < deep.length - 1; k++) cp.add(new THREE.LineCurve3(deep[k], deep[k+1]));
         reg(lay, new THREE.Mesh(new THREE.TubeGeometry(cp, Math.max(2, deep.length * 2), PIPE[t].r, 8, false), pipeTube[t]));
@@ -608,6 +645,7 @@
     var lay = inPoly(m.p[0], m.p[1], CUT) ? 'util' : 'utilOut';
     var sh = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, h - bot, 16), shaftMat[m.t]); sh.position.set(m.p[0], Y((h + bot) / 2), m.p[1]); reg(lay, sh);
     var lid = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.05, 20), lidMat); lid.position.set(m.p[0], Y(h) + 0.03, m.p[1]); reg(lay, lid);
+    UDF.push(function(){ var g = utilG(m.p[0], m.p[1]); sh.scale.y = Math.max(0.05, (g - bot) / (h - bot)); sh.position.y = Y((g + bot) / 2); lid.position.y = Y(g) + 0.03; });
     var txt = (m.t === 'JV' ? 'Jätevesikaivo' : 'Sadevesikaivo') + (m.kansi != null ? ' · kansi ' + fz(m.kansi) : '') + (m.pohja != null ? ' · pohja ' + fz(m.pohja) : '');
     label(txt, [m.p[0], Y(h) + 0.45, m.p[1]], 'mh', lay);
   });
@@ -617,12 +655,21 @@
     var pin = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.6, 8), mat); pin.position.set(c.p[0], Y(h) + 0.8, c.p[1]); reg(lay, pin);
     var head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), mat); head.position.set(c.p[0], Y(h) + 1.65, c.p[1]); reg(lay, head);
     var z = c.z != null ? c.z : h - 2.2;
-    reg(lay, new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(c.p[0], Y(h), c.p[1]), new THREE.Vector3(c.p[0], Y(z), c.p[1])]), new THREE.LineBasicMaterial({color:col})));
+    var vl = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(c.p[0], Y(h), c.p[1]), new THREE.Vector3(c.p[0], Y(z), c.p[1])]), new THREE.LineBasicMaterial({color:col}));
+    reg(lay, vl);
     var a = new THREE.Vector3(c.from[0], Y(H(c.from[0], c.from[1])) + 0.15, c.from[1]), b = new THREE.Vector3(c.p[0], Y(h) + 0.15, c.p[1]);
     var arr = densify([[c.from[0], c.from[1]], [c.p[0], c.p[1]]], null, 0.6).map(function(p){ return new THREE.Vector3(p[0], Y(H(p[0], p[1])) + 0.09, p[1]); });
-    reg(lay, ribbon(arr, 0.18, new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.75, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-3, polygonOffsetUnits:-3}), false));
+    reg(lay, drapeReg(ribbon(arr, 0.18, new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.75, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-3, polygonOffsetUnits:-3}), false), 0.1));
     var cone = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.5, 12), mat);
     cone.position.copy(b); cone.lookAt(a); cone.rotateX(-Math.PI / 2); reg(lay, cone);
+    (function(c, pin, head, cone, vl){
+      UDF.push(function(){
+        var g = utilG(c.p[0], c.p[1]), ga = utilG(c.from[0], c.from[1]);
+        pin.position.y = Y(g) + 0.8; head.position.y = Y(g) + 1.65;
+        var pa = vl.geometry.attributes.position; pa.setY(0, Y(g)); pa.needsUpdate = true; vl.geometry.computeBoundingSphere();
+        cone.position.set(c.p[0], Y(g) + 0.15, c.p[1]); cone.rotation.set(0, 0, 0); cone.lookAt(new THREE.Vector3(c.from[0], Y(ga) + 0.15, c.from[1])); cone.rotateX(-Math.PI / 2);
+      });
+    })(c, pin, head, cone, vl);
     label(c.txt, [c.p[0], Y(h) + (c.t === 'VJ' ? 2.9 : 2.1), c.p[1]], 'cx ' + c.t.toLowerCase(), lay);
   });
 
@@ -5701,7 +5748,7 @@
     applyLayers();
   }
   cutU.uPlanMask.value = planMaskTex;
-  computeGround(); buildGround(); roadMaskNear();
+  computeGround(); buildGround(); roadMaskNear(); utilDrape();
   // ---------- clipped thuja hedge round the plot: 2 m high, 0.8 m wide, centre 0.5 m inside the boundary ----------
   // open at the entrance; it stops at the stone beds of the aspens that stand at the boundary
   var hcv = document.createElement('canvas'); hcv.width = hcv.height = 256;
@@ -6788,6 +6835,7 @@
     });
   }
   function applyLayers(){
+    if (udPlan !== null && udPlan !== !!(GP && planOn())) utilDrape();
     var fx = fndLast = fndX(), cut = cutOn(), side = cut && !!sec && sec.on && sec.mode === 'side';
     TUBU.uTubOn.value = TUB && state.house && !preSolo ? 1 : 0;
     TUBU.uPitOn.value = fx ? 1 : 0;
@@ -7855,7 +7903,7 @@
   }
   document.querySelectorAll('[data-hmodel]').forEach(function(b){ b.addEventListener('click', function(){ setHouseModel(b.dataset.hmodel); }); });
   syncModelUI();
-  function regradeNow(){ clearTimeout(regradeT); regradeT = 0; computeGround(); buildGround(); buildHedge(); commitPlace(); roadMaskNear(); fndDirty = true; fndStale = true; if (fndX()) fndBuild(); cutDirty = true; if (cutOn()) { cutBuild(); cutPatch(); } }
+  function regradeNow(){ clearTimeout(regradeT); regradeT = 0; computeGround(); buildGround(); buildHedge(); commitPlace(); roadMaskNear(); utilDrape(); fndDirty = true; fndStale = true; if (fndX()) fndBuild(); cutDirty = true; if (cutOn()) { cutBuild(); cutPatch(); } }
   if (bFloorIn) {
     bFloorIn.min = DZ_MIN; bFloorIn.max = DZ_MAX;
     bFloorIn.addEventListener('input', function(){

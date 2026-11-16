@@ -112,7 +112,10 @@ function yardGrain(det, c, xz){
   const fa = grey.mul(float(1).sub(smoothstep(0.32, 0.5, lum))), fg = grey.mul(smoothstep(0.42, 0.6, lum));
   const gn = smoothstep(0.03, 0.12, c.g.sub(max(c.r, c.b)));
   const b1 = det.sample(xz.mul(4.3)).r.sub(0.5), b2 = det.sample(xz.mul(1.6).add(0.21)).g.sub(0.5), b3 = det.sample(xz.mul(0.27).add(0.6)).r.sub(0.5);
-  const lawn = c.mul(float(1).add(b1.mul(0.42)).add(b2.mul(0.26))).mul(float(1).add(b3.mul(0.22))).add(vec3(0.03, 0.025, 0.0).mul(smoothstep(0.1, 0.4, b3)));
+  // blades at two scales, one of them turned, so no tile shows; their shade a little bluer, their lit tips yellower
+  const bl = det.sample(xz.mul(1.9)).b.sub(0.5), bl2 = det.sample(xz.yx.mul(3.3).add(0.43)).b.sub(0.5), bb = bl.mul(0.7).add(bl2.mul(0.45));
+  const lawn = c.mul(float(1).add(b1.mul(0.22)).add(b2.mul(0.2)).add(bb.mul(0.75))).mul(float(1).add(b3.mul(0.3)))
+    .add(vec3(0.035, 0.03, 0.0).mul(smoothstep(0.1, 0.4, b3))).add(vec3(0.02, 0.025, -0.01).mul(max(bb, 0.0)));
   return mix(c.mul(float(1).add(fa.mul(0.55).mul(da)).add(fg.mul(0.7).mul(dg))), lawn, gn);
 }
 function grayAware(mat, G){

@@ -62,6 +62,8 @@
   function sunFit(cx, cy, cz, r){
     sun.target.position.set(cx, cy, cz); sun.target.updateMatrixWorld();
     var c = sun.shadow.camera; c.left = -r; c.right = r; c.top = r; c.bottom = -r; c.near = 40; c.far = 260; c.updateProjectionMatrix();
+    // a soft edge about 12 cm wide on the ground whatever the map's size (a phone has half the texels)
+    if (SHADOW) sun.shadow.radius = Math.max(1.5, Math.min(6, 0.12 / (2 * r / window.TALO_Q.shadow)));
   }
   function sunPlace(dir){ sun.position.copy(sun.target.position).addScaledVector(dir, 150); }
   var skyMat = FX.skyMaterial(sunDir);
@@ -299,9 +301,17 @@
       }
     }
     var norm = function(V){ var m = 0, v = 0, n = N * N, q; for (q = 0; q < n; q++) m += V[q]; m /= n; for (q = 0; q < n; q++) v += (V[q] - m) * (V[q] - m); v = Math.sqrt(v / n) || 1; for (q = 0; q < n; q++) V[q] = Math.max(0, Math.min(1, 0.5 + (V[q] - m) / v * 0.2)); };
-    norm(A); norm(B);
+    // B: the lawn's blades (a tile of about 0.5 m): thin strokes 1 to 5 cm long leaning every way, darker ones in the
+    // shade between them and lighter ones lit on top, over a mottled bed
+    var G2 = new Float32Array(N * N);
+    for (var q0 = 0; q0 < N * N; q0++) G2[q0] = A[q0] * 0.35;
+    for (var bl = 0; bl < 14000; bl++) {
+      var bx = rnd() * N, by = rnd() * N, ang = rnd() * Math.PI * 2, len = 2 + rnd() * 9, tone = rnd() < 0.55 ? -0.5 - rnd() * 0.5 : 0.4 + rnd() * 0.6;
+      for (var st = 0; st <= len; st += 0.5) { var px = Math.round(bx + Math.cos(ang) * st), py = Math.round(by + Math.sin(ang) * st), fd = 1 - 0.5 * st / len; G2[at(px, py)] = G2[at(px, py)] * 0.3 + tone * fd * 0.7; }
+    }
+    norm(A); norm(B); norm(G2);
     var g = detCv.getContext('2d'), id = g.createImageData(N, N), d = id.data;
-    for (var p = 0; p < N * N; p++) { d[p * 4] = Math.round(A[p] * 255); d[p * 4 + 1] = Math.round(B[p] * 255); d[p * 4 + 2] = 128; d[p * 4 + 3] = 255; }
+    for (var p = 0; p < N * N; p++) { d[p * 4] = Math.round(A[p] * 255); d[p * 4 + 1] = Math.round(B[p] * 255); d[p * 4 + 2] = Math.round(G2[p] * 255); d[p * 4 + 3] = 255; }
     g.putImageData(id, 0, 0);
   })();
   var detTex = new THREE.CanvasTexture(detCv); detTex.wrapS = detTex.wrapT = THREE.RepeatWrapping; detTex.anisotropy = 8;
@@ -1230,7 +1240,7 @@
         var g5 = bld(p5.bld.gar, BLD0.gar); g5.type = p5.bld.gar && GAR_T[p5.bld.gar.type] ? p5.bld.gar.type : 'gs'; g5.rot = half(p5.bld.gar && p5.bld.gar.rot); g5.al = !!(p5.bld.gar && p5.bld.gar.al); if (g5.al) g5.rot = Math.round(g5.rot) % 4;
         // before version 6 the tub's stove stood out from the house; now towards the neighbour, beside the pergola's low edge
         if (!(p5.v >= 6)) place.bld.tub.rot = 1; if (Math.abs(g5.c[0] - 12.94) < 0.01 && Math.abs(g5.c[1] + 4.0) < 0.01) g5.c = BLD0.gar.c.slice(); place.bld.gar = g5;
-        place.asph = poly(p5.asph); place.hedge = clamp(num(p5.hedge, 2), 0.5, 3); place.fire = p5.fire === 'ville' ? 'ville' : p5.v >= 9 && p5.fire === 'wilma' ? 'wilma' : 'veronika'; place.plan = p5.plan === 'b' ? 'b' : 'a'; place.facade = p5.facade === 'dark' ? 'dark' : 'wood'; place.deckDz = clamp(num(p5.deckDz, 0), -0.4, 0.3); place.screen = p5.screen !== false; place.glaze = p5.glaze === 'open' ? 'open' : 'closed'; place.pergSide = p5.pergSide === 'far' ? 'far' : 'near'; place.deckSmall = p5.deckSmall === true;
+        place.asph = poly(p5.asph); place.hedge = clamp(num(p5.hedge, 2), 0, 3); place.fire = p5.fire === 'ville' ? 'ville' : p5.v >= 9 && p5.fire === 'wilma' ? 'wilma' : 'veronika'; place.plan = p5.plan === 'b' ? 'b' : 'a'; place.facade = p5.facade === 'dark' ? 'dark' : 'wood'; place.deckDz = clamp(num(p5.deckDz, 0), -0.4, 0.3); place.screen = p5.screen !== false; place.glaze = p5.glaze === 'open' ? 'open' : 'closed'; place.pergSide = p5.pergSide === 'far' ? 'far' : 'near'; place.deckSmall = p5.deckSmall === true;
         place.treesOff = [];
         place.tubK = clamp(num(p5.tubK, 0.7), 0, 1); place.tubC = TUB_COLS.some(function(c){ return c[0] === p5.tubC; }) ? p5.tubC : TUB_COLS[0][0];
         var of5 = p5.bld && p5.bld.ofire; place.bld.ofire = of5 && of5.c && isFinite(of5.c[0]) && isFinite(of5.c[1]) ? {c:[Number(of5.c[0]), Number(of5.c[1])], rot:plQuarter(of5.rot)} : {c:null, rot:of5 ? plQuarter(of5.rot) : 0};
@@ -5382,6 +5392,46 @@
       var tv = w * (D - e); T[kk] = tv; if (!INP[kk]) TB[kk] = tv;
       if (tv > 0) { vol += tv * sp * sp; if (tv > mx) { mx = tv; at = [x, z]; } } else cut -= tv * sp * sp;
     }
+    // along the board fence the yard is graded to an even slope, so the fence's top runs straight: on each side of the
+    // drive the ground on the fence line is fitted with a straight line along it, and the ground within 2 m of the fence
+    // is drawn to that line (fully under the fence, fading out inwards and towards the asphalt)
+    if (place.fence) (function(){
+      var FC = FENCE || {IN:0.05, R:2.2, RET:2.5}, L = hedgeLine(FC.IN, FC.R, FC.RET), pts = [];
+      for (var i5 = 0; i5 < L.length; i5++) {
+        if (!L.front[i5]) continue;
+        var a5 = L[i5], b5 = L[(i5 + 1) % L.length], m5 = Math.max(1, Math.ceil(Math.hypot(b5[0] - a5[0], b5[1] - a5[1]) / 0.25));
+        for (var k5 = pts.length ? 1 : 0; k5 <= m5; k5++) pts.push([a5[0] + (b5[0] - a5[0]) * k5 / m5, a5[1] + (b5[1] - a5[1]) * k5 / m5]);
+      }
+      if (pts.length < 2) return;
+      var gq = function(x, z){ var fc = (x - gx0) / sp, fr = (z - gz0) / sp; return bil(E, nx, nz, fc, fr) + bil(T, nx, nz, fc, fr); };
+      var dA = function(x, z){ return AS && AS.length > 2 ? (inPoly(x, z, AS) ? 0 : polyNear(x, z, AS)[0]) : 1e9; };
+      var cum = [0]; for (var q5 = 1; q5 < pts.length; q5++) cum.push(cum[q5 - 1] + Math.hypot(pts[q5][0] - pts[q5 - 1][0], pts[q5][1] - pts[q5 - 1][1]));
+      // the stretches off the drive, each with its own line
+      var seg = [], cur = null, fit = new Array(pts.length);
+      pts.forEach(function(p, q){ if (dA(p[0], p[1]) < 0.6) { cur = null; return; } if (!cur) { cur = []; seg.push(cur); } cur.push(q); });
+      seg.forEach(function(S){
+        var n = S.length, sx = 0, sy = 0, sxx = 0, sxy = 0;
+        S.forEach(function(q){ var d = cum[q], g = gq(pts[q][0], pts[q][1]); sx += d; sy += g; sxx += d * d; sxy += d * g; });
+        var den = n * sxx - sx * sx, b = Math.abs(den) > 1e-9 ? (n * sxy - sx * sy) / den : 0, a = (sy - b * sx) / n;
+        S.forEach(function(q){ fit[q] = a + b * cum[q]; });
+      });
+      var xs0 = Math.min.apply(null, pts.map(function(p){ return p[0]; })) - 2.2, xs1 = Math.max.apply(null, pts.map(function(p){ return p[0]; })) + 2.2;
+      var zs0 = Math.min.apply(null, pts.map(function(p){ return p[1]; })) - 2.2, zs1 = Math.max.apply(null, pts.map(function(p){ return p[1]; })) + 2.2;
+      var i0 = Math.max(0, Math.floor((xs0 - gx0) / sp)), i1 = Math.min(nx - 1, Math.ceil((xs1 - gx0) / sp)), j0 = Math.max(0, Math.floor((zs0 - gz0) / sp)), j1 = Math.min(nz - 1, Math.ceil((zs1 - gz0) / sp));
+      var sm = function(u){ u = clamp(u, 0, 1); return u * u * (3 - 2 * u); }, upd = [];
+      for (var jj = j0; jj <= j1; jj++) for (var ii = i0; ii <= i1; ii++) {
+        var kq = jj * nx + ii; if (!IN[kq]) continue;
+        var x = gx0 + ii * sp, z = gz0 + jj * sp, bd = 1e9, bq = -1;
+        for (var q6 = 0; q6 < pts.length; q6 += 2) { var dd = (pts[q6][0] - x) * (pts[q6][0] - x) + (pts[q6][1] - z) * (pts[q6][1] - z); if (dd < bd) { bd = dd; bq = q6; } }
+        if (bq < 0 || fit[bq] == null) continue;
+        bd = Math.sqrt(bd); if (bd > 2.0) continue;
+        // inside the plot over 2 m, outside (the verge) over 1 m; away from the asphalt
+        var inside = edgeMin(x, z) > 0, w = (1 - sm((bd - 0.3) / ((inside ? 2.0 : 1.0) - 0.3))) * sm((dA(x, z) - 0.6) / 1.4);
+        if (w <= 0) continue;
+        upd.push([kq, w * (fit[bq] - (E[kq] + T[kq]))]);
+      }
+      upd.forEach(function(u){ T[u[0]] += u[1]; });
+    })();
     GP = {x0:gx0, z0:gz0, sp:sp, nx:nx, nz:nz, E:E, T:T, IN:IN, TB:TB};
     GP.T0 = T.slice(); houseG0 = null;
     // the lawn behind the house meets the deck's step: at the deck's level less two rises round the deck and its step,
@@ -5572,7 +5622,7 @@
   // lawn: soft patches of lighter, yellower and darker green at several sizes and a fine grain of blades, no stripes
   function paintLawn(cv, sc){
     var g = cv.getContext('2d'), w = cv.width, h = cv.height, sd = 17, rnd = function(){ sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
-    g.fillStyle = '#5f8640'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#5b7c3e'; g.fillRect(0, 0, w, h);
     var area = w * h / (sc * sc);
     var blobs = function(n, r0, r1, a0, a1, cols){
       for (var i = 0; i < n; i++) {
@@ -5581,14 +5631,16 @@
         g.fillStyle = grd; g.fillRect(x - rr, y - rr, rr * 2, rr * 2);
       }
     };
-    blobs(Math.round(area / 9), 1.4, 3.6, 0.10, 0.22, ['140,170,80', '84,122,52', '118,152,64', '156,172,92', '92,132,58']);
+    // a few large areas a little drier or lusher, then patches of every size
+    blobs(Math.round(area / 60), 3.5, 7, 0.10, 0.2, ['150,160,92', '70,104,46', '126,146,74']);
+    blobs(Math.round(area / 9), 1.4, 3.6, 0.10, 0.24, ['140,160,80', '78,112,50', '112,142,64', '160,166,96', '88,124,56']);
     blobs(Math.round(area * 0.9), 0.15, 0.55, 0.07, 0.15, ['70,108,46', '128,160,70', '104,140,58', '164,178,98', '82,118,50']);
     // blades: short strokes of darker, lighter and yellower green leaning every way, a few dry and a few clover patches
     var nb = Math.round(w * h / 5), bc = ['rgba(52,84,34,0.55)', 'rgba(70,104,44,0.5)', 'rgba(118,150,72,0.45)', 'rgba(140,160,84,0.35)', 'rgba(92,124,56,0.5)', 'rgba(160,152,98,0.25)'];
     for (var b2 = 0; b2 < nb; b2++) { g.fillStyle = bc[Math.floor(rnd() * bc.length)]; var bl = 1 + rnd() * 2.5; if (rnd() < 0.5) g.fillRect(rnd() * w, rnd() * h, 1, bl); else g.fillRect(rnd() * w, rnd() * h, bl, 1); }
     blobs(Math.round(area / 40), 0.3, 0.9, 0.06, 0.14, ['168,160,104', '74,116,58']);
     var id = g.getImageData(0, 0, w, h), d = id.data;
-    for (var k = 0; k < d.length; k += 4) { var nz = (rnd() - 0.5) * 22, gy = (d[k] + d[k + 1] + d[k + 2]) / 3; d[k] += nz * 0.7 + (gy - d[k]) * 0.08; d[k + 1] += nz + (gy - d[k + 1]) * 0.08; d[k + 2] += nz * 0.45 + (gy - d[k + 2]) * 0.08; }
+    for (var k = 0; k < d.length; k += 4) { var nz = (rnd() - 0.5) * 22, gy = (d[k] + d[k + 1] + d[k + 2]) / 3; d[k] += nz * 0.7 + (gy - d[k]) * 0.14; d[k + 1] += nz + (gy - d[k + 1]) * 0.14; d[k + 2] += nz * 0.45 + (gy - d[k + 2]) * 0.14; }
     g.putImageData(id, 0, 0);
   }
   // the static base (lawn inside the plot, the 2024 orthophoto outside it) is drawn once; the asphalt, the gravel strips
@@ -5751,15 +5803,33 @@
   computeGround(); buildGround(); roadMaskNear(); utilDrape();
   // ---------- clipped thuja hedge round the plot: 2 m high, 0.8 m wide, centre 0.5 m inside the boundary ----------
   // open at the entrance; it stops at the stone beds of the aspens that stand at the boundary
-  var hcv = document.createElement('canvas'); hcv.width = hcv.height = 256;
+  // the foliage: flat sprays of scale leaves fanning from short twigs, deep shade between them and yellower young tips;
+  // drawn on a torus so it tiles (512 px, a tile of about 0.9 m)
+  var hcv = document.createElement('canvas'); hcv.width = hcv.height = 512;
   (function(){
-    var g = hcv.getContext('2d'), sd = 11, rnd = function(){ sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
-    g.fillStyle = '#32552f'; g.fillRect(0, 0, 256, 256);
-    for (var i = 0; i < 6400; i++) { var c = rnd(); g.fillStyle = c < 0.38 ? '#294827' : c < 0.72 ? '#3b6235' : c < 0.92 ? '#476e3e' : '#587a4a'; g.fillRect(rnd() * 256, rnd() * 256, 2 + rnd() * 3, 1 + rnd() * 2); }
-    for (var i2 = 0; i2 < 900; i2++) { g.fillStyle = rnd() < 0.5 ? 'rgba(20,34,18,0.35)' : 'rgba(110,138,86,0.25)'; g.beginPath(); g.arc(rnd() * 256, rnd() * 256, 1.5 + rnd() * 3.5, 0, 6.2832); g.fill(); }
+    var g = hcv.getContext('2d'), S = 512, sd = 11, rnd = function(){ sd = (sd * 16807) % 2147483647; return sd / 2147483647; };
+    g.fillStyle = '#1d331b'; g.fillRect(0, 0, S, S);
+    var wrap = function(x, y, f){ [-S, 0, S].forEach(function(ox){ [-S, 0, S].forEach(function(oy){ if (x + ox > -40 && x + ox < S + 40 && y + oy > -40 && y + oy < S + 40) f(x + ox, y + oy); }); }); };
+    var spray = function(x, y, a, L, lit){
+      // a twig of L px, its sprays of overlapping scales to both sides, smaller towards the tip
+      var n = Math.round(L / 3.2);
+      for (var k = 0; k < n; k++) {
+        var t = k / n, cx = x + Math.cos(a + Math.sin(t * 3) * 0.25) * L * t, cy = y + Math.sin(a + Math.sin(t * 3) * 0.25) * L * t, r = (1 - t * 0.55) * (2.6 + rnd() * 1.2);
+        var tone = lit * (0.85 + rnd() * 0.3) + t * 0.18, R = Math.round(38 + 60 * tone), Gc = Math.round(66 + 74 * tone), B = Math.round(32 + 34 * tone);
+        g.fillStyle = 'rgb(' + R + ',' + Gc + ',' + B + ')';
+        [-1, 1].forEach(function(sg){ var ex = cx + Math.cos(a + sg * 1.1) * r * 0.9, ey = cy + Math.sin(a + sg * 1.1) * r * 0.9; g.beginPath(); g.ellipse(ex, ey, r * 1.25, r * 0.7, a + sg * 0.5, 0, 6.2832); g.fill(); });
+        if (t > 0.8 && rnd() < 0.6) { g.fillStyle = 'rgba(150,170,80,0.55)'; g.beginPath(); g.arc(cx, cy, r * 0.8, 0, 6.2832); g.fill(); }
+      }
+    };
+    // three layers: deep sprays in the shade, the body, the lit outer sprays
+    [[260, 0.15, 0.35], [520, 0.45, 0.4], [420, 0.8, 0.45]].forEach(function(ly){
+      for (var i = 0; i < ly[0]; i++) { var x = rnd() * S, y = rnd() * S, a = -Math.PI / 2 + (rnd() - 0.5) * 2.4, L = 14 + rnd() * 26, lit = ly[1] + (rnd() - 0.5) * ly[2]; wrap(x, y, function(xx, yy){ spray(xx, yy, a, L, lit); }); }
+    });
+    // holes into the dark inside, here and there
+    for (var h2 = 0; h2 < 140; h2++) { var hx = rnd() * S, hy = rnd() * S, hr = 2 + rnd() * 5; wrap(hx, hy, function(xx, yy){ g.fillStyle = 'rgba(14,26,13,0.75)'; g.beginPath(); g.ellipse(xx, yy, hr * 1.4, hr, rnd() * 3, 0, 6.2832); g.fill(); }); }
   })();
   var hedgeTex = new THREE.CanvasTexture(hcv); hedgeTex.wrapS = hedgeTex.wrapT = THREE.RepeatWrapping; hedgeTex.anisotropy = 4;
-  var hedgeMat = new THREE.MeshPhongMaterial({map:hedgeTex, side:THREE.DoubleSide, specular:0x000000, shininess:0});
+  var hedgeMat = new THREE.MeshPhongMaterial({map:hedgeTex, vertexColors:true, side:THREE.DoubleSide, specular:0x000000, shininess:0});
   FX.hedgeMap(hedgeMat);
   var hedgeMesh = null, HEDGE_C = null, HEDGE_RUNS = [];
   // the board fence: its line 5 cm in from the boundary, 90 mm thick, the corners of the entrance side turned on a 1 m
@@ -5792,6 +5862,20 @@
     push([X13[0] + d3[0] * r3, X13[1] + d3[1] * r3], false); push(V[4], false);
     ring.front = front; return ring;
   }
+  // a clipped hedge has no sharp corners: each corner of the ring turned on a curve of about R (less on short sides),
+  // the segments' flags (front) kept on each half of the curve
+  function roundRing(C, R){
+    var n = C.length, F = C.front, out = [], fr = [];
+    for (var i = 0; i < n; i++) {
+      var p = C[i], a = C[(i + n - 1) % n], b = C[(i + 1) % n], la = Math.hypot(p[0] - a[0], p[1] - a[1]), lb = Math.hypot(b[0] - p[0], b[1] - p[1]);
+      var da = [(p[0] - a[0]) / (la || 1), (p[1] - a[1]) / (la || 1)], db = [(b[0] - p[0]) / (lb || 1), (b[1] - p[1]) / (lb || 1)];
+      var th = Math.acos(clamp(da[0] * db[0] + da[1] * db[1], -1, 1)), fa = F[(i + n - 1) % n], fb = F[i];
+      if (th < 0.35 || la < 0.05 || lb < 0.05) { out.push(p); fr.push(fb); continue; }
+      var t = Math.min(R * Math.tan(th / 2), la * 0.45, lb * 0.45), A = [p[0] - da[0] * t, p[1] - da[1] * t], B = [p[0] + db[0] * t, p[1] + db[1] * t], m = Math.max(3, Math.ceil(th * 6));
+      for (var k = 0; k <= m; k++) { var u = k / m, w0 = (1 - u) * (1 - u), w1 = 2 * u * (1 - u), w2 = u * u; out.push([A[0] * w0 + p[0] * w1 + B[0] * w2, A[1] * w0 + p[1] * w1 + B[1] * w2]); fr.push(k < m / 2 ? fa : fb); }
+    }
+    out.front = fr; return out;
+  }
   function buildHedge(){
     if (hedgeMesh) { unreg('hedge', hedgeMesh); hedgeMesh.geometry.dispose(); hedgeMesh = null; }
     var HW = 0.4, HT = place.hedge, IN0 = 0.5, P = PLOT, n = P.length, cx = PLC[0], cz = PLC[1];
@@ -5802,6 +5886,7 @@
     var OFF = function(i){ return i === 1 || i === 2 ? IN0 : 0; };
     var C = place.fence ? hedgeLine(OFF, FENCE.R - (IN0 - FENCE.IN), FENCE.RET - 0.55) : hedgeLine(OFF, 0, FENCE.RET);
     var CF = place.fence && place.hedgeFront ? hedgeLine(IN0, FENCE.R - (IN0 - FENCE.IN), FENCE.RET - 0.4) : null;
+    C = roundRing(C, 1.2); if (CF) CF = roundRing(CF, 1.2);
     HEDGE_C = C; n = C.length;
     var skip = function(i){ return C.front[i] && (!place.hedgeFront || !!CF); };
     var gap = function(x, z){
@@ -5832,8 +5917,14 @@
       }
       if (cf.length > 1) runs.push(cf);
     }
+    // at 0 m there is no hedge: its line still opens the entrance and places the bollards
+    if (HT < 0.05) runs = [];
     HEDGE_RUNS = runs;
-    var pos = [], uv = [], idx = [], quad = function(a, b, c, d, ua, ub, va, vb){ var o = pos.length / 3; [a, b, c, d].forEach(function(v){ pos.push(v[0], v[1], v[2]); }); uv.push(ua, va, ub, va, ub, vb, ua, vb); idx.push(o, o + 1, o + 2, o, o + 2, o + 3); };
+    var pos = [], uv = [], col = [], idx = [], quad = function(a, b, c, d, ua, ub, va, vb){ var o = pos.length / 3; [a, b, c, d].forEach(function(v){ pos.push(v[0], v[1], v[2]); var k = v[3] == null ? 0.55 : v[3]; col.push(k, k, k); }); uv.push(ua, va, ub, va, ub, vb, ua, vb); idx.push(o, o + 1, o + 2, o, o + 2, o + 3); };
+    // the clipped face is not smooth: lumps of a hand's width to half a metre where the shoots stand out, a few cm deep
+    var lump = function(u, h, sd){ return Math.sin(u * 4.1 + h * 2.3 + sd) * 0.45 + Math.sin(u * 7.3 - h * 5.1 + sd * 1.7) * 0.3 + Math.sin(u * 13.7 + h * 9.4 + sd * 0.6) * 0.25; };
+    // denser along the hedge, so the lumps show
+    runs = runs.map(function(R){ var o = [R[0]]; for (var j = 1; j < R.length; j++) { var a = R[j - 1], b = R[j], m = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.25)); for (var q = 1; q <= m; q++) o.push([a[0] + (b[0] - a[0]) * q / m, a[1] + (b[1] - a[1]) * q / m]); } return o; });
     runs.forEach(function(R){
       var m = R.length, side = [], dist = 0;
       for (var k = 0; k < m; k++) {
@@ -5846,7 +5937,7 @@
         side.push({l:pl, r:pr, yb:Y(gBot - 0.15), gc:gOut * 0.75 + gIn * 0.25, u:dist});
       }
       // the top follows that ground, smoothed over about 3 m
-      for (var k4 = 0; k4 < m; k4++) { var acc = 0, cnt = 0; for (var j4 = Math.max(0, k4 - 3); j4 <= Math.min(m - 1, k4 + 3); j4++) { acc += side[j4].gc; cnt++; } side[k4].yt = Y(acc / cnt + HT); }
+      for (var k4 = 0; k4 < m; k4++) { var acc = 0, cnt = 0; for (var j4 = Math.max(0, k4 - 6); j4 <= Math.min(m - 1, k4 + 6); j4++) { acc += side[j4].gc; cnt++; } side[k4].yt = Y(acc / cnt + HT); }
       // a living outline: each side bulges and dips a few centimetres along the hedge, the top rises and falls a little,
       // and the shoulders are rounded; the cross-section in nine points from the left foot over the top to the right foot
       var wob = function(u, sd){ return Math.sin(u * 1.37 + sd) * 0.5 + Math.sin(u * 0.53 + sd * 2.1) * 0.35 + Math.sin(u * 3.3 + sd * 0.7) * 0.15; };
@@ -5856,7 +5947,13 @@
       var sect = side.map(function(sd2){
         var cx = (sd2.l[0] + sd2.r[0]) / 2, cz = (sd2.l[1] + sd2.r[1]) / 2, hx = (sd2.l[0] - sd2.r[0]) / 2, hz = (sd2.l[1] - sd2.r[1]) / 2, u = sd2.u;
         var top = sd2.yt + wob(u, 1.7) * 0.05, wl = 1 + wob(u, 0.3) * 0.09, wr = 1 + wob(u, 4.1) * 0.09;
-        var pt = function(p, sg, w){ return [cx + hx * p[1] * w * sg, sd2.yb + (top - sd2.yb) * p[0], cz + hz * p[1] * w * sg]; };
+        // each point pushed out or in by the lumps (less at the foot); its shade darker low down, in the hollows and
+        // towards the ground, lighter on the lumps and the top
+        var pt = function(p, sg, w){
+          var hgt = (top - sd2.yb) * p[0], lp = lump(u, hgt, sg > 0 ? 0.9 : 3.7) * Math.min(1, p[0] * 3), ww = w + lp * 0.045 / HW, ty = lp * 0.03 * (p[1] < 0.6 ? 1 : 0);
+          var k = clamp(0.42 + 0.5 * Math.pow(p[0], 0.7) + lp * 0.16, 0.25, 1);
+          return [cx + hx * p[1] * ww * sg, sd2.yb + hgt + ty, cz + hz * p[1] * ww * sg, k];
+        };
         return prof.map(function(p){ return pt(p, 1, wl); }).concat(prof.slice().reverse().map(function(p){ return pt(p, -1, wr); }));
       });
       // the ends rounded: five more sections narrowing on a quarter circle 0.42 m out, the top coming down a little
@@ -5866,7 +5963,7 @@
         tx /= tl; tz /= tl;
         for (var q = 1; q <= 5; q++) {
           var th = q / 5 * 1.45, cs = Math.cos(th), d = 0.42 * Math.sin(th), hk = 1 - 0.28 * (1 - cs);
-          out.push(S0.map(function(pq){ return [c0[0] + (pq[0] - c0[0]) * cs + tx * d, sd0.yb + (pq[1] - sd0.yb) * hk, c0[1] + (pq[2] - c0[1]) * cs + tz * d]; })); uo.push(sd0.u + sgn * d);
+          out.push(S0.map(function(pq){ return [c0[0] + (pq[0] - c0[0]) * cs + tx * d, sd0.yb + (pq[1] - sd0.yb) * hk, c0[1] + (pq[2] - c0[1]) * cs + tz * d, pq[3]]; })); uo.push(sd0.u + sgn * d);
         }
         return {s:out, u:uo};
       };
@@ -5882,7 +5979,7 @@
       // the ends closed with a fan to the middle of the section
       [0, sect.length - 1].forEach(function(e){ var S2 = sect[e], ce = [0, 0, 0]; S2.forEach(function(q){ ce[0] += q[0] / S2.length; ce[1] += q[1] / S2.length; ce[2] += q[2] / S2.length; }); for (var pi = 0; pi < S2.length - 1; pi++) quad(S2[pi], S2[pi + 1], ce, ce, 0, 1, 0, 1); quad(S2[S2.length - 1], S2[0], ce, ce, 0, 1, 0, 1); });
     });
-    var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
     hedgeMesh = new THREE.Mesh(geo, hedgeMat); reg('hedge', hedgeMesh); hedgeMesh.visible = !!state.hedge;
     FENCE.gap = gap; buildFence();
   }
@@ -5933,7 +6030,11 @@
         var o = [p[0] + n[0] * ht, p[1] + n[1] * ht], q = [p[0] - n[0] * ht, p[1] - n[1] * ht];
         return {p:p, n:n, o:o, q:q, t:[tx / tl, tz / tl], g:gAt(p[0], p[1]), yb:Y(Math.min(gAt(o[0], o[1]), gAt(q[0], q[1])) - 0.04)};
       });
-      S.forEach(function(e, j){ var acc = 0, cnt = 0; for (var j2 = Math.max(0, j - 6); j2 <= Math.min(m - 1, j + 6); j2++) { acc += S[j2].g; cnt++; } e.zt = acc / cnt + H; e.yt = Y(e.zt); });
+      // the top a straight line along the run (the ground under it is graded to the same line), fitted to the ground
+      var cd = [0]; for (var jc = 1; jc < m; jc++) cd.push(cd[jc - 1] + Math.hypot(S[jc].p[0] - S[jc - 1].p[0], S[jc].p[1] - S[jc - 1].p[1]));
+      var fx = 0, fy = 0, fxx = 0, fxy = 0; S.forEach(function(e, j){ fx += cd[j]; fy += e.g; fxx += cd[j] * cd[j]; fxy += cd[j] * e.g; });
+      var fden = m * fxx - fx * fx, fb = Math.abs(fden) > 1e-9 ? (m * fxy - fx * fy) / fden : 0, fa = (fy - fb * fx) / m;
+      S.forEach(function(e, j){ e.zt = fa + fb * cd[j] + H; e.yt = Y(e.zt); });
       var V = function(p, y){ return [p[0], y, p[1]]; }, N3 = function(n, s){ return [n[0] * s, 0, n[1] * s]; };
       for (var j = 0; j < m - 1; j++) {
         var A = S[j], B = S[j + 1];
@@ -7769,6 +7870,8 @@
       ['sel-rot', 'sel-mir', 'sel-reset'].forEach(function(id){ var b = document.getElementById(id); if (b) b.hidden = true; });
       var spOn = !spOff(spOf(k).id); document.querySelectorAll('[data-spon]').forEach(function(b){ b.setAttribute('aria-pressed', String((b.dataset.spon === '1') === spOn)); });
     }
+    // the roofs off and on from the bar of a building that has one (the Katto layer, all the roofs together)
+    var sRf = document.getElementById('sel-roof'); if (sRf) { sRf.hidden = !(k === 'house' || k === 'gar' || k === 'gh'); sRf.setAttribute('aria-pressed', String(!state.roof)); }
     if (isT) {
       ['sel-rot', 'sel-mir'].forEach(function(id){ var b = document.getElementById(id); if (b) b.hidden = true; });
       var Tt = treeOf(k);
@@ -7903,7 +8006,8 @@
   }
   document.querySelectorAll('[data-hmodel]').forEach(function(b){ b.addEventListener('click', function(){ setHouseModel(b.dataset.hmodel); }); });
   syncModelUI();
-  function regradeNow(){ clearTimeout(regradeT); regradeT = 0; computeGround(); buildGround(); buildHedge(); commitPlace(); roadMaskNear(); utilDrape(); fndDirty = true; fndStale = true; if (fndX()) fndBuild(); cutDirty = true; if (cutOn()) { cutBuild(); cutPatch(); } }
+  // the buildings where they now stand first (a saved view or a restored place moves them): the yard is graded round them
+  function regradeNow(){ clearTimeout(regradeT); regradeT = 0; applyPlaceData(); houseFloors(); computeGround(); buildGround(); buildHedge(); commitPlace(); roadMaskNear(); utilDrape(); fndDirty = true; fndStale = true; if (fndX()) fndBuild(); cutDirty = true; if (cutOn()) { cutBuild(); cutPatch(); } }
   if (bFloorIn) {
     bFloorIn.min = DZ_MIN; bFloorIn.max = DZ_MAX;
     bFloorIn.addEventListener('input', function(){
@@ -7932,7 +8036,7 @@
     var fc = fh && fh.closest('.ctl'); if (fc) fc.classList.toggle('off', !place.fence); if (fh) fh.disabled = !place.fence;
   }
   bindBtn('hedge-front', function(){ place.hedgeFront = !place.hedgeFront; if (place.hedgeFront) showLayer('hedge'); syncFenceUI(); buildHedge(); savePlace(); });
-  bindBtn('fence-tg', function(){ place.fence = !place.fence; if (place.fence) showLayer('yard'); syncFenceUI(); buildHedge(); savePlace(); });
+  bindBtn('fence-tg', function(){ place.fence = !place.fence; if (place.fence) showLayer('yard'); syncFenceUI(); regradeNow(); savePlace(); });
   (function(){ var fh = document.getElementById('fence-h'); if (!fh) return; fh.addEventListener('input', function(){ place.fenceH = Number(fh.value); syncFenceUI(); buildFence(); }); fh.addEventListener('change', savePlace); })();
   syncFenceUI();
   document.querySelectorAll('[data-layer="yard"]').forEach(function(b){ b.addEventListener('click', function(){ if (sec.on) secBuild(); }); });
@@ -8124,6 +8228,7 @@
   }
   function selSet(k){ sel.obj = k; syncPlaceUI(); }
   function selClear(){ sel.obj = null; sel.drag = null; syncPlaceUI(); }
+  bindBtn('sel-roof', function(){ state.roof = !state.roof; syncLayerUI(); applyLayers(); saveUI(); var b = document.getElementById('sel-roof'); if (b) b.setAttribute('aria-pressed', String(!state.roof)); });
   bindBtn('sel-rot', bldRotate); bindBtn('sel-mir', bldMirror); bindBtn('sel-done', selClear);
   // the garage's kind, and its walls along the entrance edge (on: the nearest quarter of that, off: the nearest 45 degrees)
   document.querySelectorAll('[data-gartype]').forEach(function(b){ b.addEventListener('click', function(){ var G = place.bld.gar, v = GAR_T[b.dataset.gartype] ? b.dataset.gartype : 'gs'; if (G.type === v) return; G.type = v; fitInside('gar'); bldCommit('gar'); }); });
@@ -8688,7 +8793,7 @@
   // time of day, the interior lights and the tree clearing. A camera run passes smoothly through its points A, B, C ...; the speed can be changed while it
   // plays. Views and runs are kept in this artifact's private store of the viewer (db), or in this browser when the page
   // runs without one (a local copy, signed out). Pictures are PNG files of the 3D view at its current size
-  var VIEWS_KEY = 'ah1-views-v1', views = {presets:[], runs:[]}, vstore = null, vWriting = Promise.resolve();
+  var VIEWS_KEY = 'ah1-views-v1', views = {presets:[], runs:[], seen:[]}, vstore = null, vWriting = Promise.resolve();
   var pvList = document.getElementById('pv-list'), pvName = document.getElementById('pv-name'), runList = document.getElementById('run-list'), runName = document.getElementById('run-name');
   var runPts = document.getElementById('run-pts'), runSpeedIn = document.getElementById('run-speed'), runSpeedV = document.getElementById('f-run-speed'), runBar = document.getElementById('runbar'), vMsg = document.getElementById('v-msg');
   var claudeUse = function(name){ try { return window.claude && typeof window.claude.use === 'function' ? window.claude.use(name) : Promise.resolve(null); } catch (e) { return Promise.resolve(null); } };
@@ -8697,13 +8802,27 @@
   function vNote(t){ [vMsg, tMsg].forEach(function(m){ if (m) { m.textContent = t || ''; m.hidden = !t; } }); clearTimeout(vNote.t); if (t) vNote.t = setTimeout(function(){ [vMsg, tMsg].forEach(function(m){ if (m) m.hidden = true; }); }, 4000); }
   function vClean(o){
     var ok = function(a){ return Array.isArray(a) ? a.filter(function(x){ return x && typeof x === 'object' && typeof x.id === 'string'; }).slice(0, 200) : []; };
-    return {presets:ok(o && o.presets), runs:ok(o && o.runs)};
+    return {presets:ok(o && o.presets), runs:ok(o && o.runs), seen:Array.isArray(o && o.seen) ? o.seen.filter(function(x){ return typeof x === 'string'; }).slice(0, 400) : []};
   }
   try { views = vClean(JSON.parse(localStorage.getItem(VIEWS_KEY) || 'null')); } catch (e) {}
+  // the views kept with the model (data/site.json, views) come to every browser and to the artifact's store once: a
+  // view deleted here stays deleted, and the same views are there on the published page and in the artifact
+  function vSeed(){
+    var SV = vClean(DATA.views), add = false;
+    ['presets', 'runs'].forEach(function(k){
+      SV[k].forEach(function(x){
+        if (views.seen.indexOf(x.id) >= 0) return;
+        views.seen.push(x.id); add = true;
+        if (!views[k].some(function(y){ return y.id === x.id; })) views[k].push(JSON.parse(JSON.stringify(x)));
+      });
+    });
+    return add;
+  }
+  if (vSeed()) { try { localStorage.setItem(VIEWS_KEY, JSON.stringify(views)); } catch (e) {} }
   function vSave(){
     try { localStorage.setItem(VIEWS_KEY, JSON.stringify(views)); } catch (e) {}
     if (!vstore) return;
-    var body = JSON.parse(JSON.stringify({v:1, presets:views.presets, runs:views.runs}));
+    var body = JSON.parse(JSON.stringify({v:1, presets:views.presets, runs:views.runs, seen:views.seen}));
     vWriting = vWriting.then(function(){ return vstore.set(body); }).catch(function(e){ vNote(e && e.code === 'quota_exceeded' ? 'Tallennustila on täynnä. Poista vanhoja näkymiä.' : 'Tallennus pilveen ei onnistunut, näkymä on tallessa tässä selaimessa.'); });
   }
   // the private store lights up when the viewer has one; a first visit moves what this browser had there
@@ -8714,7 +8833,7 @@
       vstore = db.collection('data/users/' + uid).doc('views');
       var first = true;
       vstore.onSnapshot(function(snap){
-        if (snap.exists) { views = vClean(snap.data()); try { localStorage.setItem(VIEWS_KEY, JSON.stringify(views)); } catch (e) {} vRender(); }
+        if (snap.exists) { views = vClean(snap.data()); if (vSeed()) vSave(); try { localStorage.setItem(VIEWS_KEY, JSON.stringify(views)); } catch (e) {} vRender(); }
         else if (first && (views.presets.length || views.runs.length)) vSave();
         first = false;
       }, function(){ vstore = null; });
@@ -8794,6 +8913,7 @@
       pvList.textContent = '';
       views.presets.forEach(function(p){
         vRow(pvList, p, function(){ vApply(p.view, false); }, [
+          ['🔗', 'Kopioi suora linkki tähän näkymään', function(){ vLink(p); }],
           ['▣', 'Tallenna kuva tästä näkymästä', function(){ vApply(p.view, true); requestAnimationFrame(function(){ requestAnimationFrame(function(){ shoot(p.name); }); }); }],
           ['↻', 'Korvaa nykyisellä näkymällä', function(){ p.view = vCapture(); vSave(); vNote('Näkymä ' + p.name + ' päivitetty.'); }],
           ['✕', 'Poista', function(){ views.presets = views.presets.filter(function(q){ return q !== p; }); vSave(); vRender(); }]]);
@@ -8810,6 +8930,48 @@
       });
       var re = document.getElementById('run-empty'); if (re) re.hidden = views.runs.length > 0;
     }
+  }
+  // ---------- a direct link to a saved view: the view itself rides in the address (#n=name&v=packed), so the link works
+  // in any browser without a store. Packed with deflate and base64url when the browser can, plain base64url otherwise.
+  // From inside the artifact the link points to the published page (the artifact's own address is private) ----------
+  var SITE_URL = 'https://laippari.github.io/talo/';
+  function b64u(bytes){ var s2 = ''; for (var i = 0; i < bytes.length; i++) s2 += String.fromCharCode(bytes[i]); return btoa(s2).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function unb64u(t){ t = t.replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; var s2 = atob(t), b = new Uint8Array(s2.length); for (var i = 0; i < s2.length; i++) b[i] = s2.charCodeAt(i); return b; }
+  function streamBytes(bytes, tf){ return new Response(new Blob([bytes]).stream().pipeThrough(tf)).arrayBuffer().then(function(ab){ return new Uint8Array(ab); }); }
+  function vPack(view){
+    var raw = new TextEncoder().encode(JSON.stringify(view));
+    if (typeof CompressionStream === 'function') return streamBytes(raw, new CompressionStream('deflate-raw')).then(function(z){ return 'z' + b64u(z); }).catch(function(){ return 'j' + b64u(raw); });
+    return Promise.resolve('j' + b64u(raw));
+  }
+  function vUnpack(t){
+    var b = unb64u(t.slice(1));
+    var dec = function(u){ return JSON.parse(new TextDecoder().decode(u)); };
+    if (t[0] === 'z') return streamBytes(b, new DecompressionStream('deflate-raw')).then(dec);
+    return Promise.resolve(dec(b));
+  }
+  function vLink(p){
+    vPack(p.view).then(function(pk){
+      var base = /github\.io$|^localhost$|^127\./.test(location.hostname) ? location.origin + location.pathname : SITE_URL;
+      var url = base + '#n=' + encodeURIComponent(p.name) + '&v=' + pk;
+      var done = function(){ vNote('Linkki näkymään ' + p.name + ' kopioitu.'); };
+      var manual = function(){ window.prompt('Kopioi linkki näkymään ' + p.name + ':', url); };
+      try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, manual); else manual(); } catch (e) { manual(); }
+    }).catch(function(){ vNote('Linkin teko ei onnistunut.'); });
+  }
+  // opened from such a link: the view is shown once, and offered to keep among the saved views
+  function vFromHash(){
+    var h = location.hash.replace(/^#/, ''); if (!/(^|&)v=/.test(h)) return;
+    var q = {}; h.split('&').forEach(function(kv){ var i = kv.indexOf('='); if (i > 0) q[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); });
+    vUnpack(q.v).then(function(view){
+      if (!view || typeof view !== 'object') return;
+      vApply(view, true);
+      var nm = (q.n || 'Linkin näkymä').slice(0, 60);
+      if (!views.presets.some(function(x){ return x.name === nm && JSON.stringify(x.view) === JSON.stringify(view); })) {
+        views.presets.push({id:vId(), name:nm, view:view, at:new Date().toISOString()}); vSave(); vRender();
+        vNote('Näkymä ' + nm + ' avattu linkistä ja tallennettu omiin näkymiin.');
+      }
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    }).catch(function(){ vNote('Linkin näkymää ei voitu avata.'); });
   }
   function pvSave(name){
     var nm = (name && name.trim()) || 'Näkymä ' + (views.presets.length + 1);
@@ -9545,11 +9707,19 @@
   commitPlace();
 
   applyHouse();
-  // The page always opens in the basic view (viewDefaults, homeView). Remembered from the last time are only the
-  // preferences: the camera's speed, the lights' dimmers, the ground's see-through, the side panel and the animals
+  // The page opens with the camera in the basic view (homeView), every setting as it was left: the layers, the surface,
+  // the texts, the time of day, the lights' dimmers, the tree clearing, the ground's see-through, the camera's speed, the
+  // side panel and its tab, the animals. Perusnäkymä (the home button) still starts again from the defaults
   var ui0 = null;
   try { ui0 = JSON.parse(localStorage.getItem(UI_KEY) || 'null'); } catch (e) {}
   if (ui0) {
+    if (ui0.layers && typeof ui0.layers === 'object') LAYER_KEYS.forEach(function(k){ if (typeof ui0.layers[k] === 'boolean') state[k] = ui0.layers[k]; });
+    if (typeof ui0.ortho === 'boolean') state.ortho = ui0.ortho;
+    if (typeof ui0.gray === 'boolean') state.gray = ui0.gray;
+    if (typeof ui0.labels === 'number' && ui0.labels >= 0 && ui0.labels <= 2) state.labels = ui0.labels;
+    if (typeof ui0.tod === 'number' && ui0.tod >= 0 && ui0.tod <= 24) tod = ui0.tod;
+    if (typeof ui0.treeHide === 'number' && ui0.treeHide >= 0 && ui0.treeHide <= 200) { treeHideD = ui0.treeHide; }
+    if (typeof ui0.tab === 'string' && document.getElementById('tab-' + ui0.tab)) showTab(ui0.tab);
     if (typeof ui0.speed === 'number' && ui0.speed >= 0.3 && ui0.speed <= 1.8) { camSpeed = ui0.speed; applyCamSpeed(); }
     readDimmers(ui0);
     if (typeof ui0.soilOp === 'number' && ui0.soilOp >= 0 && ui0.soilOp <= 0.95) soilOp = ui0.soilOp;
@@ -9563,6 +9733,17 @@
   controls.update();
   uiReady = true;
   phoneLayout();
+  vFromHash(); window.addEventListener('hashchange', vFromHash);
+  // the short guide: the button at the bottom left, ? on the keyboard, Esc or a click elsewhere closes it
+  (function(){
+    var hb = document.getElementById('help-btn'), hs = document.getElementById('help-sheet'), hx = document.getElementById('help-x');
+    if (!hb || !hs) return;
+    var set = function(on){ hs.hidden = !on; hb.setAttribute('aria-expanded', String(on)); };
+    hb.addEventListener('click', function(e){ e.stopPropagation(); set(hs.hidden); });
+    if (hx) hx.addEventListener('click', function(){ set(false); });
+    document.addEventListener('pointerdown', function(e){ if (!hs.hidden && !hs.contains(e.target) && e.target !== hb && !hb.contains(e.target)) set(false); });
+    window.addEventListener('keydown', function(e){ var tg = e.target; if (tg && /^(INPUT|SELECT|TEXTAREA)$/.test(tg.tagName)) return; if (e.key === 'Escape' && !hs.hidden) set(false); else if (e.key === '?') set(hs.hidden); });
+  })();
 
   (function loop(now){
     requestAnimationFrame(loop);

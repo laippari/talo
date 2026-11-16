@@ -11,13 +11,14 @@ https://laippari.github.io/talo/
 | `src/boot.js` | Käynnistys: three.js 0.186.1, WebGPU-piirtäjä (WebGL2 varalla), laatutaso, varjot ja sävykäyrä. |
 | `src/fx.js` | Mallin omat tehosteet piirtäjän solmuina (maaston leikkaukset, lasi, sisävalot, tuli, esteiden piilotus). |
 | `src/main.js` | Koko sovellus: malli ja käyttöliittymä. |
-| `data/site.json` | Maasto, tontti, rakennukset, puut ja ilmakuvat. |
+| `data/site.json` | Maasto, tontti, rakennukset, puut ja ilmakuvat. Avaimessa `views` yhteiset tallennetut näkymät, jotka lisätään kerran jokaiseen selaimeen ja artifaktiin. |
 | `assets/` | Media (olohuoneen television video). |
 | `vanha/` | Edellinen moottori (three.js r128, WebGL) sellaisenaan varalla: https://laippari.github.io/talo/vanha/ |
 | `tools/build_single.py` | Kokoaa sivusta yhden HTML-tiedoston (`dist/talo.html`). |
 | `docs/SUUNNITELMA.md` | Renderöinnin ja mallinnuksen parannussuunnitelma ja sen tilanne. |
 
-Osoitteen perään voi lisätä `?webgl` (pakottaa WebGL2:n) tai `?varjot=0` (varjot pois).
+Osoitteen perään voi lisätä `?webgl` (pakottaa WebGL2:n) tai `?varjot=0` (varjot pois). Tallennetun näkymän linkki
+(Näkymä-välilehden 🔗) kuljettaa näkymän osoitteen `#v=`-osassa, joten se toimii missä tahansa selaimessa.
 
 ## Avaaminen
 

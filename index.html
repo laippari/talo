@@ -88,6 +88,17 @@ h1{margin:0;font-size:var(--fs-l);line-height:1.2;font-weight:600;letter-spacing
 .hud-s{font-size:var(--fs-xs);color:var(--muted);line-height:1.4}
 .hud-s:empty{display:none}
 .hud-s.em{color:var(--accent)}
+/* the short guide: a button at the bottom left (on a phone its icon only) and a small sheet */
+.helpbtn{left:12px;bottom:12px;display:flex;align-items:center;gap:6px;height:var(--ctl);padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--hud);color:var(--ink);font-size:var(--fs-s);font-weight:500;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.helpbtn i{width:20px;height:20px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font:600 12px/1 var(--font-sans);font-style:normal}
+.helpbtn:hover{border-color:var(--faint)}
+.badge{bottom:calc(12px + var(--ctl) + 8px)}
+.helpsheet{left:12px;bottom:calc(12px + var(--ctl) + 8px);z-index:7;width:min(420px,calc(100% - 24px));max-height:calc(100% - 80px);overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.24);padding:4px 14px 14px;font-size:var(--fs-s)}
+.helpsheet h3{margin:12px 0 4px}
+.helpsheet dl{display:grid;grid-template-columns:max-content 1fr;gap:3px 12px;margin:0}
+.helpsheet dt{font-family:var(--font-mono);font-size:var(--fs-xs);color:var(--ink);white-space:nowrap}
+.helpsheet dd{margin:0;color:var(--muted)}
+.helpsheet kbd{font:500 11px/1 var(--font-mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 4px;background:var(--surface-2)}
 /* the views sheet over the 3D view: the ready views from outside and from inside, and saving the view as it is */
 .vsheet{left:50%;bottom:12px;transform:translateX(-50%);z-index:7;width:min(560px,calc(100% - 2 * var(--ctl) - 48px));max-height:calc(100% - 24px);overflow-y:auto;overscroll-behavior:contain;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.24);padding:2px 14px 14px;display:grid;gap:12px;animation:vsIn .18s ease-out}
 @keyframes vsIn{from{transform:translate(-50%,14px);opacity:0}to{transform:translateX(-50%);opacity:1}}
@@ -396,7 +407,10 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   .fp-hrow input{width:96px}
   .modebar{top:calc(20px + var(--ctl) + env(safe-area-inset-top,0px));max-width:calc(100% - 20px);width:calc(100% - 20px);padding:8px}
   .runbar{top:calc(20px + var(--ctl) + env(safe-area-inset-top,0px))}
-  .badge{left:10px;bottom:calc(var(--sheetB,0px) + 12px + env(safe-area-inset-bottom,0px))}
+  .badge{left:10px;bottom:calc(var(--sheetB,0px) + 12px + var(--ctl) + 8px + env(safe-area-inset-bottom,0px))}
+  .helpbtn{left:10px;bottom:calc(var(--sheetB,0px) + 12px + env(safe-area-inset-bottom,0px));width:var(--ctl);padding:0;justify-content:center}
+  .helpbtn span{display:none}
+  .helpsheet{left:10px;bottom:calc(var(--sheetB,0px) + 12px + var(--ctl) + 8px + env(safe-area-inset-bottom,0px));width:calc(100% - 20px)}
   .selbar,#prebar{bottom:calc(var(--sheetB,0px) + 12px + env(safe-area-inset-bottom,0px))}
   html.touch .joy{display:block;right:16px;bottom:calc(var(--sheetB,0px) + 18px + env(safe-area-inset-bottom,0px))}
   .app.sheet-full .joy{display:none}
@@ -421,6 +435,20 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         <label class="fp-hrow" id="fp-hrow" hidden title="Silmien korkeus maasta tai lattiasta"><input type="range" id="fp-h" min="0" max="1" step="0.002" value="0.1" aria-label="Silmien korkeus"><span class="num" id="fp-hv">1,7 m</span></label>
       </div>
       <div class="ov badge" id="badge" hidden></div>
+      <button type="button" class="ov helpbtn" id="help-btn" aria-expanded="false" aria-controls="help-sheet" title="Ohje (?)"><i aria-hidden="true">?</i><span>Ohje</span></button>
+      <div class="ov helpsheet" id="help-sheet" role="dialog" aria-label="Ohje" hidden>
+        <div class="vs-h"><h2>Ohje</h2><button type="button" class="vs-x" id="help-x" aria-label="Sulje" title="Sulje">×</button></div>
+        <h3>Hiiri</h3>
+        <dl><dt>vedä</dt><dd>kierrä näkymää</dd><dt>oikea / keski­painike, <kbd>Shift</kbd>+vedä</dt><dd>siirrä näkymää</dd><dt>rulla</dt><dd>lähemmäs ja kauemmas osoittimen kohtaan</dd><dt>tuplaklikkaus</dt><dd>lennä lähemmäs kohtaan</dd><dt>klikkaa rakennusta</dt><dd>valitse, vedä siirtääksesi</dd></dl>
+        <h3>Kosketuslevy</h3>
+        <dl><dt>kahden sormen pyyhkäisy</dt><dd>lähemmäs ja kauemmas</dd><dt>nipistys</dt><dd>zoomaa</dd><dt>painallus+vedä</dt><dd>kierrä</dd><dt><kbd>Shift</kbd>+painallus+vedä</dt><dd>siirrä</dd></dl>
+        <h3>Kosketusnäyttö</h3>
+        <dl><dt>yksi sormi</dt><dd>kierrä</dd><dt>kaksi sormea</dt><dd>siirrä, nipistä zoomaa, käännä kiertääksesi</dd><dt>kaksoisnapautus</dt><dd>lennä lähemmäs</dd><dt>peukaloalue oikealla</dt><dd>liiku maan suuntaisesti</dd></dl>
+        <h3>Näppäimet</h3>
+        <dl><dt><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></dt><dd>liiku eteen, vasemmalle, taakse, oikealle</dd><dt><kbd>Q</kbd> <kbd>E</kbd></dt><dd>ylös ja alas</dd><dt><kbd>Shift</kbd></dt><dd>nopeammin</dd><dt><kbd>+</kbd> <kbd>−</kbd></dt><dd>lähemmäs ja kauemmas</dd><dt><kbd>T</kbd></dt><dd>tekstit päälle ja pois</dd><dt><kbd>R</kbd> <kbd>M</kbd></dt><dd>valittu rakennus: käännä, peilikuva</dd><dt><kbd>Esc</kbd></dt><dd>poistu tilasta tai valinnasta</dd></dl>
+        <h3>Katsele-tila</h3>
+        <dl><dt>vedä</dt><dd>käänny paikallaan</dd><dt>nuolinäppäimet</dt><dd>kävele (<kbd>Shift</kbd>: pidempi askel)</dd><dt>tuplaklikkaus maahan</dt><dd>siirry kohtaan</dd><dt>rulla</dt><dd>polttoväli</dd></dl>
+      </div>
       <div class="ov compass" title="Pohjoinen">
         <svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true">
           <g id="needle">
@@ -506,7 +534,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
           <div class="seg" role="group" aria-label="Laji"><button type="button" data-tsp="cherry" aria-pressed="false">kirsikka</button><button type="button" data-tsp="apple" aria-pressed="false">omena</button><button type="button" data-tsp="pear" aria-pressed="false">päärynä</button></div>
           <div class="seg" role="group" aria-label="Koko"><button type="button" data-tsz="s" aria-pressed="false">pieni</button><button type="button" data-tsz="m" aria-pressed="false">keski</button><button type="button" data-tsz="l" aria-pressed="false">iso</button></div>
         </div>
-        <div class="sel-b"><button type="button" class="btn" id="sel-rot" title="Käännä 90° (R)">⟳ 90°</button><button type="button" class="btn" id="sel-align" aria-pressed="false" hidden title="Seinät tontin sisääntulon reunan ja aidan suuntaan">Aidan suuntaan</button><button type="button" class="btn" id="sel-mir" aria-pressed="false" title="Peilikuva (M)">⇋ Peilikuva</button><button type="button" class="btn" id="sel-reset" title="Oletuspaikka, -suunta ja -korko">Palauta</button><button type="button" class="btn" id="sel-del" hidden>Poista</button><button type="button" class="btn" id="sel-done">Valmis</button></div>
+        <div class="sel-b"><button type="button" class="btn" id="sel-rot" title="Käännä 90° (R)">⟳ 90°</button><button type="button" class="btn" id="sel-align" aria-pressed="false" hidden title="Seinät tontin sisääntulon reunan ja aidan suuntaan">Aidan suuntaan</button><button type="button" class="btn" id="sel-mir" aria-pressed="false" title="Peilikuva (M)">⇋ Peilikuva</button><button type="button" class="btn" id="sel-reset" title="Oletuspaikka, -suunta ja -korko">Palauta</button><button type="button" class="btn" id="sel-roof" aria-pressed="false" hidden title="Katot pois, niin näet sisälle (K)">Katto pois</button><button type="button" class="btn" id="sel-del" hidden>Poista</button><button type="button" class="btn" id="sel-done">Valmis</button></div>
       </div>
       <div class="ov modebar" id="aedbar" hidden>
         <div class="mb-row mb-h"><b>Asfaltti</b><span class="mb-read num" id="f-asph2">—</span><span class="mb-sp"></span><button type="button" class="btn" id="aed-undo" disabled>Kumoa</button><button type="button" class="btn" id="aed-reset">Palauta</button><button type="button" class="btn" id="aed-done">Valmis</button></div>
@@ -565,7 +593,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         <div class="grp">
           <h3>Tuija-aita</h3>
           <div class="ctl"><div class="ctl-h"><label for="hedge-h">Korkeus</label><span class="num" id="f-hedge">2,0 m</span></div>
-            <input type="range" id="hedge-h" min="0.5" max="3" step="0.1" value="2" style="width:100%"></div>
+            <input type="range" id="hedge-h" min="0" max="3" step="0.1" value="2" style="width:100%"></div>
           <button type="button" class="tg" id="hedge-front" aria-pressed="false"><span class="tl">Myös sisääntulon puolella</span><span class="track"></span></button>
         </div>
         <div class="grp">

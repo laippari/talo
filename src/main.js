@@ -5128,9 +5128,10 @@
       var L = Math.hypot(e[2] - e[0], e[3] - e[1]), n = Math.ceil(L / 0.25);
       for (var i = 0; i < n; i++) { var p = F.P(e[0] + (e[2] - e[0]) * i / n, e[1] + (e[3] - e[1]) * i / n); gs.push(gBase(p[0], p[1])); }
     });
-    // the plinth as high as the house's (0.40 m) above the highest of them, plus the fine-tuning
-    var gmax = Math.max.apply(null, gs);
-    return {F:F, gmin:Math.min.apply(null, gs), gmax:gmax, Fz:Math.round((Math.ceil((gmax + PLINTH) * 20) / 20 + G.dz) * 100) / 100};
+    // the floor at the house's floor (without the house's own fine-tuning), so with the same Korko both stand at one
+    // level and the yard between them runs level; plus the garage's fine-tuning
+    var gmax = Math.max.apply(null, gs), HHf = DATA.houses[houseSel], hf = houseFloorNow(HHf) - (place.bld.house.dz || 0);
+    return {F:F, gmin:Math.min.apply(null, gs), gmax:gmax, Fz:Math.round((hf + G.dz) * 100) / 100};
   }
   // the store's back door, across the garage (v in its frame); it opens on the same place as the front one
   function garBackV(){ var T = garT(), G = place.bld.gar; return T.parts.length < 2 ? 0 : (G.mir ? -1 : 1) * (T.w / 2 - T.parts[0][1] - T.parts[1][1] / 2); }
@@ -5491,6 +5492,33 @@
         if (rings.some(function(r){ return Math.hypot(xg - r.x, zg - r.z) < RING_IN; })) continue;
         var we = clamp(edgeMin(xg, zg) / edgeWOf(zt - E[kg]), 0, 1); we = we * we * (3 - 2 * we) * treeW(xg, zg, zt - E[kg]);
         T[kg] += (zt - cur) * we; IN[kg] = 1;
+      }
+    })();
+    // between the house and the garage no hollow: inside the outline round both (and 1.5 m out from it) the ground is
+    // filled up to a level running from the yard at the house to the garage's drive, never cut
+    (function(){
+      if (!GAR && !place.bld.gar) return;
+      var gfB = garFloor(), GFB = gfB.F, baseG = gfB.Fz - 0.03, HCo = DATA.houses[houseSel].corners, GCo = GFB.corners();
+      var pts = HCo.concat(GCo).map(function(p){ return p.slice(); }).sort(function(a, b){ return a[0] - b[0] || a[1] - b[1]; });
+      var cr = function(o, a, b){ return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]); }, lo = [], up = [];
+      pts.forEach(function(p){ while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); });
+      pts.slice().reverse().forEach(function(p){ while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); });
+      var hull = lo.slice(0, -1).concat(up.slice(0, -1)); if (hull.length < 3) return;
+      var xs4 = hull.map(function(p){ return p[0]; }), zs4 = hull.map(function(p){ return p[1]; }), FADE = 1.5;
+      var i0 = Math.max(0, Math.floor((Math.min.apply(null, xs4) - FADE - gx0) / sp)), i1 = Math.min(nx - 1, Math.ceil((Math.max.apply(null, xs4) + FADE - gx0) / sp));
+      var j0 = Math.max(0, Math.floor((Math.min.apply(null, zs4) - FADE - gz0) / sp)), j1 = Math.min(nz - 1, Math.ceil((Math.max.apply(null, zs4) + FADE - gz0) / sp));
+      for (var jb = j0; jb <= j1; jb++) for (var ib = i0; ib <= i1; ib++) {
+        var kb = jb * nx + ib; if (!IN[kb]) continue;
+        var xb = gx0 + ib * sp, zb = gz0 + jb * sp;
+        if (inPoly(xb, zb, HCo) || inPoly(xb, zb, GCo)) continue;
+        var dOut = inPoly(xb, zb, hull) ? 0 : polyNear(xb, zb, hull)[0]; if (dOut > FADE) continue;
+        var dH = polyNear(xb, zb, HCo)[0], dG = polyNear(xb, zb, GCo)[0], t = dH / Math.max(1e-6, dH + dG);
+        var tgt = PL(xb, zb) * (1 - t) + baseG * t, cur = E[kb] + T[kb];
+        // the garage's plinth still shows beside and behind it (0.30 m, back to the plan at 1:3); its drive in front is at the floor
+        if (GFB.U(xb, zb) <= GFB.d / 2) tgt = Math.min(tgt, gfB.Fz - 0.30 + dG / 3);
+        if (cur >= tgt - 0.005) continue;
+        var w = 1 - dOut / FADE; w = w * w * (3 - 2 * w);
+        T[kb] += (tgt - cur) * w;
       }
     })();
     (function(){
@@ -7292,6 +7320,55 @@
     if (OUTL[L.layer]) return state[OUTL[L.layer]] && !cutOn();
     if (L.layer === 'cut') return cutOn();
     return !L.layer || !!state[L.layer];
+  }
+  // ---------- distances while a house, the garage or the greenhouse is selected and moved: from its walls to the plot's
+  // boundaries (those within 20 m; towards the neighbours under 4 m in the boundary colour) and between the house and
+  // the garage (in the accent colour), as hairlines on the ground with the value in the middle; they follow the drag ----------
+  var measEl = document.getElementById('meas'), measSvg = document.getElementById('meas-svg'), MEAS = [], measOn = false, SVGNS = 'http://www.w3.org/2000/svg';
+  function measItem(){
+    var g = document.createElementNS(SVGNS, 'g'), mk = function(tag, cls){ var e = document.createElementNS(SVGNS, tag); e.setAttribute('class', cls); g.appendChild(e); return e; };
+    var it = {g:g, halo:mk('line', 'halo'), ln:mk('line', 'ln'), e0:mk('circle', 'end'), e1:mk('circle', 'end'), lb:document.createElement('div')};
+    it.e0.setAttribute('r', 2.6); it.e1.setAttribute('r', 2.6); it.lb.className = 'mv';
+    measSvg.appendChild(g); measEl.appendChild(it.lb); return it;
+  }
+  function measList(){
+    var k = sel.obj; if (!(k === 'house' || k === 'gar' || k === 'gh')) return null;
+    if (fp.on || sec.on || plan.on || aed.on || cutOn()) return null;
+    var d = sel.drag ? sel.drag.d : [0, 0], sh = function(C){ return C.map(function(p){ return [p[0] + d[0], p[1] + d[1]]; }); };
+    var C0 = footNow(k); if (!C0 || C0.length < 3) return null;
+    var C = sh(C0), out = [];
+    BGROUPS.forEach(function(G){
+      var r = polyGap(C, G[1]); if (!(r.d < 20)) return;
+      out.push({a:r.a, b:r.b, d:r.d, c:(G[0] === 'NE' || G[0] === 'SW') && r.d < 4 ? 'wn' : ''});
+    });
+    // the house and the garage, whichever of them is moved
+    var O = k === 'house' ? (state.garage && GAR && GAR.foot) : k === 'gar' ? (state.house && DATA.houses[houseSel].corners) : null;
+    if (O && O.length > 2) {
+      var segs = O.map(function(p, i){ return [p, O[(i + 1) % O.length]]; }), r2 = polyGap(C, segs);
+      if (r2.d < 60) out.push({a:r2.a, b:r2.b, d:r2.d, c:'ac'});
+    }
+    return out;
+  }
+  function measPos(cam){
+    var L = measList();
+    if (!L || !L.length) { if (measOn) { measOn = false; measEl.classList.remove('on'); } return; }
+    if (!measOn) { measOn = true; measEl.classList.add('on'); }
+    while (MEAS.length < L.length) MEAS.push(measItem());
+    var w = view.clientWidth, h = view.clientHeight, sy = world.scale.y || 1;
+    var scr = function(p){ tmp.set(p[0], Y(gAt(p[0], p[1])) + 0.06, p[1]); world.localToWorld(tmp); tmp.project(cam); return [(tmp.x * 0.5 + 0.5) * w, (-tmp.y * 0.5 + 0.5) * h, tmp.z < 1]; };
+    MEAS.forEach(function(it, i){
+      var m = L[i]; if (!m) { it.g.style.display = 'none'; it.lb.hidden = true; return; }
+      var A = scr(m.a), B = scr(m.b), len = Math.hypot(B[0] - A[0], B[1] - A[1]);
+      if (!A[2] || !B[2] || len < 6) { it.g.style.display = 'none'; it.lb.hidden = true; return; }
+      it.g.style.display = '';
+      [it.halo, it.ln].forEach(function(l){ l.setAttribute('x1', A[0].toFixed(1)); l.setAttribute('y1', A[1].toFixed(1)); l.setAttribute('x2', B[0].toFixed(1)); l.setAttribute('y2', B[1].toFixed(1)); });
+      it.ln.setAttribute('class', 'ln ' + m.c);
+      [[it.e0, A], [it.e1, B]].forEach(function(e){ e[0].setAttribute('cx', e[1][0].toFixed(1)); e[0].setAttribute('cy', e[1][1].toFixed(1)); e[0].setAttribute('class', 'end ' + m.c); });
+      var t = fn(m.d, m.d < 10 ? 2 : 1) + ' m';
+      if (it.lb.textContent !== t) it.lb.textContent = t;
+      it.lb.className = 'mv ' + m.c; it.lb.hidden = len < 28;
+      it.lb.style.transform = 'translate(' + ((A[0] + B[0]) / 2).toFixed(1) + 'px,' + ((A[1] + B[1]) / 2).toFixed(1) + 'px) translate(-50%,-50%)';
+    });
   }
   function updateLabels(cam){
     var w = view.clientWidth, h = view.clientHeight, far = sec.on && sec.mode === 'side' ? sec.hv > 110 : cam.position.distanceTo(controls.target) > 230;
@@ -9779,6 +9856,7 @@
     if (renderer.domElement.width > 0 && renderer.domElement.height > 0) { if (plan.on && !plan.bg) renderer.clear(); else renderer.render(scene, cam); }
     if (loadingEl) { loadingEl.remove(); loadingEl = null; }
     updateLabels(cam);
+    measPos(cam);
     if (aed.on) aedPos();
     if (side) secAxes();
     if (plan.on) planDraw();

@@ -88,6 +88,21 @@ h1{margin:0;font-size:var(--fs-l);line-height:1.2;font-weight:600;letter-spacing
 .hud-s{font-size:var(--fs-xs);color:var(--muted);line-height:1.4}
 .hud-s:empty{display:none}
 .hud-s.em{color:var(--accent)}
+/* distances while a building is selected or moved: hairlines on the ground, a quiet value on each */
+.meas{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2;opacity:0;transition:opacity .18s ease}
+.meas.on{opacity:1}
+.meas svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.meas .halo{stroke:rgba(255,255,255,.78);stroke-width:3.5;stroke-linecap:round;fill:none}
+.meas .ln{stroke:var(--ink);stroke-width:1.25;stroke-linecap:round;fill:none}
+.meas .ln.ac{stroke:var(--accent);stroke-width:1.5}
+.meas .ln.wn{stroke:var(--boundary)}
+.meas .end{fill:var(--ink);stroke:#fff;stroke-width:1.5}
+.meas .end.ac{fill:var(--accent)} .meas .end.wn{fill:var(--boundary)}
+.meas .mv{position:absolute;left:0;top:0;transform-origin:0 0;white-space:nowrap;font:500 11.5px/1 var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em;
+  padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.94);color:#16201B;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.meas .mv.ac{background:var(--accent);color:var(--on-accent)}
+.meas .mv.wn{color:var(--boundary)}
+@media (prefers-reduced-motion:reduce){.meas{transition:none}}
 /* the short guide: a button at the bottom left (on a phone its icon only) and a small sheet */
 .helpbtn{left:12px;bottom:12px;display:flex;align-items:center;gap:6px;height:var(--ctl);padding:0 12px 0 10px;border-radius:999px;border:1px solid var(--line);background:var(--hud);color:var(--ink);font-size:var(--fs-s);font-weight:500;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .helpbtn svg{width:18px;height:18px;flex:none}
@@ -429,6 +444,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   <div class="app" id="app">
     <div class="viewer" id="view">
       <div id="labels" aria-hidden="true"></div>
+      <div class="meas" id="meas" aria-hidden="true"><svg id="meas-svg"></svg></div>
       <canvas id="plancv" class="plancv" hidden aria-hidden="true"></canvas>
       <div class="ov modesw" id="modesw">
         <button type="button" class="fp-tg" data-mode="fp" aria-pressed="false" title="Katsele ympärille"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Katsele</span></button>

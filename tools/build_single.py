@@ -12,6 +12,7 @@ data = (root / 'data' / 'site.json').read_text(encoding='utf-8')
 js = (root / 'src' / 'main.js').read_text(encoding='utf-8')
 boot = (root / 'src' / 'boot.js').read_text(encoding='utf-8')
 fx = (root / 'src' / 'fx.js').read_text(encoding='utf-8')
+i18n = (root / 'src' / 'i18n.js').read_text(encoding='utf-8')
 mp4 = base64.b64encode((root / 'assets' / 'tv.mp4').read_bytes()).decode()
 
 def once(s, old, new):
@@ -20,7 +21,8 @@ def once(s, old, new):
 
 js = once(js, "var TV_CLIP = 'assets/tv.mp4'", "var TV_CLIP = 'data:video/mp4;base64," + mp4 + "'")
 # tehosteet (fx.js) samaan moduuliin käynnistyksen kanssa: fx.js moduulin alkuun, sen lataus pois
-boot = once(fx, 'export const FX', 'const FX') + '\n' + once(boot, "  const { FX } = await import('./fx.js' + VQ);\n", '')
+boot = (once(i18n, 'export const I18N', 'const I18N') + '\n' + once(fx, 'export const FX', 'const FX') + '\n'
+        + once(once(boot, "  const { FX } = await import('./fx.js' + VQ);\n", ''), "try { await import('./i18n.js' + VQ); } catch (e) { console.warn('i18n', e); }\n", ''))
 assert '</script' not in js and '</script' not in boot and '</script' not in data
 
 inline = ('<script type="application/json" id="data">' + data + '</script>\n'

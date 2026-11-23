@@ -33,7 +33,7 @@ jobs:
         run: |
           # sovellus on tavallinen skripti, käynnistys ja tehosteet ES-moduuleja
           node --check src/main.js || { echo "syntaksivirhe: src/main.js"; exit 1; }
-          for f in src/boot.js src/fx.js; do node --input-type=module --check < "$f" || { echo "syntaksivirhe: $f"; exit 1; }; done
+          for f in src/boot.js src/fx.js src/i18n.js; do node --input-type=module --check < "$f" || { echo "syntaksivirhe: $f"; exit 1; }; done
           node --check vanha/main.js || { echo "syntaksivirhe: vanha/main.js"; exit 1; }
       - name: Assemble site
         run: |

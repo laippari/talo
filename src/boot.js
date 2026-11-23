@@ -10,6 +10,9 @@ const fail = (msg) => { if (loadEl) loadEl.hidden = true; if (failEl) { failEl.h
 // The page's build stamp (index.html gives it in this file's address): the other files are asked for with the same
 // stamp, so a new version of the page never runs with older copies of them from the browser's cache
 const V = new URL(import.meta.url).searchParams.get('v'), VQ = V && V.indexOf('__') < 0 ? '?v=' + encodeURIComponent(V) : '';
+// The language (Finnish or English) first, so that the texts the page shows while it loads are in it; a fault in the
+// translation never stops the model
+try { await import('./i18n.js' + VQ); } catch (e) { console.warn('i18n', e); }
 const verEl = document.getElementById('ver');
 if (verEl && verEl.textContent.indexOf('__') >= 0) verEl.textContent = 'Kehitysversio';
 

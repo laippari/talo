@@ -27,6 +27,11 @@
   var tok = function(n){ return getComputedStyle(root).getPropertyValue(n).trim(); };
   var fz = function(v, d){ d = d == null ? 2 : d; return (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d).replace('.', ','); };
   var fn = function(v, d){ return v.toLocaleString('fi-FI', {minimumFractionDigits:d, maximumFractionDigits:d}); };
+  // the language (src/i18n.js): the texts the application writes are Finnish and the page translates them in the DOM;
+  // what is drawn on a canvas goes through TT here, and a few words that cannot be translated by themselves are chosen
+  var LANG_EN = function(){ return !!(window.TALO_I18N && window.TALO_I18N.lang === 'en'); };
+  var TT = function(s){ return window.TALO_I18N ? window.TALO_I18N.t(s) : s; };
+  var ROOM_EN = {S:'Sauna'}, DIRS_EN = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var renderer;
@@ -7365,7 +7370,7 @@
       it.ln.setAttribute('class', 'ln ' + m.c);
       [[it.e0, A], [it.e1, B]].forEach(function(e){ e[0].setAttribute('cx', e[1][0].toFixed(1)); e[0].setAttribute('cy', e[1][1].toFixed(1)); e[0].setAttribute('class', 'end ' + m.c); });
       var t = fn(m.d, m.d < 10 ? 2 : 1) + ' m';
-      if (it.lb.textContent !== t) it.lb.textContent = t;
+      if (it.txt !== t) { it.txt = t; it.lb.textContent = t; }
       it.lb.className = 'mv ' + m.c; it.lb.hidden = len < 28;
       it.lb.style.transform = 'translate(' + ((A[0] + B[0]) / 2).toFixed(1) + 'px,' + ((A[1] + B[1]) / 2).toFixed(1) + 'px) translate(-50%,-50%)';
     });
@@ -7422,7 +7427,7 @@
     camera.position.set(fp.x, Y(eye) * world.scale.y, fp.z);
     camera.rotation.order = 'YXZ'; camera.rotation.set(fp.pitch, fp.yaw, 0);
     var hd = ((360 - fp.yaw * 180 / Math.PI) % 360 + 360) % 360;
-    var ft = document.querySelector('.fp-tg'); if (ft) ft.title = 'Katsele ympärille · silmät ' + fz(eye, 2) + ' · katse ' + Math.round(hd) + '° ' + DIRS[Math.round(hd / 45) % 8] + '. Uusi painallus tai Esc palaa.';
+    var ft = document.querySelector('.fp-tg'); if (ft) ft.title = 'Katsele ympärille · silmät ' + fz(eye, 2) + ' · katse ' + Math.round(hd) + '° ' + (LANG_EN() ? DIRS_EN : DIRS)[Math.round(hd / 45) % 8] + '. Uusi painallus tai Esc palaa.';
     fpHUI();
   }
   // a horizontal field of view in degrees as the camera's vertical one for this view, kept between 34 and 62 degrees so a
@@ -8577,7 +8582,7 @@
     var vis = function(p, m){ var q = S(p); return q[0] > -m && q[0] < W + m && q[1] > -m && q[1] < H + m; };
     var font = function(px, w){ g.font = (w || 500) + ' ' + px + 'px "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif'; };
     var ptxt = function(t, x, y, o){
-      o = o || {}; font(o.px || 11, o.w || 500); g.textAlign = o.al || 'center'; g.textBaseline = 'middle';
+      t = TT(t); o = o || {}; font(o.px || 11, o.w || 500); g.textAlign = o.al || 'center'; g.textBaseline = 'middle';
       g.save(); g.translate(x, y); if (o.rot) g.rotate(o.rot);
       g.lineWidth = 3.5; g.strokeStyle = 'rgba(255,255,255,0.92)'; g.strokeText(t, 0, 0); g.fillStyle = o.c || PL_INK; g.fillText(t, 0, 0); g.restore();
     };
@@ -8661,7 +8666,7 @@
           [-0.035, 0.035].forEach(function(f){ pathP([[a[0] + nx * f, a[1] + nz * f], [b[0] + nx * f, b[1] + nz * f]], false); g.stroke(); });
           [a, b].forEach(function(p){ pathP([[p[0] + nx * t2, p[1] + nz * t2], [p[0] - nx * t2, p[1] - nz * t2]], false); g.stroke(); });
         });
-        var rooms = s > 9; if (rooms) P2.rooms.forEach(function(r){ var q = S(sh(r[1])); ptxt(r[0], q[0], q[1], {c:'#59605c', px:s > 16 ? 11 : 9.5}); });
+        var rooms = s > 9; if (rooms) P2.rooms.forEach(function(r){ var q = S(sh(r[1])); ptxt(LANG_EN() && ROOM_EN[r[0]] || r[0], q[0], q[1], {c:'#59605c', px:s > 16 ? 11 : 9.5}); });
       } else { pathP(HC, true); g.fillStyle = 'rgba(43,84,196,0.16)'; g.fill(); }
       pathP(HC, true); g.strokeStyle = PL_INK; g.lineWidth = 2; g.stroke();
       // the tub with its stove, moved along while it is dragged
@@ -8733,7 +8738,7 @@
     var nx = -T.u[0], ny = T.u[1], ax = x0 + wpx + 36, ay = y0 - 2;
     g.save(); g.translate(ax, ay); g.rotate(Math.atan2(nx, -ny)); g.beginPath(); g.moveTo(0, -13); g.lineTo(6, 6); g.lineTo(0, 2); g.lineTo(-6, 6); g.closePath(); g.fillStyle = PL_INK; g.fill(); g.restore();
     ptxt('P', ax + nx * 22, ay + ny * 22, {px:11, w:700});
-    var lines = ['Ali-Haakkointie 1, Vihti', 'Kiinteistö 927-401-2-632 · ' + fn(DATA.plot.area || 1326, 0) + ' m²', 'Asemakuva, luonnos · ' + new Date().toLocaleDateString('fi-FI'), HM[houseSel].name + ' · lattia ' + fz(HH.floor, 2)];
+    var lines = ['Ali-Haakkointie 1, Vihti', 'Kiinteistö 927-401-2-632 · ' + fn(DATA.plot.area || 1326, 0) + ' m²', 'Asemakuva, luonnos · ' + (LANG_EN() ? new Date().toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'}) : new Date().toLocaleDateString('fi-FI')), HM[houseSel].name + ' · lattia ' + fz(HH.floor, 2)].map(TT);
     font(10.5, 500); var tw = 0; lines.forEach(function(t, i){ font(i ? 10.5 : 12, i ? 500 : 700); tw = Math.max(tw, g.measureText(t).width); });
     tw += 20; var th = lines.length * 15 + 10, bx = W - tw - 12, by = H - th - 12;
     g.fillStyle = 'rgba(255,255,255,0.94)'; g.fillRect(bx, by, tw, th); g.strokeStyle = PL_INK; g.lineWidth = 1; g.strokeRect(bx + 0.5, by + 0.5, tw - 1, th - 1);
@@ -9031,7 +9036,7 @@
       var base = /github\.io$|^localhost$|^127\./.test(location.hostname) ? location.origin + location.pathname : SITE_URL;
       var url = base + '#n=' + encodeURIComponent(p.name) + '&v=' + pk;
       var done = function(){ vNote('Linkki näkymään ' + p.name + ' kopioitu.'); };
-      var manual = function(){ window.prompt('Kopioi linkki näkymään ' + p.name + ':', url); };
+      var manual = function(){ window.prompt(TT('Kopioi linkki näkymään ') + p.name + ':', url); };
       try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, manual); else manual(); } catch (e) { manual(); }
     }).catch(function(){ vNote('Linkin teko ei onnistunut.'); });
   }

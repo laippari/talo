@@ -9,6 +9,7 @@ https://laippari.github.io/talo/
 | --- | --- |
 | `index.html` | Sivun rakenne ja tyylit. Käynnistää `src/boot.js`:n. |
 | `src/boot.js` | Käynnistys: three.js 0.186.1, WebGPU-piirtäjä (WebGL2 varalla), laatutaso, varjot ja sävykäyrä. |
+| `src/i18n.js` | Kieliversiot (suomi ja englanti): sanakirja ja kääntäjä, joka vaihtaa sivun tekstit lennossa. |
 | `src/fx.js` | Mallin omat tehosteet piirtäjän solmuina (maaston leikkaukset, lasi, sisävalot, tuli, esteiden piilotus). |
 | `src/main.js` | Koko sovellus: malli ja käyttöliittymä. |
 | `data/site.json` | Maasto, tontti, rakennukset, puut ja ilmakuvat. Avaimessa `views` yhteiset tallennetut näkymät, jotka lisätään kerran jokaiseen selaimeen ja artifaktiin. |
@@ -16,6 +17,10 @@ https://laippari.github.io/talo/
 | `vanha/` | Edellinen moottori (three.js r128, WebGL) sellaisenaan varalla: https://laippari.github.io/talo/vanha/ |
 | `tools/build_single.py` | Kokoaa sivusta yhden HTML-tiedoston (`dist/talo.html`). |
 | `docs/SUUNNITELMA.md` | Renderöinnin ja mallinnuksen parannussuunnitelma ja sen tilanne. |
+
+Kieli: sivu on suomeksi, ja englanti valitaan Näkymä-välilehden lopun tai Ohjeen **Kieli · Language** -painikkeella tai osoitteella
+`?lang=en` (`?lang=fi` palauttaa suomen). Valinta muistetaan selaimessa. Uusi teksti käännetään lisäämällä sen suomenkielinen
+muoto ja käännös `src/i18n.js`:n `EXACT`-sanakirjaan (kokonainen teksti) tai `GLOSS`-listaan (koodin kokoaman tekstin pala).
 
 Osoitteen perään voi lisätä `?webgl` (pakottaa WebGL2:n) tai `?varjot=0` (varjot pois). Tallennetun näkymän linkki
 (Näkymä-välilehden 🔗) kuljettaa näkymän osoitteen `#v=`-osassa, joten se toimii missä tahansa selaimessa.

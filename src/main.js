@@ -7356,6 +7356,7 @@
   }
   function measPos(cam){
     var L = measList();
+    MEAS_DRAW.length = 0;
     if (!L || !L.length) { if (measOn) { measOn = false; measEl.classList.remove('on'); } return; }
     if (!measOn) { measOn = true; measEl.classList.add('on'); }
     while (MEAS.length < L.length) MEAS.push(measItem());
@@ -7373,6 +7374,7 @@
       if (it.txt !== t) { it.txt = t; it.lb.textContent = t; }
       it.lb.className = 'mv ' + m.c; it.lb.hidden = len < 28;
       it.lb.style.transform = 'translate(' + ((A[0] + B[0]) / 2).toFixed(1) + 'px,' + ((A[1] + B[1]) / 2).toFixed(1) + 'px) translate(-50%,-50%)';
+      MEAS_DRAW.push({A:A, B:B, c:m.c, t:t, lab:len >= 28});
     });
   }
   function updateLabels(cam){
@@ -9570,11 +9572,11 @@
       saveFile(fname, blob);
     }, 'image/png');
   }
-  function saveFile(fname, blob){
+  function saveFile(fname, blob, okMsg){
     if (window.claude && typeof window.claude.use === 'function') {
       dlReady.then(function(dl){
         if (!dl) { vNote('Kuvan tallennus ei ole käytettävissä tässä näkymässä.'); return; }
-        dl.save({filename:fname, data:blob}).then(function(){ vNote('Kuva tallennettu.'); }).catch(function(e){
+        dl.save({filename:fname, data:blob}).then(function(){ vNote(okMsg || 'Kuva tallennettu.'); }).catch(function(e){
           var c = e && e.code;
           if (c === 'declined') return;
           vNote(c === 'rate_limited' ? 'Edellinen tallennus on vielä kesken.' : 'Kuvan tallennus ei onnistunut.');
@@ -9827,6 +9829,161 @@
     window.addEventListener('keydown', function(e){ var tg = e.target; if (tg && /^(INPUT|SELECT|TEXTAREA)$/.test(tg.tagName)) return; if (e.key === 'Escape' && !hs.hidden) set(false); else if (e.key === '?') set(hs.hidden); });
   })();
 
+  // ---------- the presentation (Näkymä: ▶ Esittely, ⏺ Tallenna esittelyvideo): about a minute of the model at its best,
+  // played by the page itself so it runs at the speed of the viewer's own graphics. Six scenes: a flight in over the lake,
+  // the house moved with its distances, the day turning to night, the roof off, the ground opened, and the evening.
+  // The panel and the buttons are hidden meanwhile; Esc ends it. Recording draws each frame of the 3D view with the
+  // captions and the distances on a canvas of its own and saves it as a video file (MP4 where the browser can, else WebM) ----------
+  var demo = {on:false, i:-1, t0:0, rec:null, back:null}, demoCap = document.getElementById('demo-cap'), demoFade = document.getElementById('demo-fade');
+  var MEAS_DRAW = [];
+  var easeIO = function(u){ u = clamp(u, 0, 1); return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2; };
+  var lerp = function(a, b, u){ return a + (b - a) * u; };
+  function demoBase(){
+    var HH = DATA.houses[houseSel], c = mean4(HH.corners), sy = world.scale.y || 1, hv = homeView();
+    var T = new THREE.Vector3(c[0], Y(HH.floor) * sy, c[1]), P = new THREE.Vector3(hv.p[0], hv.p[1] * sy, hv.p[2]), d = P.clone().sub(new THREE.Vector3(hv.t[0], hv.t[1] * sy, hv.t[2]));
+    var L = d.length();
+    return {T:T, dist:L, el:Math.asin(d.y / L), az:Math.atan2(d.x, d.z), sy:sy, c:c};
+  }
+  // the camera round a target: distance, elevation above the horizon and azimuth (radians)
+  function demoCam(T, dist, el, az){
+    camera.position.set(T.x + dist * Math.cos(el) * Math.sin(az), T.y + dist * Math.sin(el), T.z + dist * Math.cos(el) * Math.cos(az));
+    controls.target.copy(T); tween = null; camSync();
+  }
+  var D2R = Math.PI / 180;
+  var DEMO = [
+    {dur:9, cap:['Hiidenranta · Ali-Haakkointie 1', 'Talo ja tontti mittatarkkana 3D-mallina'],
+      step:function(u, B){ var e = easeIO(u); demoCam(B.T, lerp(560, B.dist, e), lerp(32 * D2R, B.el, e), lerp(B.az + 1.4, B.az, e)); }},
+    {dur:11, cap:['Rakennusten sijoittelu', 'Etäisyydet rajoihin ja autotalliin päivittyvät siirrettäessä'],
+      enter:function(){ selSet('house'); },
+      step:function(u, B){
+        var e = easeIO(u / 0.15); demoCam(B.T, lerp(B.dist, 52, e), lerp(B.el, 60 * D2R, e), B.az + 0.25 * e + 0.12 * u);
+        var w = clamp((u - 0.15) / 0.8, 0, 1), F = houseFrame(DATA.houses[houseSel].corners), s = 2.6 * Math.sin(w * Math.PI * 2);
+        var d = clampMove('house', [F.b[0] * s, F.b[1] * s]);
+        sel.drag = {id:-1, lev:floorOf('house'), p0:[0, 0], d:d};
+        Object.keys(houseGroups).forEach(function(k){ houseGroups[k].position.set(d[0], 0, d[1]); }); selBox.position.set(d[0], 0, d[1]);
+      },
+      exit:function(){ sel.drag = null; Object.keys(houseGroups).forEach(function(k){ houseGroups[k].position.set(0, 0, 0); }); selBox.position.set(0, 0, 0); selClear(); }},
+    {dur:13, cap:['Vuorokaudenaika', ''], time:true,
+      enter:function(){ tod = 10.5; applyTime(); },
+      step:function(u, B){
+        demoCam(new THREE.Vector3(B.T.x, B.T.y + 1.5, B.T.z), 36, 21 * D2R, B.az + Math.PI + 0.35 - 0.3 * u);
+        tod = lerp(10.5, 23.4, easeIO(clamp((u - 0.06) / 0.88, 0, 1))); applyTime();
+      }},
+    {dur:9, cap:['Katto pois', 'Sisätilat kalustettuina, valot ja takka'],
+      enter:function(){ tod = 13.5; applyTime(); state.roof = false; syncLayerUI(); applyLayers(); },
+      step:function(u, B){ demoCam(B.T, lerp(30, 23, easeIO(u)), lerp(80, 66, easeIO(u)) * D2R, B.az - 0.2 + 0.55 * u); },
+      exit:function(){ state.roof = true; syncLayerUI(); applyLayers(); }},
+    {dur:10, cap:['Maan alla', 'Perustus, paalut ja kairaukset'],
+      enter:function(){ soilView(); controls.enabled = false; },
+      step:function(u, B){
+        var c = PLOTC.reduce(function(a, p){ return [a[0] + p[0] / PLOTC.length, a[1] + p[1] / PLOTC.length]; }, [0, 0]);
+        demoCam(new THREE.Vector3(c[0], Y(37) * B.sy, c[1]), lerp(105, 88, easeIO(u)), 17 * D2R, Math.atan2(AX.rx * 66 - AX.ux * 30, AX.rz * 66 - AX.uz * 30) - 0.35 + 0.6 * u);
+      },
+      exit:function(){ soilExit(true); }},
+    {dur:7, cap:['Hiidenranta', 'Ali-Haakkointie 1, Vihti'],
+      enter:function(){ tod = 21.6; applyTime(); },
+      step:function(u, B){ var e = easeIO(u); demoCam(B.T, lerp(B.dist * 0.9, 170, e), lerp(B.el, 30 * D2R, e), B.az - 0.5 * e); }}
+  ];
+  var demoLen = DEMO.reduce(function(a, s){ return a + s.dur; }, 0);
+  function demoCaption(S, u){
+    var a = clamp(Math.min((u * S.dur - 0.5) / 0.6, (S.dur * (1 - u) - 0.3) / 0.5), 0, 1);
+    var sub = S.time ? todLabel(tod) : S.cap[1];
+    return {a:a, t:S.cap[0], s:sub};
+  }
+  function demoStart(record){
+    if (demo.on || sim.on) return;
+    soilExit(true); preDrop(); runStop(); secExit(); planExit(); aedExit(); selClear(); if (fp.on) fpQuiet();
+    var ly = {}; LAYER_KEYS.forEach(function(k){ ly[k] = state[k]; });
+    demo.back = {ly:ly, tod:tod, labels:state.labels, treeHide:treeHideD, cam:{p:camera.position.clone(), t:controls.target.clone()}, fov:camera.fov};
+    state.labels = 0; treeHideD = 0; treeUI(); syncLayerUI(); applyLayers();
+    fovT = null; camera.fov = 50; camera.updateProjectionMatrix();
+    controls.enabled = false; root.classList.add('cine', 'demo');
+    demo.on = true; demo.i = -1; demo.t0 = performance.now() + 400; demo.B = null;
+    demo.wantRec = !!record;   // the recording starts once the view has taken the whole window
+  }
+  function demoStop(){
+    if (!demo.on) return;
+    var S = DEMO[demo.i]; if (S && S.exit) S.exit();
+    demo.on = false; demo.i = -1; root.classList.remove('cine', 'demo');
+    if (demoCap) demoCap.hidden = true; if (demoFade) demoFade.style.opacity = 0;
+    var B = demo.back;
+    LAYER_KEYS.forEach(function(k){ state[k] = B.ly[k]; }); state.labels = B.labels; treeHideD = B.treeHide; treeUI(); syncLayerUI(); applyLayers();
+    tod = B.tod; applyTime(); camera.fov = B.fov; camera.updateProjectionMatrix();
+    camera.position.copy(B.cam.p); controls.target.copy(B.cam.t); controls.enabled = true; controls.update();
+    if (demo.rec) demoRecStop();
+  }
+  function demoStep(now){
+    var t = (now - demo.t0) / 1000;
+    if (t < 0) t = 0;
+    if (demo.wantRec && now >= demo.t0) { demo.wantRec = false; demoRecStart(); }
+    if (t >= demoLen) { demoStop(); return; }
+    var acc = 0, i = 0; while (i < DEMO.length - 1 && t >= acc + DEMO[i].dur) { acc += DEMO[i].dur; i++; }
+    var S = DEMO[i], u = (t - acc) / S.dur;
+    if (i !== demo.i) { var P = DEMO[demo.i]; if (P && P.exit) P.exit(); demo.i = i; demo.B = demoBase(); if (S.enter) S.enter(); }
+    S.step(u, demo.B);
+    // a short dip to black between the scenes
+    var tin = t - acc, tout = acc + S.dur - t, f = Math.max(i ? clamp(1 - tin / 0.35, 0, 1) : clamp(1 - tin / 0.8, 0, 1), i < DEMO.length - 1 ? clamp(1 - tout / 0.35, 0, 1) : clamp(1 - tout / 1.0, 0, 1));
+    demo.fade = f; if (demoFade) demoFade.style.opacity = f.toFixed(3);
+    var C = demoCaption(S, u); demo.cap = C;
+    if (demoCap) {
+      demoCap.hidden = false; demoCap.style.opacity = C.a.toFixed(3);
+      var h = demoCap.firstElementChild, p = demoCap.lastElementChild;
+      if (h.dataset.fi !== C.t) { h.dataset.fi = C.t; h.textContent = C.t; }
+      if (p.dataset.fi !== C.s) { p.dataset.fi = C.s; p.textContent = C.s; }
+    }
+  }
+  // ----- recording: the 3D view, the distances and the captions drawn on a canvas each frame -----
+  var demoComp = null;
+  function demoRecStart(){
+    var MT = ['video/mp4;codecs=avc1.640033', 'video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].filter(function(m){ try { return window.MediaRecorder && MediaRecorder.isTypeSupported(m); } catch (e) { return false; } })[0];
+    if (!MT) { vNote('Videon tallennus ei ole tässä selaimessa käytettävissä.'); return; }
+    // a fixed size for the whole recording (even numbers, at most 3840 wide): the view's own pixels
+    demoComp = document.createElement('canvas');
+    var src = renderer.domElement, sc = Math.min(1, 3840 / Math.max(1, src.width));
+    demoComp.width = Math.max(2, Math.round(src.width * sc / 2) * 2); demoComp.height = Math.max(2, Math.round(src.height * sc / 2) * 2);
+    var stream = demoComp.captureStream(60), chunks = [];
+    var rec = new MediaRecorder(stream, {mimeType:MT, videoBitsPerSecond:24e6});
+    rec.ondataavailable = function(e){ if (e.data && e.data.size) chunks.push(e.data); };
+    rec.onstop = function(){
+      var blob = new Blob(chunks, {type:MT.split(';')[0]}), ext = MT.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+      saveFile('Hiidenranta ' + (LANG_EN() ? 'presentation' : 'esittely') + '.' + ext, blob, 'Video tallennettu.');
+    };
+    rec.start(1000); demo.rec = rec;
+  }
+  function demoRecStop(){ var r = demo.rec; demo.rec = null; if (r && r.state !== 'inactive') r.stop(); }
+  function demoCompose(){
+    var src = renderer.domElement, c = demoComp; if (!c) return;
+    var g = c.getContext('2d'), W = c.width, H = c.height, k = W / Math.max(1, view.clientWidth);
+    g.drawImage(src, 0, 0, W, H);
+    // the distances
+    MEAS_DRAW.forEach(function(m){
+      var col = m.c === 'ac' ? tok('--accent') || '#2B54C4' : m.c === 'wn' ? tok('--boundary') || '#C2256C' : '#16201B';
+      g.lineCap = 'round'; g.strokeStyle = 'rgba(255,255,255,0.78)'; g.lineWidth = 3.5 * k; g.beginPath(); g.moveTo(m.A[0] * k, m.A[1] * k); g.lineTo(m.B[0] * k, m.B[1] * k); g.stroke();
+      g.strokeStyle = col; g.lineWidth = (m.c === 'ac' ? 1.5 : 1.25) * k; g.stroke();
+      [m.A, m.B].forEach(function(q){ g.beginPath(); g.arc(q[0] * k, q[1] * k, 2.6 * k, 0, 6.2832); g.fillStyle = col; g.fill(); g.lineWidth = 1.5 * k; g.strokeStyle = '#fff'; g.stroke(); });
+      if (!m.lab) return;
+      var t = TT(m.t); g.font = '500 ' + (11.5 * k) + 'px "IBM Plex Mono", monospace';
+      var tw = g.measureText(t).width + 14 * k, th = 19.5 * k, x = (m.A[0] + m.B[0]) / 2 * k, y = (m.A[1] + m.B[1]) / 2 * k;
+      g.fillStyle = m.c === 'ac' ? col : 'rgba(255,255,255,0.94)'; g.beginPath(); if (g.roundRect) g.roundRect(x - tw / 2, y - th / 2, tw, th, th / 2); else g.rect(x - tw / 2, y - th / 2, tw, th); g.fill();
+      g.fillStyle = m.c === 'ac' ? '#fff' : m.c === 'wn' ? col : '#16201B'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, x, y + 0.5 * k);
+    });
+    // the caption at the lower left over a soft shade
+    var C = demo.cap;
+    if (C && C.a > 0) {
+      var sh = g.createLinearGradient(0, H * 0.62, 0, H); sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,' + (0.45 * C.a).toFixed(3) + ')');
+      g.fillStyle = sh; g.fillRect(0, H * 0.62, W, H * 0.38);
+      var u = H / 1080, x0 = 72 * u, y1 = H - 84 * u;
+      g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillStyle = 'rgba(255,255,255,' + C.a.toFixed(3) + ')';
+      g.font = '600 ' + (54 * u) + 'px "IBM Plex Sans", system-ui, sans-serif'; g.fillText(TT(C.t), x0, C.s ? y1 - 46 * u : y1);
+      if (C.s) { g.font = '400 ' + (28 * u) + 'px "IBM Plex Sans", system-ui, sans-serif'; g.fillStyle = 'rgba(255,255,255,' + (0.85 * C.a).toFixed(3) + ')'; g.fillText(TT(C.s), x0, y1); }
+    }
+    if (demo.fade > 0) { g.fillStyle = 'rgba(0,0,0,' + demo.fade.toFixed(3) + ')'; g.fillRect(0, 0, W, H); }
+  }
+  bindBtn('demo-play', function(){ demoStart(false); });
+  bindBtn('demo-rec', function(){ demoStart(true); });
+  window.addEventListener('keydown', function(e){ if (demo.on && e.key === 'Escape') { e.preventDefault(); demoStop(); } });
+  ['pointerdown', 'wheel', 'touchstart'].forEach(function(ev){ view.addEventListener(ev, function(e){ if (demo.on) { e.stopPropagation(); e.preventDefault(); } }, {capture:true, passive:false}); });
+
   (function loop(now){
     requestAnimationFrame(loop);
     var side = sec.on && sec.mode === 'side', flat = side || plan.on;
@@ -9838,6 +9995,7 @@
       camera.position.lerpVectors(tween.p0, tween.p1, e); controls.target.lerpVectors(tween.t0, tween.t1, e);
       if (k >= 1) { tween = null; saveUI(); }
     }
+    if (demo.on) demoStep(now);
     if (run.playing && !fp.on && !flat) runStep(now);
     if (sim.on) simStep(now);
     else if (!fp.on && !flat) {
@@ -9862,6 +10020,7 @@
     if (loadingEl) { loadingEl.remove(); loadingEl = null; }
     updateLabels(cam);
     measPos(cam);
+    if (demo.rec) demoCompose();
     if (aed.on) aedPos();
     if (side) secAxes();
     if (plan.on) planDraw();

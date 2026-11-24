@@ -389,6 +389,15 @@ details>div{display:grid;gap:10px;padding-top:4px}
 /* simulation: the 3D view alone, the bar to end it */
 html.cine header,html.cine .panel,html.cine #labels,html.cine .viewer .ov:not(#simbar){display:none!important}
 html.cine .app{grid-template-columns:minmax(0,1fr)}
+/* the presentation: the 3D view edge to edge, a caption at the lower left, a dip to black between the scenes */
+html.demo body{padding:0}
+html.demo .wrap{padding:0}
+html.demo .viewer{border:0;border-radius:0}
+.democap{position:absolute;left:0;right:0;bottom:0;z-index:6;padding:140px clamp(24px,5vw,72px) clamp(28px,6vh,84px);background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.45));color:#fff;pointer-events:none;opacity:0}
+.democap h2{margin:0;font:600 clamp(26px,5vh,54px)/1.1 var(--font-sans);letter-spacing:-.01em}
+.democap p{margin:.5em 0 0;font:400 clamp(15px,2.6vh,28px)/1.3 var(--font-sans);opacity:.85}
+.democap p:empty{display:none}
+.demofade{position:absolute;inset:0;z-index:7;background:#000;opacity:0;pointer-events:none}
 #simbar{top:auto;bottom:calc(16px + env(safe-area-inset-bottom,0px));opacity:.92}
 /* phone: the 3D view on the whole screen; the menu button opens the panel as a sheet over its lower part, half or most of
    the screen, the view showing above it; a thumb pad */
@@ -445,6 +454,8 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
   <div class="app" id="app">
     <div class="viewer" id="view">
       <div id="labels" aria-hidden="true"></div>
+      <div class="democap" id="demo-cap" hidden aria-live="polite"><h2></h2><p></p></div>
+      <div class="demofade" id="demo-fade" aria-hidden="true"></div>
       <div class="meas" id="meas" aria-hidden="true"><svg id="meas-svg"></svg></div>
       <canvas id="plancv" class="plancv" hidden aria-hidden="true"></canvas>
       <div class="ov modesw" id="modesw">
@@ -697,6 +708,7 @@ html.cine .app{grid-template-columns:minmax(0,1fr)}
         </div>
         <div class="grp">
           <h3>Simulaatio ja kuva</h3>
+          <div class="btnrow b2"><button type="button" class="btn" id="demo-play" title="Noin minuutin esittely mallista; Esc lopettaa">▶ Esittely</button><button type="button" class="btn" id="demo-rec" title="Esittely tallennetaan videotiedostoksi tämän ikkunan koossa">⏺ Tallenna video</button></div>
           <button type="button" class="btn center" id="sim-tesla">▶ Tesla Model 3 ajaa kotiin</button>
           <button type="button" class="btn" id="shot">Tallenna kuva nykyisestä näkymästä</button>
           <p class="gaps num" id="v-msg" role="status" hidden></p>

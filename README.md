@@ -22,10 +22,11 @@ Kieli: sivu on suomeksi, ja englanti valitaan Näkymä-välilehden lopun tai Ohj
 `?lang=en` (`?lang=fi` palauttaa suomen). Valinta muistetaan selaimessa. Uusi teksti käännetään lisäämällä sen suomenkielinen
 muoto ja käännös `src/i18n.js`:n `EXACT`-sanakirjaan (kokonainen teksti) tai `GLOSS`-listaan (koodin kokoaman tekstin pala).
 
-Esittely: Näkymä-välilehden **▶ Esittely** ajaa noin minuutin esittelyn mallista (lento, talon siirto mittoineen,
-vuorokaudenaika, katto pois, maan alla, ilta), ja **⏺ Tallenna video** tallentaa sen samalla videotiedostoksi (MP4 tai WebM)
-selaimen ikkunan koossa ja tarkkuudessa. Esittely piirtyy katsojan omalla näytönohjaimella, joten video on WebGPU-laatuinen
-ja reaaliaikainen. Esc lopettaa.
+Esittelyt: 3D-näkymän vasemman yläkulman ikoneista (ja Näkymä-välilehdeltä) käynnistyy viisi lyhyttä esittelyä:
+Päivästä yöhön, Ilta pergolalla, Sisälle, Sijoittelu sekä Korot ja perustus. ⏺ kytkee tallennuksen: esittely tallentuu
+videotiedostoksi (MP4 tai WebM) selaimen ikkunan koossa ja tarkkuudessa. Esittelyt piirtyvät katsojan omalla
+näytönohjaimella, joten video on WebGPU-laatuinen ja reaaliaikainen. Ne näyttävät tasot sellaisina kuin ne on valittu.
+Esc lopettaa.
 
 Osoitteen perään voi lisätä `?webgl` (pakottaa WebGL2:n) tai `?varjot=0` (varjot pois). Tallennetun näkymän linkki
 (Näkymä-välilehden 🔗) kuljettaa näkymän osoitteen `#v=`-osassa, joten se toimii missä tahansa selaimessa.

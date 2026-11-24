@@ -9829,100 +9829,172 @@
     window.addEventListener('keydown', function(e){ var tg = e.target; if (tg && /^(INPUT|SELECT|TEXTAREA)$/.test(tg.tagName)) return; if (e.key === 'Escape' && !hs.hidden) set(false); else if (e.key === '?') set(hs.hidden); });
   })();
 
-  // ---------- the presentation (Näkymä: ▶ Esittely, ⏺ Tallenna esittelyvideo): about a minute of the model at its best,
-  // played by the page itself so it runs at the speed of the viewer's own graphics. Six scenes: a flight in over the lake,
-  // the house moved with its distances, the day turning to night, the roof off, the ground opened, and the evening.
-  // The panel and the buttons are hidden meanwhile; Esc ends it. Recording draws each frame of the 3D view with the
-  // captions and the distances on a canvas of its own and saves it as a video file (MP4 where the browser can, else WebM) ----------
-  var demo = {on:false, i:-1, t0:0, rec:null, back:null}, demoCap = document.getElementById('demo-cap'), demoFade = document.getElementById('demo-fade');
+  // ---------- the presentations (the icons over the 3D view, and the Näkymä tab): five short films of the model, played by
+  // the page itself at the speed of the viewer's own graphics. Each is a few scenes with a caption; the panel and the
+  // buttons are hidden meanwhile and Esc ends it. They show the layers as they are set: what is turned off stays off.
+  // With ⏺ on, the film is recorded: each frame of the 3D view with the captions and the distances is drawn on a canvas
+  // of its own and saved as a video file (MP4 where the browser can, else WebM) ----------
+  var demo = {on:false, i:-1, t0:0, rec:null, back:null, list:null, len:0, wantRec:false, recOn:false}, demoCap = document.getElementById('demo-cap'), demoFade = document.getElementById('demo-fade');
   var MEAS_DRAW = [];
   var easeIO = function(u){ u = clamp(u, 0, 1); return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2; };
   var lerp = function(a, b, u){ return a + (b - a) * u; };
+  var D2R = Math.PI / 180;
   function demoBase(){
     var HH = DATA.houses[houseSel], c = mean4(HH.corners), sy = world.scale.y || 1, hv = homeView();
     var T = new THREE.Vector3(c[0], Y(HH.floor) * sy, c[1]), P = new THREE.Vector3(hv.p[0], hv.p[1] * sy, hv.p[2]), d = P.clone().sub(new THREE.Vector3(hv.t[0], hv.t[1] * sy, hv.t[2]));
     var L = d.length();
-    return {T:T, dist:L, el:Math.asin(d.y / L), az:Math.atan2(d.x, d.z), sy:sy, c:c};
+    return {T:T, dist:L, el:Math.asin(d.y / L), az:Math.atan2(d.x, d.z), sy:sy, c:c, floor:HH.floor};
   }
   // the camera round a target: distance, elevation above the horizon and azimuth (radians)
   function demoCam(T, dist, el, az){
     camera.position.set(T.x + dist * Math.cos(el) * Math.sin(az), T.y + dist * Math.sin(el), T.z + dist * Math.cos(el) * Math.cos(az));
     controls.target.copy(T); tween = null; camSync();
   }
-  var D2R = Math.PI / 180;
-  var DEMO = [
-    {dur:9, cap:['Hiidenranta · Ali-Haakkointie 1', 'Talo ja tontti mittatarkkana 3D-mallina'],
-      step:function(u, B){ var e = easeIO(u); demoCam(B.T, lerp(560, B.dist, e), lerp(32 * D2R, B.el, e), lerp(B.az + 1.4, B.az, e)); }},
-    {dur:11, cap:['Rakennusten sijoittelu', 'Etäisyydet rajoihin ja autotalliin päivittyvät siirrettäessä'],
-      enter:function(){ selSet('house'); },
+  // the camera at an eye (x, z and its level), turned to yaw (the look-around's sense) and pitch
+  function demoEye(x, z, lev, yaw, pitch){
+    var sy = world.scale.y || 1, cp = Math.cos(pitch || 0);
+    camera.position.set(x, Y(lev) * sy, z);
+    controls.target.set(x - Math.sin(yaw) * cp * 0.6, Y(lev) * sy + Math.sin(pitch || 0) * 0.6, z - Math.cos(yaw) * cp * 0.6); tween = null; camSync();
+  }
+  var DV3 = function(x, y, z){ return new THREE.Vector3(x, y, z); };
+  function setTod(h){ tod = h; applyTime(); }
+  // ----- the scenes the films are made of -----
+  var SC = {
+    flyIn:function(dur){ return {dur:dur, cap:['Hiidenranta · Ali-Haakkointie 1', 'Talo ja tontti mittatarkkana 3D-mallina'],
+      enter:function(){ setTod(13); },
+      step:function(u, B){ var e = easeIO(u); demoCam(B.T, lerp(520, B.dist, e), lerp(30 * D2R, B.el, e), lerp(B.az + 1.3, B.az, e)); }}; },
+    dayToNight:function(dur){ return {dur:dur, cap:['Päivästä yöhön', ''], time:true,
       step:function(u, B){
-        var e = easeIO(u / 0.15); demoCam(B.T, lerp(B.dist, 52, e), lerp(B.el, 60 * D2R, e), B.az + 0.25 * e + 0.12 * u);
+        demoCam(DV3(B.T.x, B.T.y + 1.5, B.T.z), 34, 20 * D2R, B.az + Math.PI + 0.35 - 0.35 * u);
+        setTod(lerp(11, 23.4, easeIO(clamp((u - 0.05) / 0.9, 0, 1))));
+      }}; },
+    eveningOrbit:function(dur){ return {dur:dur, cap:['Ilta', 'Ulkovalot, takka ja allas'],
+      enter:function(){ setTod(22.4); },
+      step:function(u, B){ demoCam(DV3(B.T.x, B.T.y + 1, B.T.z), lerp(44, 36, easeIO(u)), lerp(24, 16, u) * D2R, B.az + Math.PI - 1.1 + 1.5 * u); }}; },
+    // along the terrace to the pergola in the late evening: the outdoor fire and the tub lit, then up over the pergola
+    pergola:function(dur){ return {dur:dur, cap:['Pergolalla', 'Ulkotakka ja allas illalla'],
+      enter:function(){ setTod(22.6); },
+      step:function(u, B){
+        // from the lawn on the lake side: the tub and the outdoor fire in view, closer, then up over the pergola
+        var F = houseFrame(DATA.houses[houseSel].corners), lx = -F.a[0], lz = -F.a[1], bx = F.b[0], bz = F.b[1];
+        var tc = TUB ? TUB.c : [B.c[0] + lx * (F.ha + 2), B.c[1] + lz * (F.ha + 2)], fc = OFIRE ? OFIRE.c : tc;
+        var fo = Math.hypot(fc[0] - tc[0], fc[1] - tc[1]) < 9 ? [(tc[0] + fc[0]) / 2, (tc[1] + fc[1]) / 2] : tc;
+        var sd = (fo[0] - B.c[0]) * bx + (fo[1] - B.c[1]) * bz >= 0 ? 1 : -1;
+        var e = easeIO(clamp(u / 0.7, 0, 1)), up = easeIO(clamp((u - 0.62) / 0.38, 0, 1)), sy = B.sy;
+        var out = lerp(10.5, 4.8, e) + up * 2, side = lerp(5, 1.8, e) * sd;
+        camera.position.set(fo[0] + lx * out + bx * side, Y(B.floor + lerp(1.8, 1.35, e) + up * 5) * sy, fo[1] + lz * out + bz * side);
+        controls.target.set(fo[0], Y(B.floor + 0.7 - up * 0.3) * sy, fo[1]); tween = null; camSync();
+      }}; },
+    // the roof lifts off, the camera goes down into the living room and turns round in it
+    inside:function(dur){ return {dur:dur, cap:['Sisälle', 'Katto pois ja olohuoneeseen'],
+      enter:function(){ setTod(20.9); state.roof = false; syncLayerUI(); applyLayers(); demo.roofIn = false; },
+      step:function(u, B){
+        var HH = DATA.houses[houseSel], pm = HH.plan2d && HH.plan2d.pm, Pl = PRE.filter(function(x){ return x.id === 'living'; })[0];
+        var A = B.c, yaw0 = B.az + Math.PI;
+        if (pm && Pl) { var PB = houseSel === '132' && place.plan === 'b' && Pl.b ? Pl.b : Pl, a = pm.pt(PB.p[0], PB.p[1]), q = pm.pt(PB.q[0], PB.q[1]); A = a; yaw0 = Math.atan2(-(q[0] - a[0]), -(q[1] - a[1])); }
+        var eye = B.floor + 1.55, sy = B.sy;
+        if (u < 0.22) { demoCam(B.T, lerp(32, 24, easeIO(u / 0.22)), 78 * D2R, B.az - 0.25 + 0.4 * u); return; }
+        if (u < 0.45) {
+          // down from above the house to the eye in the living room
+          var w = easeIO((u - 0.22) / 0.23), P0 = DV3(B.T.x + 24 * Math.cos(78 * D2R) * Math.sin(B.az - 0.16), B.T.y + 24 * Math.sin(78 * D2R), B.T.z + 24 * Math.cos(78 * D2R) * Math.cos(B.az - 0.16));
+          var P1 = DV3(A[0], Y(eye) * sy, A[1]), T1 = DV3(A[0] - Math.sin(yaw0) * 0.6, Y(eye - 0.05) * sy, A[1] - Math.cos(yaw0) * 0.6);
+          camera.position.lerpVectors(P0, P1, w); controls.target.lerpVectors(B.T, T1, Math.min(1, w * 1.3)); tween = null; camSync();
+          if (!demo.roofIn && camera.position.y < Y(B.floor + 2.4) * sy) { demo.roofIn = true; state.roof = true; syncLayerUI(); applyLayers(); }
+          return;
+        }
+        if (!demo.roofIn) { demo.roofIn = true; state.roof = true; syncLayerUI(); applyLayers(); }
+        demoEye(A[0], A[1], eye, yaw0 + easeIO((u - 0.45) / 0.55) * Math.PI * 1.6, -0.06);
+      },
+      exit:function(){ state.roof = true; syncLayerUI(); applyLayers(); }}; },
+    moveHouse:function(dur){ return {dur:dur, cap:['Talon paikka', 'Etäisyydet rajoihin ja autotalliin päivittyvät'],
+      enter:function(){ setTod(13); selSet('house'); },
+      step:function(u, B){
+        var e = easeIO(u / 0.18); demoCam(B.T, lerp(B.dist, 50, e), lerp(B.el, 60 * D2R, e), B.az + 0.25 * e + 0.1 * u);
         var w = clamp((u - 0.15) / 0.8, 0, 1), F = houseFrame(DATA.houses[houseSel].corners), s = 2.6 * Math.sin(w * Math.PI * 2);
         var d = clampMove('house', [F.b[0] * s, F.b[1] * s]);
         sel.drag = {id:-1, lev:floorOf('house'), p0:[0, 0], d:d};
         Object.keys(houseGroups).forEach(function(k){ houseGroups[k].position.set(d[0], 0, d[1]); }); selBox.position.set(d[0], 0, d[1]);
       },
-      exit:function(){ sel.drag = null; Object.keys(houseGroups).forEach(function(k){ houseGroups[k].position.set(0, 0, 0); }); selBox.position.set(0, 0, 0); selClear(); }},
-    {dur:13, cap:['Vuorokaudenaika', ''], time:true,
-      enter:function(){ tod = 10.5; applyTime(); },
+      exit:function(){ sel.drag = null; Object.keys(houseGroups).forEach(function(k){ houseGroups[k].position.set(0, 0, 0); }); selBox.position.set(0, 0, 0); selClear(); }}; },
+    moveGarage:function(dur){ return {dur:dur, cap:['Autotallin paikka', 'Väli taloon näkyy siirrettäessä'],
+      enter:function(){ setTod(13); if (GAR) selSet('gar'); },
       step:function(u, B){
-        demoCam(new THREE.Vector3(B.T.x, B.T.y + 1.5, B.T.z), 36, 21 * D2R, B.az + Math.PI + 0.35 - 0.3 * u);
-        tod = lerp(10.5, 23.4, easeIO(clamp((u - 0.06) / 0.88, 0, 1))); applyTime();
-      }},
-    {dur:9, cap:['Katto pois', 'Sisätilat kalustettuina, valot ja takka'],
-      enter:function(){ tod = 13.5; applyTime(); state.roof = false; syncLayerUI(); applyLayers(); },
-      step:function(u, B){ demoCam(B.T, lerp(30, 23, easeIO(u)), lerp(80, 66, easeIO(u)) * D2R, B.az - 0.2 + 0.55 * u); },
-      exit:function(){ state.roof = true; syncLayerUI(); applyLayers(); }},
-    {dur:10, cap:['Maan alla', 'Perustus, paalut ja kairaukset'],
+        if (!GAR || !GAR.F) return;
+        var G = GAR.F, T = DV3(G.c[0], Y(GAR.Fz) * B.sy, G.c[1]);
+        demoCam(T, lerp(44, 38, easeIO(u)), 58 * D2R, B.az + 0.4 - 0.15 * u);
+        var w = clamp((u - 0.1) / 0.85, 0, 1), s = 2.4 * Math.sin(w * Math.PI * 2);
+        var d = clampMove('gar', [G.r[0] * s, G.r[1] * s]), grp = objGroup('gar');
+        sel.drag = {id:-1, lev:floorOf('gar'), p0:[0, 0], d:d};
+        if (grp) grp.position.set(d[0], 0, d[1]); selBox.position.set(d[0], 0, d[1]);
+      },
+      exit:function(){ sel.drag = null; var grp = objGroup('gar'); if (grp) grp.position.set(0, 0, 0); selBox.position.set(0, 0, 0); selClear(); }}; },
+    // the house's level up and down: the floor and the yard round it follow, the asphalt and the garage with them
+    levels:function(dur){ var STEPS = [0.9, -0.5, 0.4]; return {dur:dur, cap:['Talon korko', ''], level:true,
+      enter:function(){ setTod(14); demo.dz0 = place.bld.house.dz || 0; demo.lvI = -1; demo.lv = demo.dz0; },
+      step:function(u, B){
+        demoCam(DV3(B.T.x, B.T.y - 0.6, B.T.z), lerp(26, 22, easeIO(u)), lerp(11, 8, u) * D2R, B.az + Math.PI + 0.45 - 0.2 * u);
+        var k = Math.min(STEPS.length - 1, Math.floor(clamp((u - 0.12) / 0.8, 0, 0.999) * STEPS.length));
+        if (u >= 0.12 && k !== demo.lvI) { demo.lvI = k; demo.lv = demo.dz0 + STEPS[k]; place.bld.house.dz = demo.lv; regradeNow(); }
+      },
+      exit:function(){ if (demo.lvI >= 0) { place.bld.house.dz = demo.dz0; regradeNow(); } }}; },
+    underground:function(dur){ return {dur:dur, cap:['Maan alla', 'Perustus, paalut ja kairaukset'],
       enter:function(){ soilView(); controls.enabled = false; },
       step:function(u, B){
         var c = PLOTC.reduce(function(a, p){ return [a[0] + p[0] / PLOTC.length, a[1] + p[1] / PLOTC.length]; }, [0, 0]);
-        demoCam(new THREE.Vector3(c[0], Y(37) * B.sy, c[1]), lerp(105, 88, easeIO(u)), 17 * D2R, Math.atan2(AX.rx * 66 - AX.ux * 30, AX.rz * 66 - AX.uz * 30) - 0.35 + 0.6 * u);
+        demoCam(DV3(c[0], Y(37) * B.sy, c[1]), lerp(100, 86, easeIO(u)), 17 * D2R, Math.atan2(AX.rx * 66 - AX.ux * 30, AX.rz * 66 - AX.uz * 30) - 0.3 + 0.55 * u);
       },
-      exit:function(){ soilExit(true); }},
-    {dur:7, cap:['Hiidenranta', 'Ali-Haakkointie 1, Vihti'],
-      enter:function(){ tod = 21.6; applyTime(); },
-      step:function(u, B){ var e = easeIO(u); demoCam(B.T, lerp(B.dist * 0.9, 170, e), lerp(B.el, 30 * D2R, e), B.az - 0.5 * e); }}
+      exit:function(){ soilExit(true); }}; },
+    outro:function(dur, h){ return {dur:dur, cap:['Hiidenranta', 'Ali-Haakkointie 1, Vihti'],
+      enter:function(){ setTod(h || 21.6); },
+      step:function(u, B){ var e = easeIO(u); demoCam(B.T, lerp(B.dist * 0.85, 160, e), lerp(B.el, 30 * D2R, e), B.az - 0.5 * e); }}; }
+  };
+  // ----- the five films -----
+  var DEMOS = [
+    {id:'day', name:'Päivästä yöhön', scenes:function(){ return [SC.flyIn(5), SC.dayToNight(6.5), SC.eveningOrbit(5), SC.outro(3.5, 22)]; }},
+    {id:'evening', name:'Ilta pergolalla', scenes:function(){ return [SC.eveningOrbit(4.5), SC.pergola(10), SC.outro(3.5, 22.6)]; }},
+    {id:'inside', name:'Sisälle', scenes:function(){ return [SC.inside(15), SC.outro(3.5, 21)]; }},
+    {id:'place', name:'Sijoittelu', scenes:function(){ return [SC.moveHouse(7.5), SC.moveGarage(7), SC.outro(3)]; }},
+    {id:'levels', name:'Korot ja perustus', scenes:function(){ return [SC.levels(9), SC.underground(7), SC.outro(3)]; }}
   ];
-  var demoLen = DEMO.reduce(function(a, s){ return a + s.dur; }, 0);
   function demoCaption(S, u){
-    var a = clamp(Math.min((u * S.dur - 0.5) / 0.6, (S.dur * (1 - u) - 0.3) / 0.5), 0, 1);
-    var sub = S.time ? todLabel(tod) : S.cap[1];
+    var a = clamp(Math.min((u * S.dur - 0.35) / 0.45, (S.dur * (1 - u) - 0.25) / 0.4), 0, 1);
+    var sub = S.time ? todLabel(tod) : S.level ? 'Korko ' + ((demo.lv || 0) > 0.001 ? '+' : (demo.lv || 0) < -0.001 ? '−' : '±') + fn(Math.abs(demo.lv || 0), 2) + ' m' : S.cap[1];
     return {a:a, t:S.cap[0], s:sub};
   }
-  function demoStart(record){
+  function demoStart(id, record){
     if (demo.on || sim.on) return;
+    var D = DEMOS.filter(function(x){ return x.id === id; })[0]; if (!D) return;
     soilExit(true); preDrop(); runStop(); secExit(); planExit(); aedExit(); selClear(); if (fp.on) fpQuiet();
-    var ly = {}; LAYER_KEYS.forEach(function(k){ ly[k] = state[k]; });
-    demo.back = {ly:ly, tod:tod, labels:state.labels, treeHide:treeHideD, cam:{p:camera.position.clone(), t:controls.target.clone()}, fov:camera.fov};
-    state.labels = 0; treeHideD = 0; treeUI(); syncLayerUI(); applyLayers();
+    demo.list = D.scenes(); demo.len = demo.list.reduce(function(a, s){ return a + s.dur; }, 0);
+    demo.back = {tod:tod, labels:state.labels, roof:state.roof, treeHide:treeHideD, cam:{p:camera.position.clone(), t:controls.target.clone()}, fov:camera.fov, md:controls.minDistance, inPov:inPov};
+    // trees between the camera and what it looks at are left out meanwhile, as in the drive home
+    state.labels = 0; treeHideD = 14; treeUI(); syncLayerUI(); applyLayers();
     fovT = null; camera.fov = 50; camera.updateProjectionMatrix();
-    controls.enabled = false; root.classList.add('cine', 'demo');
-    demo.on = true; demo.i = -1; demo.t0 = performance.now() + 400; demo.B = null;
-    demo.wantRec = !!record;   // the recording starts once the view has taken the whole window
+    controls.enabled = false; controls.minDistance = 0.01; inPov = true; root.classList.add('cine', 'demo');
+    demo.on = true; demo.i = -1; demo.t0 = performance.now() + 400; demo.wantRec = !!record;
   }
   function demoStop(){
     if (!demo.on) return;
-    var S = DEMO[demo.i]; if (S && S.exit) S.exit();
+    var S = demo.list[demo.i]; if (S && S.exit) S.exit();
     demo.on = false; demo.i = -1; root.classList.remove('cine', 'demo');
     if (demoCap) demoCap.hidden = true; if (demoFade) demoFade.style.opacity = 0;
     var B = demo.back;
-    LAYER_KEYS.forEach(function(k){ state[k] = B.ly[k]; }); state.labels = B.labels; treeHideD = B.treeHide; treeUI(); syncLayerUI(); applyLayers();
-    tod = B.tod; applyTime(); camera.fov = B.fov; camera.updateProjectionMatrix();
-    camera.position.copy(B.cam.p); controls.target.copy(B.cam.t); controls.enabled = true; controls.update();
+    state.labels = B.labels; state.roof = B.roof; treeHideD = B.treeHide; treeUI(); syncLayerUI(); applyLayers();
+    setTod(B.tod); camera.fov = B.fov; camera.updateProjectionMatrix(); inPov = B.inPov;
+    camera.position.copy(B.cam.p); controls.target.copy(B.cam.t); controls.minDistance = B.md; controls.enabled = true; controls.update();
     if (demo.rec) demoRecStop();
   }
   function demoStep(now){
-    var t = (now - demo.t0) / 1000;
+    var t = (now - demo.t0) / 1000, L = demo.list;
     if (t < 0) t = 0;
     if (demo.wantRec && now >= demo.t0) { demo.wantRec = false; demoRecStart(); }
-    if (t >= demoLen) { demoStop(); return; }
-    var acc = 0, i = 0; while (i < DEMO.length - 1 && t >= acc + DEMO[i].dur) { acc += DEMO[i].dur; i++; }
-    var S = DEMO[i], u = (t - acc) / S.dur;
-    if (i !== demo.i) { var P = DEMO[demo.i]; if (P && P.exit) P.exit(); demo.i = i; demo.B = demoBase(); if (S.enter) S.enter(); }
+    if (t >= demo.len) { demoStop(); return; }
+    var acc = 0, i = 0; while (i < L.length - 1 && t >= acc + L[i].dur) { acc += L[i].dur; i++; }
+    var S = L[i], u = (t - acc) / S.dur;
+    if (i !== demo.i) { var P = L[demo.i]; if (P && P.exit) P.exit(); demo.i = i; demo.B = demoBase(); if (S.enter) S.enter(); }
     S.step(u, demo.B);
-    // a short dip to black between the scenes
-    var tin = t - acc, tout = acc + S.dur - t, f = Math.max(i ? clamp(1 - tin / 0.35, 0, 1) : clamp(1 - tin / 0.8, 0, 1), i < DEMO.length - 1 ? clamp(1 - tout / 0.35, 0, 1) : clamp(1 - tout / 1.0, 0, 1));
+    // a short dip to black between the scenes, longer at the start and the end
+    var tin = t - acc, tout = acc + S.dur - t, f = Math.max(i ? clamp(1 - tin / 0.25, 0, 1) : clamp(1 - tin / 0.6, 0, 1), i < L.length - 1 ? clamp(1 - tout / 0.25, 0, 1) : clamp(1 - tout / 0.8, 0, 1));
     demo.fade = f; if (demoFade) demoFade.style.opacity = f.toFixed(3);
     var C = demoCaption(S, u); demo.cap = C;
     if (demoCap) {
@@ -9979,8 +10051,11 @@
     }
     if (demo.fade > 0) { g.fillStyle = 'rgba(0,0,0,' + demo.fade.toFixed(3) + ')'; g.fillRect(0, 0, W, H); }
   }
-  bindBtn('demo-play', function(){ demoStart(false); });
-  bindBtn('demo-rec', function(){ demoStart(true); });
+  // the buttons: an icon for each film over the 3D view and a row for each in the Näkymä tab; ⏺ turns recording on or off
+  function demoRecUI(){ document.querySelectorAll('[data-demorec]').forEach(function(b){ b.setAttribute('aria-pressed', String(demo.recOn)); }); }
+  document.querySelectorAll('[data-demo]').forEach(function(b){ b.addEventListener('click', function(){ demoStart(b.dataset.demo, demo.recOn); }); });
+  document.querySelectorAll('[data-demorec]').forEach(function(b){ b.addEventListener('click', function(){ demo.recOn = !demo.recOn; demoRecUI(); }); });
+  demoRecUI();
   window.addEventListener('keydown', function(e){ if (demo.on && e.key === 'Escape') { e.preventDefault(); demoStop(); } });
   ['pointerdown', 'wheel', 'touchstart'].forEach(function(ev){ view.addEventListener(ev, function(e){ if (demo.on) { e.stopPropagation(); e.preventDefault(); } }, {capture:true, passive:false}); });
 

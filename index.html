@@ -103,6 +103,16 @@ h1{margin:0;font-size:var(--fs-l);line-height:1.2;font-weight:600;letter-spacing
 .meas .mv.ac{background:var(--accent);color:var(--on-accent)}
 .meas .mv.wn{color:var(--boundary)}
 @media (prefers-reduced-motion:reduce){.meas{transition:none}}
+/* the presentations: icons under the look-around button */
+.demosw{left:12px;top:calc(12px + var(--ctl) + 8px);display:flex;align-items:center;gap:1px;padding:2px;background:var(--hud);border:1px solid var(--line);border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.demosw button{width:calc(var(--ctl) - 4px);height:calc(var(--ctl) - 4px);border:0;border-radius:50%;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0}
+.demosw button:hover{background:var(--accent-soft);color:var(--accent)}
+.demosw svg{width:18px;height:18px}
+.demosw .sep{width:1px;height:18px;background:var(--line);margin:0 3px}
+.demosw [data-demorec] .dot{opacity:0}
+.demosw [data-demorec][aria-pressed="true"]{color:#e0393e}
+.demosw [data-demorec][aria-pressed="true"] .dot{opacity:1}
+.app:has(.modebar:not([hidden])) .demosw,.app:has(.runbar:not([hidden])) .demosw{display:none}
 /* the short guide: a button at the bottom left (on a phone its icon only) and a small sheet */
 .helpbtn{left:12px;bottom:12px;display:flex;align-items:center;gap:6px;height:var(--ctl);padding:0 12px 0 10px;border-radius:999px;border:1px solid var(--line);background:var(--hud);color:var(--ink);font-size:var(--fs-s);font-weight:500;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .helpbtn svg{width:18px;height:18px;flex:none}
@@ -426,6 +436,7 @@ html.demo .viewer{border:0;border-radius:0}
   .tabs button{padding:0 6px}
   .pane{padding-inline:16px}
   .modesw{left:10px;top:calc(10px + env(safe-area-inset-top,0px))}
+  .demosw{left:10px;top:calc(10px + var(--ctl) + 8px + env(safe-area-inset-top,0px))}
   .compass{right:10px;top:calc(10px + env(safe-area-inset-top,0px));width:40px;height:40px} .compass svg{width:40px;height:40px}
   .camctl{right:10px;top:calc(58px + env(safe-area-inset-top,0px));bottom:auto}
   .camctl.flat{top:auto;bottom:calc(var(--sheetB,0px) + 12px + env(safe-area-inset-bottom,0px))}
@@ -462,6 +473,7 @@ html.demo .viewer{border:0;border-radius:0}
         <button type="button" class="fp-tg" data-mode="fp" aria-pressed="false" title="Katsele ympärille"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Katsele</span></button>
         <label class="fp-hrow" id="fp-hrow" hidden title="Silmien korkeus maasta tai lattiasta"><input type="range" id="fp-h" min="0" max="1" step="0.002" value="0.1" aria-label="Silmien korkeus"><span class="num" id="fp-hv">1,7 m</span></label>
       </div>
+      <div class="ov demosw" id="demosw" role="group" aria-label="Esittelyt"><button type="button" data-demo="day" title="Esittely: Päivästä yöhön" aria-label="Esittely: Päivästä yöhön"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/><path d="M12 7.5a4.5 4.5 0 1 0 4.5 4.5A3.4 3.4 0 0 1 12 7.5z"/></svg></button><button type="button" data-demo="evening" title="Esittely: Ilta pergolalla" aria-label="Esittely: Ilta pergolalla"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c.8 3.2 4.5 5 4.5 9.5a4.5 4.5 0 0 1-9 0c0-2.4 1.2-3.8 2.4-4.8 0 1.7.9 2.8 2.1 3-.1-2.8-.9-5.1 0-7.7z"/><path d="M6 21h12"/></svg></button><button type="button" data-demo="inside" title="Esittely: Sisälle" aria-label="Esittely: Sisälle"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 11V8.5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2V11"/><path d="M3.5 13a1.75 1.75 0 0 1 3.5 0v2h10v-2a1.75 1.75 0 0 1 3.5 0v4.5h-17z"/><path d="M5.5 17.5v2M18.5 17.5v2"/></svg></button><button type="button" data-demo="place" title="Esittely: Sijoittelu" aria-label="Esittely: Sijoittelu"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"/><path d="M9.5 5.5 12 3l2.5 2.5M9.5 18.5 12 21l2.5-2.5M5.5 9.5 3 12l2.5 2.5M18.5 9.5 21 12l-2.5 2.5"/></svg></button><button type="button" data-demo="levels" title="Esittely: Korot ja perustus" aria-label="Esittely: Korot ja perustus"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 19h17"/><path d="M8 15V5M5 8l3-3 3 3"/><path d="M16 5v10M13 12l3 3 3-3"/></svg></button><span class="sep" aria-hidden="true"></span><button type="button" data-demorec aria-pressed="false" title="Tallenna esittely videoksi" aria-label="Tallenna esittely videoksi"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle class="dot" cx="12" cy="12" r="3.6" fill="currentColor"/></svg></button></div>
       <div class="ov badge" id="badge" hidden></div>
       <button type="button" class="ov helpbtn" id="help-btn" aria-expanded="false" aria-controls="help-sheet" title="Ohje (?)"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg><span>Ohje</span></button>
       <div class="ov helpsheet" id="help-sheet" role="dialog" aria-label="Ohje" hidden>
@@ -707,8 +719,13 @@ html.demo .viewer{border:0;border-radius:0}
           </div>
         </div>
         <div class="grp">
+          <h3>Esittelyt</h3>
+          <div class="views"><button type="button" class="btn" data-demo="day">Päivästä yöhön</button><button type="button" class="btn" data-demo="evening">Ilta pergolalla</button><button type="button" class="btn" data-demo="inside">Sisälle</button><button type="button" class="btn" data-demo="place">Sijoittelu</button><button type="button" class="btn" data-demo="levels">Korot ja perustus</button></div>
+          <button type="button" class="tg" data-demorec aria-pressed="false"><span class="tl">Tallenna esittely videoksi</span><span class="track"></span></button>
+          <p class="note">Esittely näyttää tasot sellaisina kuin ne on valittu. Esc lopettaa.</p>
+        </div>
+        <div class="grp">
           <h3>Simulaatio ja kuva</h3>
-          <div class="btnrow b2"><button type="button" class="btn" id="demo-play" title="Noin minuutin esittely mallista; Esc lopettaa">▶ Esittely</button><button type="button" class="btn" id="demo-rec" title="Esittely tallennetaan videotiedostoksi tämän ikkunan koossa">⏺ Tallenna video</button></div>
           <button type="button" class="btn center" id="sim-tesla">▶ Tesla Model 3 ajaa kotiin</button>
           <button type="button" class="btn" id="shot">Tallenna kuva nykyisestä näkymästä</button>
           <p class="gaps num" id="v-msg" role="status" hidden></p>
